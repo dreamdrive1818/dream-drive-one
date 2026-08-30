@@ -1,0 +1,39 @@
+/* Blogpage.css */
+.blogpage-container {
+    max-width: 1200px;
+    margin: 4rem auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+  }
+  
+  .blogpage-container h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+  
+  .blog-category {
+    margin-bottom: 20px;
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .blog-category span {
+    margin-right: 20px;
+  }
+  
+  .blog-image {
+    width: 50%;
+    height: auto;
+    margin: 20px 0;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+  
+  .blog-content {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #333;
+  }
+  

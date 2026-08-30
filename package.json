@@ -1,0 +1,34 @@
+{
+  "name": "dream-drive-ms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dream-Drive car rental platform — NestJS microservices, Next.js web/admin, Expo mobile",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run start:dev --filter=@dream-drive/gateway --filter=@dream-drive/identity-service --filter=@dream-drive/catalog-service --filter=@dream-drive/booking-service --filter=@dream-drive/payment-service --filter=@dream-drive/document-service --filter=@dream-drive/fleet-service --filter=@dream-drive/partner-service --filter=@dream-drive/notification-service --filter=@dream-drive/platform-service --filter=@dream-drive/worker --filter=@dream-drive/web --filter=@dream-drive/admin",
+    "dev:gateway": "npm run start:dev --workspace=@dream-drive/gateway",
+    "dev:api": "npm run start:dev --workspace=@dream-drive/gateway",
+    "dev:web": "npm run start:dev --workspace=@dream-drive/web",
+    "dev:admin": "npm run start:dev --workspace=@dream-drive/admin",
+    "dev:worker": "npm run start:dev --workspace=@dream-drive/worker",
+    "dev:socket": "npm run start:dev --workspace=@dream-drive/socket",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "db:generate": "npm run generate --workspace=@dream-drive/database",
+    "db:migrate": "npm run migrate --workspace=@dream-drive/database",
+    "db:push": "npm run push --workspace=@dream-drive/database",
+    "db:seed": "npm run seed --workspace=@dream-drive/database",
+    "docker:up": "docker compose up -d"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

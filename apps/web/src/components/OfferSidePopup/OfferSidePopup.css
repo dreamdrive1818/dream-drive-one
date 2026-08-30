@@ -1,0 +1,449 @@
+/* OfferSidePopup.css */
+
+/* ===========================
+   Side Offer Popup + Santa Theme
+=========================== */
+
+.offer-pop {
+  position: fixed;
+  right: 18px;
+  bottom: 180px;
+  width: 330px;
+  max-width: calc(100vw - 36px);
+  border-radius: 18px;
+  padding: 18px 18px 16px 18px;
+  z-index: 999999;
+
+  transform: translateX(140%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 420ms ease, opacity 320ms ease;
+
+  overflow: hidden;
+}
+
+.offer-pop--open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.offer-pop__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.86);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  z-index: 3;
+}
+
+.offer-pop__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(10px);
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.offer-pop__badgeText {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+.offer-pop__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 950;
+  position: relative;
+  z-index: 2;
+}
+
+.offer-pop__percent {
+  margin-left: 6px;
+  font-weight: 950;
+}
+
+.offer-pop__subtitle {
+  margin: 8px 0 12px 0;
+  font-size: 14px;
+  opacity: 0.9;
+  line-height: 1.5;
+  position: relative;
+  z-index: 2;
+}
+
+.offer-pop__divider {
+  height: 1px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.35);
+  margin: 10px 0 12px 0;
+  position: relative;
+  z-index: 2;
+}
+
+.offer-pop__points {
+  margin: 0;
+  padding-left: 18px;
+  opacity: 0.95;
+  font-size: 13.5px;
+  line-height: 1.65;
+  position: relative;
+  z-index: 2;
+}
+
+.offer-pop__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  position: relative;
+  z-index: 2;
+}
+
+.offer-pop__cta {
+  flex: 1;
+  border: none;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-weight: 900;
+  font-size: 14px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.15);
+}
+
+.offer-pop__ghost {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-weight: 900;
+  font-size: 14px;
+}
+
+/* ---------------------------
+   CHRISTMAS THEME
+---------------------------- */
+.offer-pop--christmas {
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+
+  /* festive gradient + subtle candy cane stripe */
+  background:
+    linear-gradient(135deg, rgba(15, 138, 75, 0.92), rgba(215, 38, 61, 0.92)),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.06) 0px,
+      rgba(255, 255, 255, 0.06) 10px,
+      rgba(0, 0, 0, 0) 10px,
+      rgba(0, 0, 0, 0) 20px
+    );
+
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.offer-pop--christmas .offer-pop__cta {
+  background: #ffffff;
+  color: #0f8a4b;
+}
+
+.offer-pop--christmas .offer-pop__cta:hover {
+  filter: brightness(0.96);
+}
+
+.offer-pop--christmas .offer-pop__percent {
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+/* pulse */
+.offer-pop--christmas.offer-pop--open {
+  animation: offerPopPulse 1.35s ease-in-out infinite;
+}
+
+@keyframes offerPopPulse {
+  0%   { transform: translateX(0) scale(1); }
+  50%  { transform: translateX(0) scale(1.01); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+/* ---------------------------
+   Snowfall overlay (CSS only)
+---------------------------- */
+.offer-pop__snow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.75;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.85) 1px, transparent 2px),
+    radial-gradient(circle, rgba(255,255,255,0.55) 1px, transparent 2px),
+    radial-gradient(circle, rgba(255,255,255,0.7) 1px, transparent 2px);
+  background-size: 140px 140px, 220px 220px, 180px 180px;
+  background-position: 0 0, 40px 20px, 80px 60px;
+  animation: snowFall 6.5s linear infinite;
+  filter: blur(0.2px);
+}
+
+@keyframes snowFall {
+  0% { transform: translateY(-20px); }
+  100% { transform: translateY(120px); }
+}
+
+/* ---------------------------
+   Santa (CSS shapes)
+---------------------------- */
+.offer-pop__santa {
+  position: absolute;
+  right: 56px;
+  top: 10px;
+  width: 54px;
+  height: 54px;
+  z-index: 2;
+  opacity: 0.95;
+}
+
+.offer-pop__santaHat {
+  position: absolute;
+  left: 6px;
+  top: 0px;
+  width: 42px;
+  height: 26px;
+  background: #d7263d;
+  border-radius: 18px 18px 10px 10px;
+  transform: rotate(-12deg);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+}
+.offer-pop__santaHat::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  bottom: -6px;
+  width: 42px;
+  height: 12px;
+  background: #fff;
+  border-radius: 999px;
+  opacity: 0.95;
+}
+.offer-pop__santaHat::after {
+  content: "";
+  position: absolute;
+  right: -5px;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 999px;
+}
+
+.offer-pop__santaHead {
+  position: absolute;
+  left: 14px;
+  top: 22px;
+  width: 26px;
+  height: 26px;
+  background: #ffd7b3;
+  border-radius: 999px;
+}
+
+.offer-pop__santaBeard {
+  position: absolute;
+  left: 10px;
+  top: 30px;
+  width: 34px;
+  height: 28px;
+  background: #fff;
+  border-radius: 0 0 22px 22px;
+  opacity: 0.95;
+}
+
+/* ---------------------------
+   Tree (CSS shapes)
+---------------------------- */
+.offer-pop__tree {
+  position: absolute;
+  left: 10px;
+  top: 12px;
+  width: 54px;
+  height: 64px;
+  z-index: 2;
+  opacity: 0.95;
+}
+
+.offer-pop__treeStar {
+  position: absolute;
+  left: 18px;
+  top: -2px;
+  width: 18px;
+  height: 18px;
+  background: #ffd166;
+  transform: rotate(45deg);
+  border-radius: 4px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+}
+.offer-pop__treeStar::before,
+.offer-pop__treeStar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #ffd166;
+  border-radius: 4px;
+}
+.offer-pop__treeStar::before { transform: rotate(90deg); }
+.offer-pop__treeStar::after { transform: rotate(180deg); }
+
+.offer-pop__treeBody {
+  position: absolute;
+  left: 8px;
+  top: 12px;
+  width: 0;
+  height: 0;
+  border-left: 19px solid transparent;
+  border-right: 19px solid transparent;
+  border-bottom: 34px solid rgba(6, 76, 42, 0.95);
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,0.2));
+}
+.offer-pop__treeBody::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  top: 14px;
+  width: 0;
+  height: 0;
+  border-left: 22px solid transparent;
+  border-right: 22px solid transparent;
+  border-bottom: 34px solid rgba(9, 104, 56, 0.95);
+}
+.offer-pop__treeBody::after {
+  content: "";
+  position: absolute;
+  left: -26px;
+  top: 30px;
+  width: 0;
+  height: 0;
+  border-left: 26px solid transparent;
+  border-right: 26px solid transparent;
+  border-bottom: 38px solid rgba(15, 138, 75, 0.95);
+}
+
+.offer-pop__treeTrunk {
+  position: absolute;
+  left: 22px;
+  bottom: 0px;
+  width: 12px;
+  height: 14px;
+  background: rgba(90, 52, 24, 0.95);
+  border-radius: 4px;
+}
+
+/* ---------------------------
+   Minimized FAB (Santa button)
+---------------------------- */
+.snow-fab {
+  position: fixed;
+  right: 28px;
+  bottom: 180px;
+  width: 66px;
+  height: 66px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  background: linear-gradient(135deg, rgba(215, 38, 61, 0.95), rgba(15, 138, 75, 0.95));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  font-size: 26px;
+  display: grid;
+  place-items: center;
+  z-index: 999999;
+  animation: snowBob 1.6s ease-in-out infinite;
+  color: #fff;
+}
+
+@keyframes snowBob {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+/* little “hat brim” on FAB */
+.snow-fab--christmas {
+  position: fixed;
+}
+.snow-fab--christmas::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 14px;
+  width: 38px;
+  height: 12px;
+  background: rgba(255,255,255,0.95);
+  border-radius: 999px;
+  transform: rotate(-12deg);
+  opacity: 0.9;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .offer-pop {
+    right: 12px;
+    bottom: 92px;
+    width: min(330px, calc(100vw - 24px));
+  }
+  .snow-fab {
+    right: 20px;
+    bottom: 160px;
+  }
+}
+
+/* Santa PNG inside popup */
+.offer-pop__santaImg{
+  position: absolute;
+  right: 36px;
+  top: 6px;
+
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+
+  z-index: 2;
+  pointer-events: none;
+  user-select: none;
+
+  filter: drop-shadow(0 14px 18px rgba(0,0,0,0.25));
+  animation: popSantaFloat 2.2s ease-in-out infinite;
+  transform-origin: 50% 70%;
+}
+
+/* small floating + tiny wiggle */
+@keyframes popSantaFloat{
+  0%   { transform: translateY(0) rotate(0deg); }
+  35%  { transform: translateY(-4px) rotate(-1.5deg); }
+  65%  { transform: translateY(-2px) rotate(1.5deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px){
+  .offer-pop__santaImg{
+    width: 66px;
+    height: 66px;
+    right: 10px;
+    top: 8px;
+  }
+}

@@ -1,0 +1,156 @@
+.blogpage-wrapper {
+  display: flex;
+  gap: 2rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  flex-wrap: wrap;
+}
+
+.blogpage-content-container {
+  flex: 3;
+  background: #fff;
+  padding: 2.5rem;
+  border-radius: 10px;
+  overflow-x: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+}
+
+.blogpage-sidebar {
+  flex: 1;
+  min-width: 280px;
+  max-width: 350px;
+}
+
+.back-btn {
+  background: var(--accent-color);
+  border: none;
+  padding: 8px 14px;
+  border-radius: 5px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  margin-bottom: 1.2rem;
+}
+
+.category-tag {
+  display: inline-block;
+  background: #ffe08a;
+  padding: 5px 12px;
+  border-radius: 30px;
+  font-weight: bold;
+  color: #5a3e00;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.blog-title {
+  font-size: 2.8rem;
+  color: #222;
+  margin: 0.5rem 0;
+}
+
+.blog-meta {
+  color: #666;
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+.blog-toc {
+  background: #f7f7f7;
+  border-left: 4px solid var(--accent-color);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.blog-toc h3 {
+  margin-bottom: 1rem;
+  font-size: 1.8rem;
+  color: #8a5e00;
+}
+
+.blog-toc ul {
+  list-style: none;
+  padding: 0;
+}
+
+.blog-toc li {
+  font-size: 1.25rem;
+  margin-bottom: 0.8rem;
+}
+
+.blog-toc li a {
+  color: #0077cc;
+  text-decoration: none;
+}
+
+.blog-toc li a:hover {
+  text-decoration: underline;
+}
+
+.blog-cover-image {
+  max-width: 88rem;
+  max-height: 45rem;
+  margin-bottom: 2rem;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.blog-body {
+  font-size: 1.4rem;
+  color: #333;
+  line-height: 2;
+}
+
+.blog-body h1,
+.blog-body h2,
+.blog-body h3 {
+  font-weight: bold;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  color: #222;
+}
+
+.blog-body blockquote {
+  border-left: 4px solid #ffd966;
+  background: #fffbea;
+  padding: 1rem 1.5rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: #555;
+  border-radius: 4px;
+}
+
+.blog-body code {
+  background: #f4f4f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .blogpage-wrapper {
+    flex-direction: column;
+    padding: 1rem 0;
+  }
+
+  .blogpage-content-container,
+  .blogpage-sidebar {
+    width: 100%;
+  }
+
+  .blogpage-content-container{
+    padding: 2rem 1.5rem;
+  }
+
+  .blog-title {
+    font-size: 2rem;
+  }
+
+  .blog-cover-image{
+    width: 100%;
+    height: 20rem;
+  }
+}

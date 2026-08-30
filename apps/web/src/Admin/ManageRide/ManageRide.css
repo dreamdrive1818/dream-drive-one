@@ -1,0 +1,248 @@
+.manage-rides {
+  padding: 3rem 2rem;
+  max-width: 1280px;
+  margin: auto;
+  background-color: var(--dark-bg);
+  font-family: var(--font-family-main);
+  color: var(--text-light);
+}
+
+.manage-rides h2 {
+  font-size: 2.8rem;
+  margin-bottom: 2rem;
+  font-weight: 700;
+  color: var(--text-light);
+  border-left: 6px solid var(--primary-color);
+  padding-left: 1rem;
+}
+
+.manage-rides table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+  font-size: 1.4rem;
+}
+
+.manage-rides thead {
+  background-color: var(--dark-bg);
+}
+
+.manage-rides th {
+  text-align: left;
+  padding: 1.2rem 1.5rem;
+  color: var(--text-light);
+  font-size: 1.6rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--accent-color);
+}
+
+.manage-rides td {
+  background-color: var(--accent-bg);
+  padding: 1.2rem 1.5rem;
+  border-radius: 6px;
+  color: var(--text-light);
+  transition: background-color 0.2s ease;
+  vertical-align: top;
+  border-bottom: 2px solid var(--accent-color);
+}
+
+.manage-rides tbody tr:hover td {
+  background-color: var(--dark-light-bg);
+}
+
+.manage-rides select,
+.manage-rides input[type="date"],
+.manage-rides input[type="time"] {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-color);
+  background-color: var(--light-bg);
+  font-size: 1.4rem;
+  outline: none;
+  color: var(--text-dark);
+  width: 100%;
+}
+
+.manage-rides select:focus,
+.manage-rides input:focus {
+  border-color: var(--primary-color);
+}
+
+.manage-rides button {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin: 4px 0;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 1.4rem;
+}
+
+.manage-rides button.edit {
+  background-color: var(--accent-color);
+  color: var(--text-light);
+}
+
+.manage-rides button.delete {
+  background-color: #ef4444;
+  color: #fff;
+}
+
+.manage-rides button.save {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+.manage-rides button.cancel {
+  background-color: var(--medium-bg);
+  color: var(--text-light);
+}
+
+.manage-rides button:hover {
+  opacity: 0.9;
+}
+
+/* responsive */
+@media (max-width: 768px) {
+  .manage-rides table,
+  .manage-rides thead,
+  .manage-rides tbody,
+  .manage-rides th,
+  .manage-rides td,
+  .manage-rides tr {
+    display: block;
+  }
+
+  .manage-rides thead {
+    display: none;
+  }
+
+  .manage-rides tr {
+    background-color: var(--medium-bg);
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--dark-light-bg);
+  }
+
+  .manage-rides td {
+    position: relative;
+    padding-left: 55%;
+    font-size: 1.4rem;
+    border: none;
+    margin-bottom: 0.8rem;
+  }
+
+  .manage-rides td::before {
+    position: absolute;
+    top: 0.8rem;
+    left: 1rem;
+    font-weight: 600;
+    font-size: 1.25rem;
+    white-space: nowrap;
+    color: var(--text-light);
+  }
+
+  .manage-rides td:nth-child(1)::before { content: "Ride ID"; }
+  .manage-rides td:nth-child(2)::before { content: "Car"; }
+  .manage-rides td:nth-child(3)::before { content: "User Info"; }
+  .manage-rides td:nth-child(4)::before { content: "Advance"; }
+  .manage-rides td:nth-child(5)::before { content: "Booking"; }
+  .manage-rides td:nth-child(6)::before { content: "Rental Type"; }
+  .manage-rides td:nth-child(7)::before { content: "Status"; }
+  .manage-rides td:nth-child(8)::before { content: "Payment"; }
+  .manage-rides td:nth-child(9)::before { content: "Actions"; }
+}
+
+
+.ride-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.ride-modal {
+  background-color: var(--dark-bg);
+  padding: 2rem;
+  border-radius: 10px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  color: var(--text-light);
+  position: relative;
+  animation: fadeUp 0.4s ease;
+}
+
+.ride-modal h3 {
+  margin-top: 0;
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+.ride-modal .modal-close {
+  position: absolute;
+  right: 15px;
+  top: 15px;
+  background: transparent;
+  color: var(--text-light);
+  font-size: 4rem;
+  border: none;
+  cursor: pointer;
+}
+
+.ride-details {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.ride-details h4 {
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
+  font-size: 2rem;
+}
+
+.ride-details ul {
+  list-style: none;
+  padding: 0;
+  font-size: 1.5rem;
+}
+
+.ride-details ul li {
+  margin-bottom: 1rem;
+}
+
+.ride-images {
+  margin-top: 1.5rem;
+}
+
+.ride-images h4 {
+  color: var(--accent-color);
+}
+
+.images-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.images-grid img {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--accent-color);
+}
+
+@keyframes fadeUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

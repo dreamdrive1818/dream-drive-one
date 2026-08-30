@@ -1,0 +1,212 @@
+.manage-testimonials {
+  padding: 3rem 2rem;
+  max-width: 1280px;
+  margin: auto;
+  background-color: var(--dark-bg);
+  color: var(--text-light);
+  font-family: var(--font-family-main);
+}
+
+.manage-testimonials h2 {
+  font-size: 2.8rem;
+  margin-bottom: 2rem;
+  font-weight: 700;
+  border-left: 6px solid var(--primary-color);
+  padding-left: 1rem;
+}
+
+.manage-testimonials table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+}
+
+.manage-testimonials th {
+  text-align: left;
+  padding: 1.2rem 1.5rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--accent-color);
+}
+
+.manage-testimonials td {
+  padding: 1.2rem 1.5rem;
+  border-bottom: 1px solid var(--medium-bg);
+  background-color: var(--dark-bg);
+  color: var(--text-light);
+  font-size: 1.4rem;
+}
+
+.manage-testimonials tbody tr:hover td {
+  background-color: var(--dark-light-bg);
+}
+
+.manage-testimonials button {
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+  font-size: 1.25rem;
+}
+
+.testimonial-table-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary-color);
+}
+
+
+.approve-btn {
+  background-color: #10b981;
+  color: white;
+  margin-right: 8px;
+}
+
+.approve-btn:hover {
+  background-color: #059669;
+}
+
+.delete-btn {
+  background-color: #ef4444;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #dc2626;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .manage-testimonials table,
+  .manage-testimonials thead,
+  .manage-testimonials tbody,
+  .manage-testimonials th,
+  .manage-testimonials td,
+  .manage-testimonials tr {
+    display: block;
+  }
+
+  .manage-testimonials thead {
+    display: none;
+  }
+
+  .manage-testimonials tr {
+    margin-bottom: 1.5rem;
+    background-color: var(--light-bg);
+    border: 1px solid var(--medium-bg);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+
+  .manage-testimonials td {
+    padding-left: 55%;
+    position: relative;
+    border: none;
+    border-bottom: 1px solid var(--medium-bg);
+  }
+
+  .manage-testimonials td::before {
+    position: absolute;
+    top: 0.5rem;
+    left: 1rem;
+    font-weight: 600;
+    color: var(--text-light);
+    white-space: nowrap;
+  }
+
+  .manage-testimonials td:nth-child(1)::before { content: "Name"; }
+  .manage-testimonials td:nth-child(2)::before { content: "Message"; }
+  .manage-testimonials td:nth-child(3)::before { content: "Rating"; }
+  .manage-testimonials td:nth-child(4)::before { content: "Status"; }
+  .manage-testimonials td:nth-child(5)::before { content: "Submitted"; }
+  .manage-testimonials td:nth-child(6)::before { content: "Actions"; }
+}
+
+/* modal styles */
+.testimonial-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.testimonial-modal {
+  background: white;
+  color: var(--text-dark);
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  position: relative;
+  text-align: center;
+}
+
+.testimonial-modal-avatar {
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.testimonial-modal-rating {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  color: gold;
+}
+
+.filled-star {
+  color: gold;
+}
+
+.testimonial-modal-message {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.testimonial-modal-status {
+  margin-bottom: 1rem;
+}
+
+.testimonial-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.view-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-btn:hover {
+  background-color: var(--primary-color-dark, #333);
+}
+
+.testimonial-modal .modal-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 2rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dark);
+}

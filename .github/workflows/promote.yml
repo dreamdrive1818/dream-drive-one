@@ -1,0 +1,53 @@
+name: Promote environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Branch to promote into
+        required: true
+        type: choice
+        options:
+          - staging
+          - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    name: Open promotion PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve source branch
+        id: src
+        run: |
+          if [ "${{ inputs.target }}" = "staging" ]; then
+            echo "from=dev" >> "$GITHUB_OUTPUT"
+          else
+            echo "from=staging" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.src.outputs.from }}
+
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FROM="${{ steps.src.outputs.from }}"
+          TO="${{ inputs.target }}"
+          TITLE="Promote ${FROM} → ${TO}"
+          BODY="Automated promotion of \`${FROM}\` into \`${TO}\`.
+
+          Flow: \`feature\` → \`dev\` → \`staging\` → \`main\`."
+          EXISTING=$(gh pr list --base "$TO" --head "$FROM" --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            echo "PR already open: #$EXISTING"
+            gh pr view "$EXISTING" --web || true
+            exit 0
+          fi
+          gh pr create --base "$TO" --head "$FROM" --title "$TITLE" --body "$BODY"

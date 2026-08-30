@@ -1,0 +1,106 @@
+.editblog {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  background-color: #f4f4f4;
+  padding: 3rem 1rem;
+}
+
+.editblog-form {
+  background-color: #ffffff;
+  width: 100%;
+  max-width: 960px;
+  padding: 3rem;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+}
+
+.editblog .back-btn {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #333;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 1.4rem;
+  margin-bottom: 2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.editblog .back-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.editblog h2 {
+  font-size: 2.8rem;
+  margin-bottom: 2.5rem;
+  color: #1f3442;
+}
+
+.blog-form .form-group {
+  margin-bottom: 2rem;
+}
+
+.blog-form label {
+  font-size: 1.6rem;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.8rem;
+  color: #333;
+}
+
+.blog-form input,
+.blog-form select,
+.tiptap {
+  width: 100%;
+  font-size: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.tiptap {
+  min-height: 300px;
+  margin-top: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 1rem;
+  font-size: 1.5rem;
+  background-color: #fefefe;
+}
+
+.image-preview {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  margin-top: 1rem;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 1.2rem;
+  background-color: #1f3442;
+  color: #ffffff;
+  font-size: 1.6rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  margin-top: 2rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.submit-btn:hover {
+  background-color: #152530;
+}
+
+h3 {
+  font-size: 2rem;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+  color: #b78a4d;
+}

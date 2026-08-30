@@ -1,0 +1,81 @@
+.admin-banner {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.admin-banner h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.banner-entry {
+  background: #f9f9f9;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="url"],
+input[type="file"] {
+  width: 100%;
+  padding: 0.6rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.save-btn {
+  padding: 0.8rem 1.5rem;
+  background: #c2410c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.preview-section {
+  margin-top: 2rem;
+}
+
+.preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.preview-card {
+  width: 180px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.preview-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.preview-card p {
+  margin: 0;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #444;
+}

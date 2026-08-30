@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Main Pages -->
+  <url><loc>https://dream-drive.co.in/</loc></url>
+  <url><loc>https://dream-drive.co.in/cars</loc></url>
+  <url><loc>https://dream-drive.co.in/blogs</loc></url>
+  <url><loc>https://dream-drive.co.in/testimonials</loc></url>
+  <url><loc>https://dream-drive.co.in/order</loc></url>
+  <url><loc>https://dream-drive.co.in/order-tracking</loc></url>
+  <url><loc>https://dream-drive.co.in/consent-form</loc></url>
+  <url><loc>https://dream-drive.co.in/payment</loc></url>
+  <url><loc>https://dream-drive.co.in/about</loc></url>
+  <url><loc>https://dream-drive.co.in/success</loc></url>
+  <url><loc>https://dream-drive.co.in/howitworks</loc></url>
+  <url><loc>https://dream-drive.co.in/contact</loc></url>
+  <url><loc>https://dream-drive.co.in/termsandconditions</loc></url>
+
+  <!-- Example blog detail pages (replace these with real slugs) -->
+  <url><loc>https://dream-drive.co.in/blogs/self-drive-in-ranchi</loc></url>
+  <url><loc>https://dream-drive.co.in/blogs/documents-required</loc></url>
+  <url><loc>https://dream-drive.co.in/blogs/how-to-book-online</loc></url>
+</urlset>

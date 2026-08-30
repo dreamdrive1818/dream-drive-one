@@ -1,0 +1,235 @@
+.grid-container-form-entries {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  padding: 30px;
+}
+
+.grid-container-form-entries .card {
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 18px;
+  background-color: #fafafa;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.grid-container-form-entries .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.grid-container-form-entries .card h4 {
+  margin: 0 0 8px;
+  font-size: 1.4rem; 
+  color: #222;
+}
+
+.grid-container-form-entries .card p {
+  margin: 0;
+  font-size: 1.4rem; 
+  color: #666;
+}
+
+.grid-container-form-entries .thumbnail {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  margin: 12px 0;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+.extract-btn {
+  padding: 9px 14px; /* Increased padding */
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.25rem; /* Increased font */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin-top: 1.25rem;
+}
+
+.extract-btn:hover {
+  background-color: #005fcc;
+}
+
+.extract-btn:disabled {
+  background-color: #999;
+  cursor: not-allowed;
+}
+
+/* Modal styles */
+.modal {
+  background-color: white;
+  padding: 30px;
+  max-width: 800px;
+  margin: 5rem auto;
+  border-radius: 12px;
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 1000000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.overlay {
+  background: rgba(0, 0, 0, 0.6);
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.modal h2 {
+  margin-top: 0;
+  color: #222;
+  font-size: 2.5rem; 
+}
+
+.modal p {
+  margin: 10px 0;
+  color: #444;
+  font-size: 1.4rem; 
+}
+
+.modal a {
+  color: #007bff;
+  text-decoration: underline;
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 1.6rem; 
+}
+
+.fullImage {
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  object-fit: contain;
+  max-height: 300px;
+}
+
+.modal button {
+  padding: 12px 20px;
+  margin-top: 16px;
+  background-color: #333;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.05rem; 
+  cursor: pointer;
+}
+
+.modal button:hover {
+  background-color: #111;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+.card-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.view-btn {
+  flex: 1;
+  padding: 9px 14px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.view-btn:hover {
+  background-color: #218838;
+}
+
+.delete-btn {
+  flex: 1;
+  padding: 9px 14px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.delete-btn:hover {
+  background-color: #b02a37;
+}
+
+/* Modal grid layout */
+.modal-group {
+  margin-top: 20px;
+}
+
+.modal-group h3 {
+  margin-top: 32px;
+  margin-bottom: 16px;
+  font-size: 1.6rem;
+  color: #333;
+  border-left: 4px solid #007bff;
+  padding-left: 12px;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  font-size: 1.4rem;
+}
+
+.modal-grid div {
+  background: #f5f7fa;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  color: #333;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.tab-buttons {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+  gap: 12px;
+}
+
+.tab-buttons button {
+  padding: 10px 18px;
+  font-size: 1.2rem;
+  border: 1px solid #007bff;
+  background: white;
+  color: #007bff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.tab-buttons button.active-tab,
+.tab-buttons button:hover {
+  background: #007bff;
+  color: white;
+}

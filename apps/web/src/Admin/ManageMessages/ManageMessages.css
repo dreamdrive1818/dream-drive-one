@@ -1,0 +1,109 @@
+.manage-messages {
+  padding: 3rem 2rem;
+  max-width: 1280px;
+  margin: auto;
+  font-family: var(--font-family-main);
+  color: var(--text-light);
+  background-color: var(--dark-bg);
+}
+
+.manage-messages h2 {
+  font-size: 2.8rem;
+  margin-bottom: 2rem;
+  font-weight: 700;
+  color: var(--text-light);
+  border-left: 6px solid var(--primary-color);
+  padding-left: 1rem;
+}
+
+.manage-messages table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+}
+
+.manage-messages thead {
+  background-color: var(--dark-bg);
+}
+
+.manage-messages th {
+  text-align: left;
+  padding: 1rem 1.5rem;
+  font-size: 1.4rem;
+  color: var(--text-light);
+  font-weight: 600;
+  border-bottom: 2px solid var(--accent-color);
+}
+
+.manage-messages td {
+  padding: 1.1rem 1.5rem;
+  background-color: var(--dark-bg);
+  border-bottom: 1px solid var(--medium-bg);
+  font-size: 1.4rem;
+  color: var(--text-light);
+  transition: background-color 0.2s ease;
+}
+
+.manage-messages tbody tr:hover td {
+  background-color: var(--dark-light-bg);
+}
+
+.manage-messages td:nth-child(4) {
+  max-width: 380px;
+  word-wrap: break-word;
+}
+
+.manage-messages p {
+  font-size: 1.4rem;
+  color: var(--text-light);
+  text-align: center;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .manage-messages table,
+  .manage-messages thead,
+  .manage-messages tbody,
+  .manage-messages th,
+  .manage-messages td,
+  .manage-messages tr {
+    display: block;
+  }
+
+  .manage-messages thead {
+    display: none;
+  }
+
+  .manage-messages tr {
+    margin-bottom: 1.5rem;
+    background-color: var(--light-bg);
+    border: 1px solid var(--medium-bg);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+
+  .manage-messages td {
+    padding: 0.7rem 1rem;
+    position: relative;
+    padding-left: 55%;
+    font-size: 1.25rem;
+    border: none;
+    border-bottom: 1px solid var(--medium-bg);
+  }
+
+  .manage-messages td::before {
+    position: absolute;
+    top: 0.7rem;
+    left: 1rem;
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 1.05rem;
+    white-space: nowrap;
+  }
+
+  .manage-messages td:nth-child(1)::before { content: "Name"; }
+  .manage-messages td:nth-child(2)::before { content: "Email"; }
+  .manage-messages td:nth-child(3)::before { content: "Phone"; }
+  .manage-messages td:nth-child(4)::before { content: "Message"; }
+  .manage-messages td:nth-child(5)::before { content: "Date"; }
+}

@@ -1,0 +1,114 @@
+.terms-wrapper {
+  max-width: 960px;
+  margin: 0px auto;
+  padding: 20px 30px;
+  background-color: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  font-family: "Segoe UI", sans-serif;
+  color: #2f2f2f;
+  line-height: 1.9;
+}
+
+.terms-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.terms-header h1 {
+  font-size: 3rem;
+  color: #1f2937;
+  margin-bottom: 10px;
+}
+
+.company-subtitle {
+  font-size: 1.3rem;
+  color: #6b7280;
+  letter-spacing: 0.5px;
+}
+
+.terms-content section {
+  margin-bottom: 3rem;
+}
+
+.terms-content h2 {
+  font-size: 1.9rem;
+  color: #0072ce;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 6px;
+}
+
+.terms-content h3 {
+  font-size: 1.8rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: #0072ce;
+}
+
+.terms-content ul {
+  padding-left: 1.5rem;
+  margin: 1.2rem 0;
+}
+
+.terms-content ul li {
+  margin-bottom: 0.7rem;
+  font-size: 1.4rem;
+}
+
+.terms-content p {
+  font-size: 1.4rem;
+  margin-top: 0.6rem;
+  color: #374151;
+}
+
+.terms-content strong {
+  color: #0072ce;
+}
+
+/* ✅ Responsive Design */
+@media (max-width: 768px) {
+  .terms-wrapper {
+    padding: 30px 20px;
+  }
+
+  .terms-header h1 {
+    font-size: 2.2rem;
+  }
+
+  .company-subtitle {
+    font-size: 1.1rem;
+  }
+
+  .terms-content h2 {
+    font-size: 1.6rem;
+  }
+
+  .terms-content h3 {
+    font-size: 1.35rem;
+  }
+
+  .terms-content ul li,
+  .terms-content p {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .terms-header h1 {
+    font-size: 2rem;
+  }
+
+  .terms-wrapper {
+    padding: 25px 16px;
+  }
+
+  .terms-content h2 {
+    font-size: 1.45rem;
+  }
+
+  .terms-content ul li,
+  .terms-content p {
+    font-size: 1.05rem;
+  }
+}

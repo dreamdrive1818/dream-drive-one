@@ -1,0 +1,43 @@
+.number-float {
+  position: fixed;
+  right: 18px;
+  bottom: 30px; /* above WhatsApp button */
+  z-index: 9999;
+  animation: bounce 2s infinite;
+}
+
+.number-float a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #25d366; /* brand blue */
+  color: #fff;
+  font-weight: 600;
+  font-size: 18.5px;
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.number-float a:hover {
+  background: #0f172a; /* darker blue on hover */
+  transform: translateY(-2px);
+}
+
+.number-float .icon {
+  font-size: 16px;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-6px);
+  }
+  60% {
+    transform: translateY(-3px);
+  }
+}

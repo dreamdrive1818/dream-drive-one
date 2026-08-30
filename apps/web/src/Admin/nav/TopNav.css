@@ -1,0 +1,142 @@
+.admin-topnav {
+  width: 100%;
+  min-height: var(--admin-topbar-h, 64px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--admin-text, #0f1c2e);
+  padding: 14px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--admin-border, #e2e8f0);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex-shrink: 0;
+}
+
+.admin-topnav-left {
+  min-width: 0;
+}
+
+.admin-topnav-crumb {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--admin-text-soft, #94a3b8);
+  margin-bottom: 2px;
+}
+
+.admin-topnav-title {
+  margin: 0;
+  font-family: var(--admin-font-display, "Outfit", sans-serif);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--admin-text, #0f1c2e);
+  line-height: 1.2;
+}
+
+.admin-topnav-sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--admin-text-muted, #64748b);
+}
+
+.admin-topnav-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.admin-topnav-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--admin-surface-2, #f7fafc);
+}
+
+.admin-topnav-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0b6bcb, #1a8cff);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.admin-topnav-user-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-topnav-user-name {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--admin-text, #0f1c2e);
+  line-height: 1.2;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-topnav-user-role {
+  font-size: 11px;
+  color: var(--admin-text-muted, #64748b);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.admin-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--admin-border, #e2e8f0);
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: var(--admin-text, #0f1c2e);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-logout-btn:hover {
+  background: #fff5f5;
+  border-color: #f1aeb5;
+  color: #c92a2a;
+}
+
+@media (max-width: 720px) {
+  .admin-topnav {
+    padding: 12px 16px;
+  }
+
+  .admin-topnav-sub,
+  .admin-topnav-user-meta,
+  .admin-logout-btn span {
+    display: none;
+  }
+
+  .admin-topnav-user {
+    padding: 4px;
+    border-radius: 50%;
+  }
+}

@@ -1,0 +1,930 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum RoleName {
+  CUSTOMER
+  SUPPORT
+  SALES
+  FLEET_OPS
+  FINANCE
+  BRANCH_MANAGER
+  CITY_MANAGER
+  SUPER_ADMIN
+}
+
+enum RentalType {
+  SELF_DRIVE
+  WITH_DRIVER_LOCAL
+  WITH_DRIVER_INTERCITY
+  AIRPORT
+  OUTSTATION
+  ONE_WAY
+  TOUR_PACKAGE
+  SUBSCRIPTION
+}
+
+enum TripDirection {
+  ONE_WAY
+  ROUND_TRIP
+}
+
+enum BookingStatus {
+  DRAFT
+  HOLD
+  AWAITING_PAYMENT
+  AWAITING_KYC
+  AWAITING_SIGNATURE
+  CONFIRMED
+  HANDOVER
+  ONGOING
+  RETURN_PENDING
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ON_TRIP
+  MAINTENANCE
+  BLOCKED
+  SOLD
+}
+
+enum PaymentKind {
+  TOKEN
+  BALANCE
+  DEPOSIT
+  EXTRA
+  PENALTY
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum KycStatus {
+  NOT_STARTED
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum AgreementStatus {
+  DRAFT
+  SENT
+  SIGNED
+  VOID
+  WAIVED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  BOOKED
+  LOST
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum InspectionType {
+  HANDOVER
+  RETURN
+}
+
+enum LedgerType {
+  TRIP_EARNING
+  COMMISSION
+  PENALTY
+  PAYOUT
+  ADJUSTMENT
+}
+
+enum OwnerType {
+  COMPANY
+  PARTNER
+}
+
+enum OfferType {
+  PERCENT
+  FLAT
+}
+
+// ─── Identity ────────────────────────────────────────
+
+model User {
+  id           String     @id @default(cuid())
+  firebaseUid  String     @unique
+  email        String     @unique
+  phone        String?    @unique
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  roles        UserRole[]
+  profile      CustomerProfile?
+  addresses    Address[]
+  auditLogs    AuditLog[]
+  devices      DeviceToken[]
+  staffScopes  StaffScope[]
+  bookings     Booking[]
+  kycCases     KycCase[]
+  leads        Lead[]
+  tickets      Ticket[]
+  reviews      Review[]
+  wallet       Wallet?
+  loyalty      LoyaltyAccount?
+  referralsSent Referral[] @relation("Referrer")
+}
+
+model Role {
+  id    String   @id @default(cuid())
+  name  RoleName @unique
+  users UserRole[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model CustomerProfile {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  fullName  String
+  kycStatus KycStatus @default(NOT_STARTED)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id       String  @id @default(cuid())
+  userId   String
+  line1    String
+  line2    String?
+  city     String
+  state    String
+  zip      String
+  country  String  @default("IN")
+  isDefault Boolean @default(false)
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  payload   Json?
+  ip        String?
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id])
+}
+
+model DeviceToken {
+  id     String @id @default(cuid())
+  userId String
+  token  String @unique
+  platform String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StaffScope {
+  id       String  @id @default(cuid())
+  userId   String
+  cityId   String?
+  branchId String?
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city     City?   @relation(fields: [cityId], references: [id])
+  branch   Branch? @relation(fields: [branchId], references: [id])
+}
+
+// ─── Fleet / geo ─────────────────────────────────────
+
+model City {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  state     String
+  active    Boolean  @default(true)
+  branches  Branch[]
+  carModels CarModel[]
+  staff     StaffScope[]
+  terminals AirportTerminal[]
+}
+
+model Branch {
+  id        String    @id @default(cuid())
+  cityId    String
+  name      String
+  address   String
+  active    Boolean   @default(true)
+  city      City      @relation(fields: [cityId], references: [id])
+  vehicles  Vehicle[]
+  drivers   Driver[]
+  staff     StaffScope[]
+  pickupBookings Booking[] @relation("PickupBranch")
+  dropBookings   Booking[] @relation("DropBranch")
+}
+
+model Vehicle {
+  id             String        @id @default(cuid())
+  registration   String        @unique
+  carModelId     String
+  branchId       String
+  ownerType      OwnerType     @default(COMPANY)
+  partnerId      String?
+  status         VehicleStatus @default(AVAILABLE)
+  odometerKm     Int           @default(0)
+  year           Int?
+  color          String?
+  carModel       CarModel      @relation(fields: [carModelId], references: [id])
+  branch         Branch        @relation(fields: [branchId], references: [id])
+  partner        Partner?      @relation(fields: [partnerId], references: [id])
+  documents      VehicleDocument[]
+  blocks         AvailabilityBlock[]
+  bookings       Booking[]
+  jobs           MaintenanceJob[]
+  inspections    Inspection[]
+}
+
+model VehicleDocument {
+  id         String    @id @default(cuid())
+  vehicleId  String
+  kind       String
+  url        String
+  expiresAt  DateTime?
+  vehicle    Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model AvailabilityBlock {
+  id        String   @id @default(cuid())
+  vehicleId String
+  startsAt  DateTime
+  endsAt    DateTime
+  reason    String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model Driver {
+  id        String  @id @default(cuid())
+  fullName  String
+  phone     String  @unique
+  branchId  String
+  active    Boolean @default(true)
+  branch    Branch  @relation(fields: [branchId], references: [id])
+  documents DriverDocument[]
+  assignments DriverAssignment[]
+  leaves    DriverLeave[]
+}
+
+model DriverDocument {
+  id       String    @id @default(cuid())
+  driverId String
+  kind     String
+  url      String
+  expiresAt DateTime?
+  driver   Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model DriverAssignment {
+  id        String  @id @default(cuid())
+  driverId  String
+  bookingId String  @unique
+  driver    Driver  @relation(fields: [driverId], references: [id])
+  booking   Booking @relation(fields: [bookingId], references: [id])
+}
+
+model DriverLeave {
+  id       String   @id @default(cuid())
+  driverId String
+  startsAt DateTime
+  endsAt   DateTime
+  driver   Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model Workshop {
+  id      String @id @default(cuid())
+  name    String
+  address String
+  jobs    MaintenanceJob[]
+}
+
+model MaintenanceJob {
+  id         String   @id @default(cuid())
+  vehicleId  String
+  workshopId String?
+  startsAt   DateTime
+  endsAt     DateTime
+  costPaise  Int      @default(0)
+  notes      String?
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id])
+  workshop   Workshop? @relation(fields: [workshopId], references: [id])
+  parts      MaintenancePart[]
+}
+
+model MaintenancePart {
+  id     String @id @default(cuid())
+  jobId  String
+  name   String
+  qty    Int
+  job    MaintenanceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model Inspection {
+  id         String         @id @default(cuid())
+  bookingId  String
+  vehicleId  String
+  type       InspectionType
+  odometerKm Int
+  fuelLevel  String
+  notes      String?
+  createdAt  DateTime       @default(now())
+  booking    Booking        @relation(fields: [bookingId], references: [id])
+  vehicle    Vehicle        @relation(fields: [vehicleId], references: [id])
+  photos     InspectionPhoto[]
+  damages    DamageCharge[]
+}
+
+model InspectionPhoto {
+  id           String     @id @default(cuid())
+  inspectionId String
+  url          String
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+}
+
+model DamageCharge {
+  id           String     @id @default(cuid())
+  inspectionId String
+  description  String
+  amountPaise  Int
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+}
+
+model AirportTerminal {
+  id     String @id @default(cuid())
+  cityId String
+  name   String
+  code   String
+  city   City   @relation(fields: [cityId], references: [id])
+}
+
+// ─── Catalog ─────────────────────────────────────────
+
+model CarModel {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  type          String
+  seats         Int
+  fuel          String
+  transmission  String
+  cityId        String
+  published     Boolean  @default(false)
+  featured      Boolean  @default(false)
+  displayOrder  Int      @default(999)
+  city          City     @relation(fields: [cityId], references: [id])
+  images        CarImage[]
+  vehicles      Vehicle[]
+  pricingRules  PricingRule[]
+  reviews       Review[]
+}
+
+model CarImage {
+  id         String   @id @default(cuid())
+  carModelId String
+  url        String
+  sortOrder  Int      @default(0)
+  carModel   CarModel @relation(fields: [carModelId], references: [id], onDelete: Cascade)
+}
+
+model PricingRule {
+  id          String     @id @default(cuid())
+  carModelId  String
+  rentalType  RentalType
+  dailyPaise  Int
+  hourlyPaise Int?
+  extraKmPaise Int?
+  depositPaise Int       @default(0)
+  startsOn    DateTime?
+  endsOn      DateTime?
+  carModel    CarModel   @relation(fields: [carModelId], references: [id], onDelete: Cascade)
+}
+
+model CityPairRate {
+  id           String @id @default(cuid())
+  fromCityId   String
+  toCityId     String
+  oneWayPaise  Int
+  @@unique([fromCityId, toCityId])
+}
+
+model TourPackage {
+  id          String @id @default(cuid())
+  slug        String @unique
+  name        String
+  days        Int
+  pricePaise  Int
+  published   Boolean @default(false)
+  daysDetail  TourDay[]
+}
+
+model TourDay {
+  id        String      @id @default(cuid())
+  packageId String
+  dayNumber Int
+  title     String
+  package   TourPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+}
+
+model SubscriptionPlan {
+  id         String @id @default(cuid())
+  carModelId String
+  months     Int
+  pricePaise Int
+  includedKm Int
+  subscriptions Subscription[]
+}
+
+// ─── Booking ─────────────────────────────────────────
+
+model Quote {
+  id          String     @id @default(cuid())
+  userId      String?
+  carModelId  String
+  rentalType  RentalType
+  startsAt    DateTime
+  endsAt      DateTime
+  amountPaise Int
+  depositPaise Int       @default(0)
+  offerId     String?
+  expiresAt   DateTime
+  payload     Json
+  booking     Booking?
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  publicId        String        @unique
+  userId          String
+  quoteId         String?       @unique
+  carModelId      String
+  vehicleId       String?
+  rentalType      RentalType
+  tripDirection   TripDirection?
+  status          BookingStatus @default(DRAFT)
+  startsAt        DateTime
+  endsAt          DateTime
+  pickupBranchId  String
+  dropBranchId    String
+  amountPaise     Int
+  depositPaise    Int           @default(0)
+  offerId         String?
+  flightNumber    String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user         User      @relation(fields: [userId], references: [id])
+  quote        Quote?    @relation(fields: [quoteId], references: [id])
+  vehicle      Vehicle?  @relation(fields: [vehicleId], references: [id])
+  pickupBranch Branch    @relation("PickupBranch", fields: [pickupBranchId], references: [id])
+  dropBranch   Branch    @relation("DropBranch", fields: [dropBranchId], references: [id])
+  history      BookingStatusHistory[]
+  extras       BookingExtra[]
+  payments     Payment[]
+  invoices     Invoice[]
+  deposit      SecurityDeposit?
+  kycCase      KycCase?
+  agreements   Agreement[]
+  inspections  Inspection[]
+  driverAssignment DriverAssignment?
+  subscription Subscription?
+  review       Review?
+  tickets      Ticket[]
+  ledgerEntries LedgerEntry[]
+}
+
+model BookingStatusHistory {
+  id        String        @id @default(cuid())
+  bookingId String
+  from      BookingStatus?
+  to        BookingStatus
+  reason    String?
+  createdAt DateTime      @default(now())
+  booking   Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+model BookingExtra {
+  id          String  @id @default(cuid())
+  bookingId   String
+  label       String
+  amountPaise Int
+  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id        String @id @default(cuid())
+  bookingId String @unique
+  planId    String
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  plan      SubscriptionPlan @relation(fields: [planId], references: [id])
+}
+
+// ─── Payments ────────────────────────────────────────
+
+model Payment {
+  id              String        @id @default(cuid())
+  bookingId       String
+  kind            PaymentKind
+  status          PaymentStatus @default(CREATED)
+  amountPaise     Int
+  razorpayOrderId String?       @unique
+  razorpayPaymentId String?
+  eventId         String?       @unique
+  createdAt       DateTime      @default(now())
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+  attempts        PaymentAttempt[]
+  refunds         Refund[]
+}
+
+model PaymentAttempt {
+  id        String  @id @default(cuid())
+  paymentId String
+  payload   Json
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id           String   @id @default(cuid())
+  bookingId    String
+  number       String   @unique
+  amountPaise  Int
+  gstPaise     Int      @default(0)
+  pdfUrl       String?
+  createdAt    DateTime @default(now())
+  booking      Booking  @relation(fields: [bookingId], references: [id])
+  lines        InvoiceLine[]
+}
+
+model InvoiceLine {
+  id         String  @id @default(cuid())
+  invoiceId  String
+  label      String
+  amountPaise Int
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model SecurityDeposit {
+  id          String  @id @default(cuid())
+  bookingId   String  @unique
+  amountPaise Int
+  held        Boolean @default(false)
+  released    Boolean @default(false)
+  booking     Booking @relation(fields: [bookingId], references: [id])
+}
+
+model Refund {
+  id              String  @id @default(cuid())
+  paymentId       String
+  amountPaise     Int
+  razorpayRefundId String?
+  payment         Payment @relation(fields: [paymentId], references: [id])
+}
+
+model Wallet {
+  id          String @id @default(cuid())
+  userId      String @unique
+  balancePaise Int   @default(0)
+  user        User   @relation(fields: [userId], references: [id])
+  txns        WalletTxn[]
+}
+
+model WalletTxn {
+  id        String @id @default(cuid())
+  walletId  String
+  amountPaise Int
+  reason    String
+  createdAt DateTime @default(now())
+  wallet    Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+}
+
+// ─── Documents ───────────────────────────────────────
+
+model KycCase {
+  id        String    @id @default(cuid())
+  userId    String
+  bookingId String?   @unique
+  status    KycStatus @default(SUBMITTED)
+  notes     String?
+  user      User      @relation(fields: [userId], references: [id])
+  booking   Booking?  @relation(fields: [bookingId], references: [id])
+  documents KycDocument[]
+  zoho      ZohoSubmission?
+}
+
+model KycDocument {
+  id        String  @id @default(cuid())
+  kycCaseId String
+  kind      String
+  url       String
+  kycCase   KycCase @relation(fields: [kycCaseId], references: [id], onDelete: Cascade)
+}
+
+model ZohoSubmission {
+  id          String   @id @default(cuid())
+  kycCaseId   String   @unique
+  email       String
+  raw         Json
+  receivedAt  DateTime @default(now())
+  kycCase     KycCase  @relation(fields: [kycCaseId], references: [id], onDelete: Cascade)
+}
+
+model AgreementTemplate {
+  id      String @id @default(cuid())
+  name    String
+  cityId  String?
+  rentalType RentalType?
+  html    String
+}
+
+model Agreement {
+  id         String          @id @default(cuid())
+  bookingId  String
+  templateId String?
+  status     AgreementStatus @default(DRAFT)
+  pdfUrl     String?
+  signedPdfUrl String?
+  booking    Booking         @relation(fields: [bookingId], references: [id])
+  envelope   SignatureEnvelope?
+}
+
+model SignatureEnvelope {
+  id           String     @id @default(cuid())
+  agreementId  String     @unique
+  leegalityId  String?    @unique
+  status       String
+  agreement    Agreement  @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+}
+
+// ─── Partners ────────────────────────────────────────
+
+model Partner {
+  id       String  @id @default(cuid())
+  name     String
+  email    String?
+  phone    String?
+  bankJson Json?
+  active   Boolean @default(true)
+  vehicles Vehicle[]
+  contracts PartnerContract[]
+  rules    CommissionRule[]
+  ledger   LedgerEntry[]
+  settlements Settlement[]
+}
+
+model PartnerContract {
+  id        String   @id @default(cuid())
+  partnerId String
+  startsOn  DateTime
+  endsOn    DateTime?
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+}
+
+model CommissionRule {
+  id         String     @id @default(cuid())
+  partnerId  String
+  rentalType RentalType?
+  percentBps Int
+  flatPaise  Int        @default(0)
+  partner    Partner    @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+}
+
+model LedgerEntry {
+  id          String     @id @default(cuid())
+  partnerId   String
+  bookingId   String?
+  type        LedgerType
+  amountPaise Int
+  createdAt   DateTime   @default(now())
+  partner     Partner    @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  booking     Booking?   @relation(fields: [bookingId], references: [id])
+}
+
+model Settlement {
+  id          String   @id @default(cuid())
+  partnerId   String
+  periodStart DateTime
+  periodEnd   DateTime
+  amountPaise Int
+  paid        Boolean  @default(false)
+  utr         String?
+  partner     Partner  @relation(fields: [partnerId], references: [id])
+  lines       SettlementLine[]
+
+  @@unique([partnerId, periodStart, periodEnd])
+}
+
+model SettlementLine {
+  id           String     @id @default(cuid())
+  settlementId String
+  ledgerId     String
+  settlement   Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+}
+
+// ─── Platform / CMS / CRM / growth ───────────────────
+
+model CmsPage {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  title     String
+  body      String
+  published Boolean @default(false)
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  title     String
+  imageUrl  String
+  link      String?
+  startsAt  DateTime?
+  endsAt    DateTime?
+  active    Boolean  @default(true)
+}
+
+model BlogPost {
+  id         String  @id @default(cuid())
+  slug       String  @unique
+  title      String
+  body       String
+  published  Boolean @default(false)
+  categoryId String?
+  category   BlogCategory? @relation(fields: [categoryId], references: [id])
+  comments   BlogComment[]
+}
+
+model BlogCategory {
+  id    String     @id @default(cuid())
+  name  String     @unique
+  posts BlogPost[]
+}
+
+model BlogComment {
+  id     String   @id @default(cuid())
+  postId String
+  body   String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model MediaAsset {
+  id       String @id @default(cuid())
+  url      String
+  category String?
+}
+
+model PageMetadata {
+  id          String @id @default(cuid())
+  pageId      String @unique
+  title       String
+  description String
+}
+
+model Testimonial {
+  id     String  @id @default(cuid())
+  name   String
+  body   String
+  active Boolean @default(true)
+}
+
+model Offer {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  type       OfferType
+  value      Int
+  startsAt   DateTime
+  endsAt     DateTime
+  maxRedemptions Int?
+  redemptions OfferRedemption[]
+}
+
+model OfferRedemption {
+  id      String @id @default(cuid())
+  offerId String
+  userId  String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  @@unique([offerId, userId])
+}
+
+model LoyaltyAccount {
+  id     String @id @default(cuid())
+  userId String @unique
+  points Int    @default(0)
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Referral {
+  id         String @id @default(cuid())
+  referrerId String
+  code       String @unique
+  referrer   User   @relation("Referrer", fields: [referrerId], references: [id])
+}
+
+model Review {
+  id         String @id @default(cuid())
+  userId     String
+  bookingId  String @unique
+  carModelId String
+  rating     Int
+  body       String?
+  published  Boolean @default(false)
+  user       User    @relation(fields: [userId], references: [id])
+  booking    Booking @relation(fields: [bookingId], references: [id])
+  carModel   CarModel @relation(fields: [carModelId], references: [id])
+}
+
+model Ticket {
+  id        String       @id @default(cuid())
+  userId    String
+  bookingId String?
+  subject   String
+  status    TicketStatus @default(OPEN)
+  user      User         @relation(fields: [userId], references: [id])
+  booking   Booking?     @relation(fields: [bookingId], references: [id])
+  messages  TicketMessage[]
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  body      String
+  internal  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id        String     @id @default(cuid())
+  userId    String?
+  name      String
+  email     String?
+  phone     String?
+  source    String
+  status    LeadStatus @default(NEW)
+  city      String?
+  createdAt DateTime   @default(now())
+  user      User?      @relation(fields: [userId], references: [id])
+  activities LeadActivity[]
+}
+
+model LeadActivity {
+  id        String   @id @default(cuid())
+  leadId    String
+  note      String
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model NotificationTemplate {
+  id      String @id @default(cuid())
+  key     String @unique
+  channel String
+  subject String?
+  body    String
+}
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  template  String
+  to        String
+  status    String
+  createdAt DateTime @default(now())
+}

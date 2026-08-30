@@ -1,0 +1,222 @@
+.order-section {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 20px 20px;
+     background: linear-gradient(to right, 
+    var(--light-bg) 0%, 
+    var(--light-bg) 25%, 
+    var(--secondary-color) 50%, 
+    var(--light-bg) 75%, 
+    var(--light-bg) 100%);
+  border-radius: 14px;
+  box-shadow:  0 4px 8px rgba(0, 0, 0, 0.024);
+  color: var(--text-dark);
+}
+
+.order-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.order-header h1 {
+  font-size: 2.8rem;
+  color: var(--text-dark);
+}
+
+.order-header p {
+  font-size: 1.5rem;
+  opacity: 0.90;
+}
+
+.order-body {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.order-image-panel {
+  flex: 1 1 45%;
+}
+
+.carousel-wrapper {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--light-bg);
+}
+
+.carousel-main {
+  width: 100%;
+  height: 360px;
+  object-fit: contain;
+  padding: 1rem;
+  border-radius: 10px;
+}
+
+.nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--dark-bg);
+  color: #fff;
+  border: none;
+  font-size: 22px;
+  padding: 8px 16px;
+  cursor: pointer;
+  z-index: 2;
+  border-radius: 50%;
+}
+
+.nav-btn.left {
+  left: 10px;
+}
+
+.nav-btn.right {
+  right: 10px;
+}
+
+.thumbnail-strip {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  gap: 10px;
+}
+
+.thumb {
+  width: 65px;
+  height: 45px;
+  border-radius: 6px;
+  object-fit: cover;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.thumb.active,
+.thumb:hover {
+  border-color: var(--accent-color);
+}
+
+.order-info-panel {
+  flex: 1 1 50%;
+  background: var(--light-bg);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-soft);
+}
+
+.car-title {
+  font-size: 2.8rem;
+  color: var(--text-dark);
+  margin-bottom: 24px;
+}
+
+.car-specs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 18px;
+  margin-bottom: 30px;
+}
+
+.spec-item {
+     background: linear-gradient(to right, 
+    var(--light-bg) 0%, 
+    var(--light-bg) 25%, 
+    var(--secondary-color) 50%, 
+    var(--light-bg) 75%, 
+    var(--light-bg) 100%);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.spec-item .label {
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--accent-color);
+  font-size: 1.8rem;
+}
+
+.spec-item .value {
+  font-size: 1.6rem;
+  color: var(--text-dark);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.confirm-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.4rem;
+  background-color: var(--accent-color);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.confirm-btn:hover {
+  background-color: #27c17d;
+}
+
+.price-details {
+  margin-top: 10px;
+  padding: 10px 20px;
+  background: var(--light-bg);
+  border-radius: 10px;
+  box-shadow: var(--shadow-soft);
+}
+
+.price-details h3 {
+  font-size: 1.9rem;
+  margin-bottom: 16px;
+  color: var(--text-dark);
+  text-align: center;
+  font-weight: 600;
+}
+
+.price-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 20px;
+}
+
+.price-box {
+  padding: 14px 16px;
+  background: linear-gradient(
+    to right,
+    var(--light-bg) 0%,
+    var(--light-bg) 25%,
+    var(--secondary-color) 50%,
+    var(--light-bg) 75%,
+    var(--light-bg) 100%
+  );
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.price-label {
+  font-size: 1.4rem;
+  color: var(--accent-color);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.price-value {
+  font-size: 1.7rem;
+  font-weight: bold;
+  color: var(--text-dark);
+}
+
+
+@media (max-width: 768px) {
+  .order-body {
+    flex-direction: column;
+  }
+
+  .confirm-btn {
+    font-size: 1.2rem;
+  }
+}

@@ -1,0 +1,227 @@
+.success-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 20px;
+  min-height: 80vh;
+  background: linear-gradient(to right, #f1f5f9, #e0f2fe);
+}
+
+.success-card {
+  background: white;
+  max-width: 900px;
+  width: 100%;
+  padding: 10px 35px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  animation: fadeIn 0.6s ease-in-out;
+}
+
+.success-header {
+  margin-bottom: 30px;
+}
+
+.success-icon {
+  font-size: 48px;
+  color: #22c55e;
+  margin-bottom: 12px;
+}
+
+.success-card h2 {
+  font-size: 28px;
+  color: #1e293b;
+  margin-bottom: 10px;
+}
+
+.success-card p {
+  font-size: 16px;
+  color: #475569;
+}
+
+.success-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 25px;
+  margin-top: 30px;
+  text-align: left;
+}
+
+.success-section h4 {
+  font-size: 17px;
+  margin-bottom: 12px;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.success-section ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  color: #334155;
+  font-size: 15px;
+}
+
+.success-section li {
+  margin-bottom: 8px;
+}
+
+.success-followup {
+  margin-top: 25px;
+  font-size: 15px;
+  color: #475569;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.go-home {
+  margin-top: 40px;
+  padding: 12px 24px;
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+  font-size: 15px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.go-home:hover {
+  background-color: #2563eb;
+}
+
+.success-card.error {
+  background: #fff1f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.success-card.error h2 {
+  color: #b91c1c;
+}
+
+.success-card.error button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.success-card.error button:hover {
+  background-color: #dc2626;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ✅ WhatsApp Popup Styling */
+.wa-popup {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: white;
+  border-left: 5px solid #25d366;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 20px 24px;
+  border-radius: 12px;
+  max-width: 300px;
+  z-index: 999;
+  animation: fadeIn 0.5s ease-in-out;
+  font-size: 1rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.wa-popup h3 {
+  margin: 10px 0 6px;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.wa-popup p {
+  margin: 0 0 14px;
+  color: #4b5563;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.wa-popup-icon {
+  color: #25d366;
+  font-size: 30px;
+}
+
+.wa-popup-btn {
+  display: inline-block;
+  padding: 10px 18px;
+  background-color: #25d366;
+  color: white;
+  font-weight: 600;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+.wa-popup-btn:hover {
+  background-color: #1da955;
+}
+
+/* ✅ Responsive Adjustments */
+@media (max-width: 768px) {
+  .success-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .success-card {
+    padding: 30px 20px;
+  }
+
+  .wa-popup {
+    bottom: 20px;
+    right: 20px;
+    max-width: 90%;
+    width: calc(100% - 40px);
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+  }
+
+  .wa-popup h3 {
+    font-size: 16px;
+  }
+
+  .wa-popup p {
+    font-size: 14px;
+  }
+
+  .wa-popup-btn {
+    padding: 9px 16px;
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .wa-popup {
+    bottom: 30px;
+    right: 30px;
+    max-width: 260px;
+  }
+}

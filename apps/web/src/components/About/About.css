@@ -1,0 +1,191 @@
+.about-container {
+  background: var(--light-bg);
+  padding: 2rem 1.5rem;
+  font-family: var(--font-family-main);
+   background: linear-gradient(to right, 
+    var(--light-bg) 0%, 
+    var(--light-bg) 25%, 
+    #d5e9f8a6 50%, 
+    var(--light-bg) 75%, 
+    var(--light-bg) 100%);
+}
+
+.about-content {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.about-intro {
+  text-align: center;
+  margin-bottom: 5rem;
+}
+
+.about-intro h2 {
+  font-size: 3.6rem;
+  color: var(--text-dark);
+  line-height: 1.3;
+}
+
+.about-intro h2 span {
+  color: var(--primary-color);
+}
+
+.about-intro .tagline {
+  font-size: 1.6rem;
+  font-weight: 500;
+  align-items: center;
+  color: var(--accent-color);
+  /* margin: 1rem 0 2rem; */
+}
+
+.about-intro p {
+  font-size: 1.65rem;
+  max-width: 1000px;
+  margin: 1rem auto;
+  line-height: 1.8;
+  color: var(--text-medium);
+}
+
+/* Highlights */
+.about-highlights-section {
+  text-align: center;
+  margin-bottom: 5rem;
+}
+
+.highlight-heading {
+  font-size: 2.8rem;
+  color: var(--primary-color);
+  margin-bottom: 2rem;
+}
+
+.about-highlights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2.5rem;
+}
+
+.highlight-card {
+  background: var(--light-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 2rem;
+  transition: 0.3s ease;
+  box-shadow: var(--shadow-soft);
+  cursor:default;
+}
+
+.highlight-card:hover {
+  background: var(--primary-gradient);
+  transform: translateY(-6px);
+  /* color: white; */
+}
+
+.highlight-icon {
+  background: var(--primary-light);
+  color: var(--primary-color);
+  font-size: 2.4rem;
+  border-radius: 50%;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.3s;
+}
+
+.highlight-card:hover .highlight-icon {
+  background: #fff;
+  color: var(--primary-color);
+}
+
+.highlight-info h4 {
+  font-size: 1.8rem;
+  margin-bottom: 0.6rem;
+}
+
+.highlight-info p {
+  font-size: 1.4rem;
+  color: var(--text-medium);
+  transition: 0.3s;
+}
+
+.highlight-card:hover .highlight-info p {
+  /* color: #eee; */
+}
+
+/* Story & Mission */
+.about-story,
+.about-mission {
+  display: flex;
+  gap: 3rem;
+  margin-top: 4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.about-mission .about-text-block span{
+  color: var(--primary-color);
+}
+
+.about-text-block {
+  flex: 1 1 55%;
+}
+
+.about-text-block h3 {
+  font-size: 2.2rem;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.about-text-block p {
+  font-size: 1.6rem;
+  line-height: 1.8;
+  margin-bottom: 1.5rem;
+  color: var(--text-dark);
+}
+
+.about-image-block {
+  flex: 1 1 40%;
+  text-align: center;
+}
+
+.about-image-block img {
+  max-width: 80%;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .about-intro h2 {
+    font-size: 2.6rem;
+  }
+
+  .about-intro .tagline {
+    font-size: 1.4rem;
+  }
+
+  .about-intro p {
+    font-size: 1.4rem;
+  }
+
+  .highlight-info h4 {
+    font-size: 1.6rem;
+  }
+
+  .highlight-info p {
+    font-size: 1.3rem;
+  }
+
+  .about-story,
+  .about-mission {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .about-text-block,
+  .about-image-block {
+    flex: 1 1 100%;
+  }
+}

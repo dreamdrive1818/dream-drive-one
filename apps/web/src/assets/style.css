@@ -1,0 +1,186 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html{
+    font-size:10px;
+}
+/* fallback (light theme default) */
+:root {
+  --primary-color: #0072ce;
+  --secondary-color: #d5e9f8;
+  --accent-color: #63b400;
+  --ternary-color: #a0db8e;
+
+  --white-bg: white;
+  --light-bg: #f6fbfe;
+  --medium-bg: #dbeeff;
+    --medium-dark-bg: #03233d12;
+  --dark-bg: #0b2d4a;
+  --dark-light-bg: #142a3b;
+
+  --text-dark: #0c1d2c;
+  --text-light: #ffffff;
+   --text-medium: #262626;
+
+  --verticle-line:#d3d3d3;
+  --step-circle:#595959c0;
+  --step-circle-dark: #2e2e2ed6;
+  
+  --text-opacity:1;
+
+  --font-family-main: 'Segoe UI', sans-serif;
+  --shadow-soft: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.dark-mode {
+  --primary-color: #1890ff;
+  --accent-color: #42d392;
+  --secondary-color: #0d2233;
+  --ternary-color: #4a4a4a;
+
+  --white-bg: #ffffff35;
+  --light-bg: #0d1a26;
+  --medium-bg: #142a3b;
+  --medium-dark-bg:#142a3b;
+  --dark-bg: #0a121d;
+    --dark-light-bg: #142a3b;
+
+    --text-opacity: 0.4;
+
+  --verticle-line:#d3d3d3;
+  --step-circle:#acababc0;
+
+  --text-dark: #d0e3f4;
+  --text-light: #d0e3f4;
+  --text-medium: #b5b5b5;
+
+  --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.4);
+
+  background-color: var(--light-bg);
+}
+
+
+
+
+body{
+    width: 100%;
+    background-color: var(--light-bg) !important;
+    font-family: var(--font-family-main);
+    /* overflow-x: hidden; */
+}
+
+
+.h3head{
+    font-family: 'Playfair Display', serif;
+    font-weight: 500;
+}
+
+.para{
+    font-family: 'Inter', sans-serif;
+}
+
+.discover-btn{
+    font-family: 'Inter', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 200;
+    color: #000;
+    z-index: 10;
+    text-decoration: none;
+    transition: 0.25s ease;
+    position: relative;
+    display: inline-block;
+    align-items: left;
+    padding-bottom: 0.25rem;
+    cursor: pointer;
+}
+
+.discover-btn:after{
+    content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 1.5px;
+  width: 82px;
+  background-color: black;
+  transition: 0.2s ease; 
+}
+
+.discover-btn:hover:after{
+    width: 60px;
+  background-color: var(--dark-bg);
+}
+
+.discover-btn:hover{
+    color: var(--dark-bg);
+}
+
+/* route-container */
+.route-container {
+  /* min-height: 80vh; */
+  /* padding: 2rem; */
+}
+
+.route-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.animateonscroll{
+  opacity: 0;
+}
+.fade-in-bottom {
+  animation: slideUp 0.4s ease-out both;
+   opacity: 0;
+  /* transform: translateY(40px); */
+  transition: all 0.4s ease-out;
+}
+
+
+
+.fade-in-bottom.visible {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* reveal bottom */
+.reveal-bottom {
+  opacity: 0;
+  transform: translateY(80px);
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Delay classes starting from 2s to 4.5s */
+.delay-0 { animation-delay: 0.15s; }
+.delay-1 { animation-delay: 0.20s; }
+.delay-2 { animation-delay: 0.30s; }
+.delay-3 { animation-delay: 0.5s; }
+.delay-4 { animation-delay: 0.75s; }
+.delay-5 { animation-delay: 1.5s; }
+.delay-6 { animation-delay: 1.75s; }
+.delay-7 { animation-delay: 2s; }
+.delay-8 { animation-delay: 2.25s; }
+.delay-9 { animation-delay: 2.5s; }
+.delay-10 { animation-delay: 2.75s; }

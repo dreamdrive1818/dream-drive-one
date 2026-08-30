@@ -1,0 +1,116 @@
+.manage-users {
+  padding: 3rem 2rem;
+  max-width: 1280px;
+  margin: auto;
+  background-color: var(--dark-bg);
+  font-family: var(--font-family-main);
+  color: var(--text-light);
+}
+
+.manage-users h2 {
+  font-size: 2.8rem;
+  margin-bottom: 2rem;
+  font-weight: 700;
+  color: var(--text-light);
+  border-left: 6px solid var(--primary-color);
+  padding-left: 1rem;
+}
+
+.manage-users table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+  background-color: transparent;
+  font-size: 1.15rem;
+}
+
+.manage-users thead {
+  background-color: var(--dark-bg);
+}
+
+.manage-users th {
+  text-align: left;
+  padding: 1.2rem 1.5rem;
+  color: var(--text-light);
+  font-size: 1.4rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--accent-color);
+}
+
+.manage-users td {
+  background-color: var(--dark-bg);
+  padding: 1.2rem 1.5rem;
+  border-bottom: 1px solid var(--medium-bg);
+  color: var(--text-light);
+  transition: background-color 0.2s ease;
+  font-size: 1.4rem;
+}
+
+.manage-users tbody tr:hover td {
+  background-color: var(--dark-light-bg);
+}
+
+.manage-users button {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: background-color 0.3s;
+}
+
+.manage-users button:hover {
+  background-color: #dc2626;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .manage-users table,
+  .manage-users thead,
+  .manage-users tbody,
+  .manage-users th,
+  .manage-users td,
+  .manage-users tr {
+    display: block;
+  }
+
+  .manage-users thead {
+    display: none;
+  }
+
+  .manage-users tr {
+    margin-bottom: 1.5rem;
+    background-color: var(--light-bg);
+    border: 1px solid var(--medium-bg);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+
+  .manage-users td {
+    padding: 0.8rem 1rem;
+    position: relative;
+    padding-left: 55%;
+    font-size: 1.4rem;
+    border: none;
+    border-bottom: 1px solid var(--medium-bg);
+  }
+
+  .manage-users td::before {
+    position: absolute;
+    top: 0.5rem;
+    left: 1rem;
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 1.25rem;
+    white-space: nowrap;
+  }
+
+  .manage-users td:nth-child(1)::before { content: "Full Name"; }
+  .manage-users td:nth-child(2)::before { content: "Email"; }
+  .manage-users td:nth-child(3)::before { content: "Phone"; }
+  .manage-users td:nth-child(4)::before { content: "Registered"; }
+  .manage-users td:nth-child(5)::before { content: "Actions"; }
+}

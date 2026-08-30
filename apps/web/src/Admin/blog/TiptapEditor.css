@@ -1,0 +1,43 @@
+.tiptap {
+  min-height: 200px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 12px;
+  font-size: 16px;
+  background: #fff;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.tiptap:focus {
+  outline: none;
+  border-color: #0077cc;
+}
+
+.tiptap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tiptap-toolbar button {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.tiptap-toolbar button.active {
+  background-color: #0077cc;
+  color: white;
+  border-color: #0077cc;
+}
+
+.tiptap-toolbar input[type="color"] {
+  width: 32px;
+  height: 32px;
+  border: none;
+  cursor: pointer;
+}

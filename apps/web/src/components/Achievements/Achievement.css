@@ -1,0 +1,124 @@
+.achievements {
+  display: flex;
+  justify-content: space-between;
+  padding: 0rem 16rem;
+  flex-wrap: wrap;
+  gap: 4rem;
+  background-color: var(--light-bg);
+}
+
+.achievements-left {
+  flex: 1;
+  min-width: 300px;
+  padding: 4rem 0;
+}
+
+.achievements-subtitle {
+  font-size: 2rem;
+  color: var(--text-dark);
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.achievements-heading {
+  font-size: 4rem;
+  font-weight: bold;
+  color: var(--text-dark);
+  line-height: 1.3;
+}
+
+.achievements-right {
+  flex: 1.5;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 30px;
+  min-width: 300px;
+  padding: 4rem 2rem;
+  background: radial-gradient(circle at center, var(--medium-bg), var(--light-bg));
+  border-radius: 20px;
+}
+
+.achievement-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--text-dark);
+}
+
+.achievement-card .icon {
+  font-size: 3.5rem;
+  color: var(--primary-color);
+  margin-bottom: 10px;
+}
+
+.achievement-card p {
+  font-size: 1.4rem;
+}
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+  .achievements {
+    padding: 0 8rem;
+  }
+
+  .achievements-heading {
+    font-size: 4rem;
+  }
+
+     .achievements-subtitle {
+    text-align: center;
+    font-size: 1.25rem;
+  }
+
+}
+
+@media (max-width: 768px) {
+  .achievements {
+    flex-direction: column;
+    padding: 0 4rem;
+  }
+
+  .achievements-left,
+  .achievements-right {
+    padding: 2rem 0;
+  }
+
+  .achievements-heading {
+    font-size: 4rem;
+    text-align: center;
+  }
+
+  .achievements-subtitle {
+    text-align: center;
+    font-size: 1.25rem;
+  }
+
+  .achievements-right {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .achievements {
+    padding: 0 2rem;
+  }
+
+  .achievements-heading {
+    font-size: 3.5rem;
+  }
+
+  .achievement-card .icon {
+    font-size: 2.8rem;
+  }
+
+  .achievement-card p {
+    font-size: 1.2rem;
+  }
+
+    .achievements-subtitle {
+    text-align: center;
+    font-size: 1.25rem;
+  }
+
+}

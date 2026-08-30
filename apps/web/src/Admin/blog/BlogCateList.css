@@ -1,0 +1,28 @@
+.blog-cate-list {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.07);
+  max-width: 500px;
+  margin: auto;
+}
+
+.blog-cate-list h2 {
+  margin-bottom: 1rem;
+  font-size: 1.6rem;
+  color: #1f3442;
+}
+
+.blog-cate-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.blog-cate-list li {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #e1e1e1;
+  font-size: 1.4rem;
+  color: var(--text-dark);
+}
+
+

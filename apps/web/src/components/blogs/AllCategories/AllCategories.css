@@ -1,0 +1,65 @@
+.category-sidebar {
+  background: #ffffff;
+  padding: 4rem 2rem;
+  padding-top: 0;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+  margin-top: 3rem;
+  position: sticky;
+  top: 18rem;
+  width: 100rem;
+  max-height: 75vh;
+  overflow-y: auto;
+
+  /* Hide scrollbar for Chrome, Safari, Opera */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
+
+.category-sidebar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.category-sidebar:hover::-webkit-scrollbar{
+    display: block;
+}
+
+
+.category-heading {
+  font-size: 2.8rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  color: #2f2f2f;
+  border-bottom: 2px solid var(--accent-color);
+  padding-bottom: 0.5rem;
+}
+
+.category-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.category-item {
+  font-size: 1.6rem;
+  color: #444;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.category-item:hover {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+
+@media screen and (max-width: 768px) {
+  .category-sidebar{
+    display: none;
+  }
+}

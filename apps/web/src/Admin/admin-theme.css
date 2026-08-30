@@ -1,0 +1,437 @@
+/* Dream Drive Admin — shared design system */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Outfit:wght@500;600;700&display=swap");
+
+.admin-shell {
+  --admin-bg: #edf2f7;
+  --admin-surface: #ffffff;
+  --admin-surface-2: #f7fafc;
+  --admin-border: #e2e8f0;
+  --admin-border-strong: #cbd5e1;
+  --admin-text: #0f1c2e;
+  --admin-text-muted: #64748b;
+  --admin-text-soft: #94a3b8;
+  --admin-primary: #0b6bcb;
+  --admin-primary-soft: #e8f2fc;
+  --admin-primary-hover: #0958a8;
+  --admin-accent: #2f9e44;
+  --admin-accent-soft: #e6f6ea;
+  --admin-danger: #e03131;
+  --admin-danger-soft: #fde8e8;
+  --admin-warning: #f08c00;
+  --admin-warning-soft: #fff4e0;
+  --admin-sidebar: #0a1628;
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --admin-sidebar-active: #0b6bcb;
+  --admin-sidebar-text: #94a3b8;
+  --admin-sidebar-text-active: #ffffff;
+  --admin-radius: 12px;
+  --admin-radius-sm: 8px;
+  --admin-shadow: 0 1px 2px rgba(15, 28, 46, 0.04), 0 8px 24px rgba(15, 28, 46, 0.06);
+  --admin-shadow-sm: 0 1px 2px rgba(15, 28, 46, 0.05);
+  --admin-font: "DM Sans", "Segoe UI", sans-serif;
+  --admin-font-display: "Outfit", "DM Sans", sans-serif;
+  --admin-sidebar-w: 260px;
+  --admin-topbar-h: 64px;
+
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  font-family: var(--admin-font);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.admin-shell *,
+.admin-shell *::before,
+.admin-shell *::after {
+  box-sizing: border-box;
+}
+
+.admin-workspace {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.admin-main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px 32px 48px;
+  background:
+    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(11, 107, 203, 0.05), transparent 55%),
+    var(--admin-bg);
+}
+
+.admin-main::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-main::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+
+.admin-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.admin-page-head h2,
+.admin-page-title {
+  margin: 0;
+  font-family: var(--admin-font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--admin-text);
+  border: none;
+  padding: 0;
+}
+
+.admin-page-sub {
+  margin: 6px 0 0;
+  color: var(--admin-text-muted);
+  font-size: 14px;
+}
+
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--admin-radius-sm);
+  border: 1px solid transparent;
+  font-family: var(--admin-font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-btn-primary {
+  background: var(--admin-primary);
+  color: #fff;
+}
+
+.admin-btn-primary:hover {
+  background: var(--admin-primary-hover);
+}
+
+.admin-btn-ghost {
+  background: var(--admin-surface);
+  border-color: var(--admin-border);
+  color: var(--admin-text);
+}
+
+.admin-btn-ghost:hover {
+  border-color: var(--admin-border-strong);
+  background: var(--admin-surface-2);
+}
+
+.admin-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-shell .admin-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.admin-shell .admin-table-wrap th {
+  text-align: left;
+  padding: 14px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-text-muted);
+  background: var(--admin-surface-2);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-shell .admin-table-wrap td {
+  padding: 14px 18px;
+  font-size: 14px;
+  color: var(--admin-text);
+  border-bottom: 1px solid var(--admin-border);
+  background: transparent;
+  vertical-align: middle;
+}
+
+.admin-shell .admin-table-wrap tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-shell .admin-table-wrap tbody tr:hover td {
+  background: #f8fbff;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.admin-badge-success {
+  background: var(--admin-accent-soft);
+  color: #1b7a32;
+}
+
+.admin-badge-warn {
+  background: var(--admin-warning-soft);
+  color: #b86e00;
+}
+
+.admin-badge-danger {
+  background: var(--admin-danger-soft);
+  color: #c92a2a;
+}
+
+.admin-badge-info {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+/* Unify legacy manage pages inside the new shell */
+.admin-shell .manage-rides,
+.admin-shell .manage-users,
+.admin-shell .manage-messages,
+.admin-shell .manage-testimonials,
+.admin-shell .manage-car-container,
+.admin-shell .blog-dash,
+.admin-shell .dashboard-container {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--admin-text);
+  font-family: var(--admin-font);
+  min-height: auto;
+}
+
+.admin-shell .manage-rides h2,
+.admin-shell .manage-users h2,
+.admin-shell .manage-messages h2,
+.admin-shell .manage-testimonials h2,
+.admin-shell .manage-car-container h2,
+.admin-shell .dashboard-title {
+  font-family: var(--admin-font-display);
+  font-size: 26px !important;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--admin-text) !important;
+  border-left: none !important;
+  padding-left: 0 !important;
+  margin-bottom: 18px;
+}
+
+.admin-shell .manage-rides table,
+.admin-shell .manage-users table,
+.admin-shell .manage-messages table,
+.admin-shell .manage-testimonials table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  overflow: hidden;
+  box-shadow: var(--admin-shadow-sm);
+  font-size: 14px;
+}
+
+.admin-shell .manage-rides thead,
+.admin-shell .manage-users thead,
+.admin-shell .manage-messages thead,
+.admin-shell .manage-testimonials thead {
+  background: var(--admin-surface-2);
+}
+
+.admin-shell .manage-rides th,
+.admin-shell .manage-users th,
+.admin-shell .manage-messages th,
+.admin-shell .manage-testimonials th {
+  text-align: left;
+  padding: 14px 16px !important;
+  font-size: 11px !important;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-text-muted) !important;
+  border-bottom: 1px solid var(--admin-border) !important;
+  background: var(--admin-surface-2) !important;
+}
+
+.admin-shell .manage-rides td,
+.admin-shell .manage-users td,
+.admin-shell .manage-messages td,
+.admin-shell .manage-testimonials td {
+  padding: 14px 16px !important;
+  font-size: 14px !important;
+  color: var(--admin-text) !important;
+  background: var(--admin-surface) !important;
+  border-bottom: 1px solid var(--admin-border) !important;
+  border-radius: 0 !important;
+  vertical-align: middle;
+}
+
+.admin-shell .manage-rides tbody tr:hover td,
+.admin-shell .manage-users tbody tr:hover td,
+.admin-shell .manage-messages tbody tr:hover td,
+.admin-shell .manage-testimonials tbody tr:hover td {
+  background: #f8fbff !important;
+}
+
+.admin-shell .manage-rides select,
+.admin-shell .manage-rides input[type="date"],
+.admin-shell .manage-rides input[type="time"],
+.admin-shell .manage-rides input[type="text"],
+.admin-shell .manage-rides input[type="number"] {
+  background: #fff !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+  border-radius: var(--admin-radius-sm);
+  font-size: 13px !important;
+}
+
+.admin-shell .manage-rides button,
+.admin-shell .manage-users button,
+.admin-shell .manage-testimonials button,
+.admin-shell .manage-car-container .add-btn {
+  font-size: 13px !important;
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-shell .manage-car-container .add-btn {
+  background: var(--admin-primary);
+  color: #fff;
+}
+
+.admin-shell .manage-car-container .add-btn:hover {
+  background: var(--admin-primary-hover);
+}
+
+.admin-shell .manage-car-container .car-card {
+  background: var(--admin-surface) !important;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text) !important;
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-shell .manage-car-container .car-card h4,
+.admin-shell .manage-car-container .car-card p,
+.admin-shell .manage-car-container label {
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .manage-car-container .carousel-container,
+.admin-shell .manage-car-container .carousel-image {
+  background-color: var(--admin-surface-2) !important;
+}
+
+.admin-shell .manage-car-container .modal {
+  background: var(--admin-surface) !important;
+  color: var(--admin-text) !important;
+  border: 1px solid var(--admin-border);
+}
+
+.admin-shell .manage-car-container .modal input,
+.admin-shell .manage-car-container select.availability-dropdown {
+  background: #fff !important;
+  border: 1px solid var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .grid-container-form-entries {
+  padding: 0;
+}
+
+.admin-shell .grid-container-form-entries .card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-shell .grid-container-form-entries .card h4 {
+  color: var(--admin-text);
+  font-size: 16px;
+}
+
+.admin-shell .grid-container-form-entries .card p {
+  color: var(--admin-text-muted);
+  font-size: 13px;
+}
+
+.admin-shell .extract-btn {
+  background: var(--admin-primary);
+  font-size: 13px;
+}
+
+.admin-shell .extract-btn:hover {
+  background: var(--admin-primary-hover);
+}
+
+.admin-shell .blog-category-nav button {
+  background: var(--admin-surface) !important;
+  color: var(--admin-text) !important;
+  border: 1px solid var(--admin-border) !important;
+  font-size: 13px !important;
+  padding: 10px 14px !important;
+}
+
+.admin-shell .blog-category-nav button:hover,
+.admin-shell .blog-category-nav button.active {
+  background: var(--admin-primary-soft) !important;
+  border-color: var(--admin-primary) !important;
+  color: var(--admin-primary) !important;
+}
+
+.admin-shell .add-blog-btn {
+  background: var(--admin-primary) !important;
+  color: #fff !important;
+  border-radius: var(--admin-radius-sm);
+  font-weight: 600;
+}
+
+.admin-shell .add-blog-btn:hover {
+  background: var(--admin-primary-hover) !important;
+}
+
+@media (max-width: 900px) {
+  .admin-main {
+    padding: 20px 16px 40px;
+  }
+
+  .admin-shell {
+    --admin-sidebar-w: 72px;
+  }
+}
