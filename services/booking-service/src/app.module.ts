@@ -5,7 +5,7 @@ import { BookingController } from "./booking.controller";
 import { BookingEngine } from "./booking.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] })],
+  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" })],
   controllers: [HealthController, BookingController],
   providers: [BookingEngine],
 })

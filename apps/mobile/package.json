@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start:dev": "expo start"
+    "start:dev": "expo start",
+    "dev": "expo start",
+    "start": "expo start"
   },
   "dependencies": {
     "expo": "^53.0.0",

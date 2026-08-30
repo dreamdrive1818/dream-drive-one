@@ -7,7 +7,9 @@
     "start:dev": "nest start --watch",
     "build": "nest build",
     "start:prod": "node dist/main",
-    "lint": "echo \"lint socket\""
+    "lint": "echo \"lint socket\"",
+    "dev": "nest start --watch",
+    "start": "node dist/main"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -18,7 +20,8 @@
     "@nestjs/config": "^4.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "socket.io": "^4.8.0"
+    "socket.io": "^4.8.0",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

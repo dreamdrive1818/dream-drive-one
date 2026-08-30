@@ -5,7 +5,7 @@ import { FleetController } from "./fleet.controller";
 import { FleetEngine } from "./fleet.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] })],
+  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" })],
   controllers: [HealthController, FleetController],
   providers: [FleetEngine],
 })
