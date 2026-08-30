@@ -4,7 +4,7 @@ import { BookingGateway } from "./gateways/booking.gateway";
 import { HealthController } from "./health.controller";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] })],
+  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" })],
   controllers: [HealthController],
   providers: [BookingGateway],
 })

@@ -1,11 +1,5 @@
 "use strict";
 
-const path = require("path");
-try {
-  require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
-  require("dotenv").config({ path: path.resolve(__dirname, ".env") });
-} catch (_) {}
-
 const { PrismaClient } = require("@prisma/client");
 
 const globalForPrisma = globalThis;

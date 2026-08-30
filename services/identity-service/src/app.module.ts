@@ -5,7 +5,7 @@ import { IdentityController } from "./identity.controller";
 import { IdentityService } from "./identity.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] })],
+  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" })],
   controllers: [HealthController, IdentityController],
   providers: [IdentityService],
 })

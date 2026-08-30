@@ -56,9 +56,30 @@ Customer: http://localhost:3000/fleet · Admin: http://localhost:3001/login
 
 ## Local setup
 
+Each app and service has its own `package.json` and `.env`. Copy examples first:
+
 ```bash
-cp .env.example .env
+# one-time per folder (or run scripts/isolate-envs.js)
+cp apps/web/.env.example apps/web/.env
+cp apps/admin/.env.example apps/admin/.env
+cp packages/database/.env.example packages/database/.env
+# ...and services/<name>/.env.example → .env
+
 docker compose up -d
+cd packages/database && npm install && npm run generate && npm run push && npm run seed
+```
+
+Run one app from its folder:
+
+```bash
+cd apps/web && npm install && npm run dev
+cd apps/admin && npm install && npm run dev
+cd services/gateway && npm install && npm run dev
+```
+
+Or from the repo root (workspaces still work):
+
+```bash
 npm install
 npm run db:generate
 npm run db:push

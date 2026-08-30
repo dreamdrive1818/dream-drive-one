@@ -5,7 +5,7 @@ import { PlatformController } from "./platform.controller";
 import { PlatformEngine } from "./platform.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] })],
+  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" })],
   controllers: [HealthController, PlatformController],
   providers: [PlatformEngine],
 })

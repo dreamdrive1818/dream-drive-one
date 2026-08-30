@@ -5,7 +5,7 @@ import { PartnerController } from "./partner.controller";
 import { PartnerEngine } from "./partner.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] })],
+  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" })],
   controllers: [HealthController, PartnerController],
   providers: [PartnerEngine],
 })

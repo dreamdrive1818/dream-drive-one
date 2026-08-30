@@ -5,7 +5,7 @@ import { DocumentController } from "./document.controller";
 import { DocumentEngine } from "./document.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] })],
+  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" })],
   controllers: [HealthController, DocumentController],
   providers: [DocumentEngine],
 })

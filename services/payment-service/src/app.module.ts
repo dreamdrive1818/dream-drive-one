@@ -5,7 +5,7 @@ import { PaymentController } from "./payment.controller";
 import { PaymentEngine } from "./payment.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] })],
+  imports: [ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" })],
   controllers: [HealthController, PaymentController],
   providers: [PaymentEngine],
 })

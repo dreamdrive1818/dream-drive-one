@@ -6,7 +6,7 @@ import { NotifyRetryJob } from "./jobs/notify-retry.job";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
     ScheduleModule.forRoot(),
   ],
   providers: [HoldSweeperJob, NotifyRetryJob],
