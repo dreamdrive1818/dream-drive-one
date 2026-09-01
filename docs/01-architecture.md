@@ -3,24 +3,14 @@
 ```
 dream-drive-MS/
 ├── apps/
+│   ├── api/                    # NestJS HTTP API (port 4000) — all domain modules
 │   ├── web/                    # Next.js 15 — public site + customer dashboard
 │   ├── admin/                  # Next.js 15 — operations console
 │   └── mobile/                 # Expo (React Native) customer app
-├── services/
-│   ├── gateway/                # NestJS HTTP gateway (port 4000)
-│   ├── identity-service/       # users, roles, audit
-│   ├── catalog-service/        # cars, search, availability, pricing
-│   ├── booking-service/        # all rental types, lifecycle
-│   ├── payment-service/        # Razorpay, invoices, deposits, wallet
-│   ├── document-service/       # KYC, Zoho, Leegality, PDF
-│   ├── fleet-service/          # vehicles, workshop, handover, drivers, cities
-│   ├── partner-service/        # partners, commission, ledger
-│   ├── notification-service/   # email, later SMS/WhatsApp
-│   └── platform-service/       # CMS, CRM, offers, loyalty, reviews, support, reports
 ├── packages/
 │   ├── database/               # Prisma schema + migrations
 │   ├── shared-types/           # DTOs, enums, events
-│   └── config/                 # env validation
+│   └── config/                 # env helpers
 ├── docs/
 ├── infra/
 ├── docker-compose.yml
@@ -30,31 +20,18 @@ dream-drive-MS/
 ## App conventions
 
 - `apps/web` and `apps/admin` use App Router, Tailwind, shadcn/ui, Framer Motion.
-- Both call **only** `NEXT_PUBLIC_API_URL` (gateway). No Prisma, no Firebase Admin, no Razorpay secret in the browser.
-- Firebase client SDK is used **only** for Auth (getIdToken). Storage uploads go through document-service signed URLs or Cloudinary signed presets issued by the API.
+- Both call **only** `NEXT_PUBLIC_API_URL` (the API on :4000). No Prisma, no Firebase Admin, no Razorpay secret in the browser.
+- Firebase client SDK is used **only** for Auth (getIdToken). Storage uploads go through signed URLs or Cloudinary signed presets issued by the API.
 
-## Service conventions
+## API conventions
 
-Each NestJS service:
+One NestJS process. Domain code is grouped by folder under `apps/api/src/modules/` (identity, catalog, booking, payment, documents, fleet, partner, notifications, platform).
 
-```
-src/
-  main.ts
-  app.module.ts
-  health.controller.ts
-  <domain>/
-    <domain>.module.ts
-    <domain>.controller.ts
-    <domain>.service.ts
-    dto/
-    events/
-```
+Internal routes `/internal/*` require `x-internal-token`. The worker calls those on `API_URL` (same port 4000).
 
-Inter-service calls in MVP: HTTP via internal URLs (`IDENTITY_URL`, etc.). Domain events published on Redis streams (`booking.created`, `payment.captured`, `kyc.approved`). Upgrade to NATS when two services need fan-out retries.
+## Database convention
 
-## Database convention (pragmatic microservices)
-
-One PostgreSQL instance, **one Prisma schema** for MVP so joins and migrations stay simple. Each service is still the **only writer** of its tables. Split into database-per-service after the booking path is stable.
+One PostgreSQL instance, **one Prisma schema**.
 
 ## Frontend page map (high level)
 

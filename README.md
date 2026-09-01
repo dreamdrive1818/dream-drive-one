@@ -1,8 +1,8 @@
 # Dream-Drive MS
 
-Microservice rebuild of the Dream-Drive car rental platform.
+Modular NestJS API + Next.js web/admin + Expo mobile.
 
-**Stack:** Next.js + TypeScript (web + admin) · NestJS microservices · PostgreSQL + Prisma · Firebase Auth · Razorpay · Leegality · Zoho Forms · Expo mobile.
+**Stack:** Next.js + TypeScript (web + admin) · NestJS API · PostgreSQL + Prisma · Firebase Auth · Razorpay · Leegality · Zoho Forms · Expo mobile.
 
 This folder is a **greenfield** codebase. The live product still lives in `client-main` / `backend`. Do not mix Firestore writes into these services.
 
@@ -15,55 +15,42 @@ This folder is a **greenfield** codebase. The live product still lives in `clien
 | Ops | [docs/security-deployment.md](docs/security-deployment.md) |
 | Sprint | [docs/sprint-plan.md](docs/sprint-plan.md) |
 
-## Services
-
-| Service | Port | Owns |
-| --- | ---: | --- |
-| `gateway` | 4000 | Auth verification, routing, rate limits |
-| `identity-service` | 4001 | Users, roles, customer profiles |
-| `catalog-service` | 4002 | Cars, search, availability, pricing rules |
-| `booking-service` | 4003 | All rental types, subscriptions, packages |
-| `payment-service` | 4004 | Razorpay, invoices, deposits, wallet |
-| `document-service` | 4005 | KYC, Zoho ingest, Leegality, PDFs |
-| `fleet-service` | 4006 | Vehicles, maintenance, handover, drivers, cities/branches |
-| `partner-service` | 4007 | Partners, commission, settlements |
-| `notification-service` | 4008 | Email now, SMS/WhatsApp later |
-| `platform-service` | 4009 | CMS, CRM, offers, loyalty, reviews, support, finance reports |
-
 ## Apps
 
 | App | Port | Role |
 | --- | ---: | --- |
-| `apps/api` | 3999 | Legacy health-only process (not the public API) |
+| `apps/api` | 4000 | Public HTTP API (all domain modules) |
 | `apps/web` | 3000 | Public site + new booking path (`/fleet`, `/login`, `/account`) |
 | `apps/worker` | — | Cron / queue jobs (HOLD sweeper, notify retry) |
 | `apps/socket` | 4010 | Socket.IO realtime (booking status) |
 | `apps/admin` | 3001 | Operations console |
 | `apps/mobile` | — | Expo customer app |
 
+Domain modules live inside `apps/api`: identity, catalog, booking, payment, documents, fleet, partner, notifications, platform.
+
 ```bash
-npm run dev          # gateway + 9 services + worker + web + admin
-npm run dev:gateway
+npm run dev          # api + worker + web + admin
+npm run dev:api
 npm run dev:web
 npm run dev:admin
 ```
 
-Public API is **gateway** `:4000`. Dev login: `Authorization: Bearer dev:admin@dreamdrive.test` (after seed).
+Public API is **`:4000`**. Dev login: `Authorization: Bearer dev:admin@dreamdrive.test` (after seed).
 
 Customer: http://localhost:3000/fleet · Admin: http://localhost:3001/login
 
-`apps/web` still contains the ported marketing site. New booking APIs go through the gateway.
+`apps/web` still contains the ported marketing site. New booking APIs go through the API.
 
 ## Local setup
 
-Each app and service has its own `package.json` and `.env`. Copy examples first:
+Each app has its own `package.json` and `.env`. Copy examples first:
 
 ```bash
 # one-time per folder (or run scripts/isolate-envs.js)
 cp apps/web/.env.example apps/web/.env
 cp apps/admin/.env.example apps/admin/.env
+cp apps/api/.env.example apps/api/.env
 cp packages/database/.env.example packages/database/.env
-# ...and services/<name>/.env.example → .env
 
 docker compose up -d
 cd packages/database && npm install && npm run generate && npm run push && npm run seed
@@ -74,7 +61,7 @@ Run one app from its folder:
 ```bash
 cd apps/web && npm install && npm run dev
 cd apps/admin && npm install && npm run dev
-cd services/gateway && npm install && npm run dev
+cd apps/api && npm install && npm run dev
 ```
 
 Or from the repo root (workspaces still work):

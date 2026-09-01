@@ -20,132 +20,50 @@ DATABASE_URL=${DB}
 NODE_ENV=development
 `,
 
-  "services/gateway": `# Gateway — public API on :4000
+  "services/gateway": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4000
-GATEWAY_PORT=4000
-INTERNAL_TOKEN=${TOKEN}
-DEV_AUTH_BYPASS=true
-IDENTITY_URL=http://localhost:4001
-CATALOG_URL=http://localhost:4002
-BOOKING_URL=http://localhost:4003
-PAYMENT_URL=http://localhost:4004
-DOCUMENT_URL=http://localhost:4005
-FLEET_URL=http://localhost:4006
-PARTNER_URL=http://localhost:4007
-NOTIFICATION_URL=http://localhost:4008
-PLATFORM_URL=http://localhost:4009
-FIREBASE_PROJECT_ID=
-FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY=
-REDIS_URL=redis://localhost:6379
 `,
 
-  "services/identity-service": `# Identity service :4001
+  "services/identity-service": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4001
-IDENTITY_PORT=4001
-DATABASE_URL=${DB}
-INTERNAL_TOKEN=${TOKEN}
-NOTIFICATION_URL=http://localhost:4008
 `,
 
-  "services/catalog-service": `# Catalog service :4002
+  "services/catalog-service": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4002
-CATALOG_PORT=4002
-DATABASE_URL=${DB}
-INTERNAL_TOKEN=${TOKEN}
-BUFFER_HOURS=3
 `,
 
-  "services/booking-service": `# Booking service :4003
+  "services/booking-service": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4003
-BOOKING_PORT=4003
-DATABASE_URL=${DB}
-INTERNAL_TOKEN=${TOKEN}
-HOLD_MINUTES=15
-CATALOG_URL=http://localhost:4002
-NOTIFICATION_URL=http://localhost:4008
 `,
 
-  "services/payment-service": `# Payment service :4004
+  "services/payment-service": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4004
-PAYMENT_PORT=4004
-DATABASE_URL=${DB}
-INTERNAL_TOKEN=${TOKEN}
-PAYMENTS_MOCK=true
-BOOKING_URL=http://localhost:4003
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
-RAZORPAY_WEBHOOK_SECRET=
 `,
 
-  "services/document-service": `# Document service :4005
+  "services/document-service": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4005
-DOCUMENT_PORT=4005
-DATABASE_URL=${DB}
-INTERNAL_TOKEN=${TOKEN}
-BOOKING_URL=http://localhost:4003
-LEEGALITY_API_KEY=
-LEEGALITY_BASE_URL=https://app.leegality.com/api
-ZOHO_CLIENT_ID=
-ZOHO_CLIENT_SECRET=
-ZOHO_REFRESH_TOKEN=
-ZOHO_WEBHOOK_SECRET=
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-CLOUDINARY_UPLOAD_PRESET=
 `,
 
-  "services/fleet-service": `# Fleet service :4006
+  "services/fleet-service": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4006
-FLEET_PORT=4006
-DATABASE_URL=${DB}
-INTERNAL_TOKEN=${TOKEN}
-CATALOG_URL=http://localhost:4002
-PARTNER_URL=http://localhost:4007
 `,
 
-  "services/partner-service": `# Partner service :4007
+  "services/partner-service": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4007
-PARTNER_PORT=4007
-DATABASE_URL=${DB}
-INTERNAL_TOKEN=${TOKEN}
 `,
 
-  "services/notification-service": `# Notification service :4008
+  "services/notification-service": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4008
-NOTIFICATION_PORT=4008
-DATABASE_URL=${DB}
-INTERNAL_TOKEN=${TOKEN}
-GMAIL_USER=
-GMAIL_CLIENT_ID=
-GMAIL_CLIENT_SECRET=
-GMAIL_REFRESH_TOKEN=
-GMAIL_APP_PASSWORD=
 `,
 
-  "services/platform-service": `# Platform service :4009
+  "services/platform-service": `# Folded into apps/api on :4000. Do not run this package.
 NODE_ENV=development
-PORT=4009
-PLATFORM_PORT=4009
-DATABASE_URL=${DB}
-INTERNAL_TOKEN=${TOKEN}
 `,
 
-  "apps/worker": `# Worker (cron)
+  "apps/worker": `# Worker (cron) — calls the single API
 NODE_ENV=development
 INTERNAL_TOKEN=${TOKEN}
-BOOKING_URL=http://localhost:4003
-NOTIFICATION_URL=http://localhost:4008
+API_URL=http://localhost:4000
 `,
 
   "apps/socket": `# Socket server :4010
@@ -155,13 +73,43 @@ SOCKET_PORT=4010
 SOCKET_CORS_ORIGIN=http://localhost:3000,http://localhost:3001
 `,
 
-  "apps/api": `# Legacy health API (not the public gateway)
+  "apps/api": `# Public API — all domain modules in one process
 NODE_ENV=development
-PORT=3999
-API_PORT=3999
+PORT=4000
+API_PORT=4000
+API_URL=http://localhost:4000
+SOCKET_URL=http://localhost:4010
+INTERNAL_TOKEN=${TOKEN}
+DEV_AUTH_BYPASS=true
+DATABASE_URL=${DB}
+REDIS_URL=redis://localhost:6379
+BUFFER_HOURS=3
+HOLD_MINUTES=15
+PAYMENTS_MOCK=true
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CLOUDINARY_UPLOAD_PRESET=
+GMAIL_USER=
+GMAIL_CLIENT_ID=
+GMAIL_CLIENT_SECRET=
+GMAIL_REFRESH_TOKEN=
+GMAIL_APP_PASSWORD=
+ZOHO_CLIENT_ID=
+ZOHO_CLIENT_SECRET=
+ZOHO_REFRESH_TOKEN=
+ZOHO_WEBHOOK_SECRET=
+LEEGALITY_API_KEY=
+LEEGALITY_BASE_URL=https://app.leegality.com/api
 `,
 
-  "apps/web": `# Public website :3000 — talks only to the gateway
+  "apps/web": `# Public website :3000 — talks only to the API
 NEXT_PUBLIC_API_URL=http://localhost:4000
 NEXT_PUBLIC_FIREBASE_API_KEY=
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
@@ -174,14 +122,14 @@ NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
 NEXT_PUBLIC_CLOUDINARY_PRESET=
 `,
 
-  "apps/admin": `# Admin console :3001 — talks only to the gateway
+  "apps/admin": `# Admin console :3001 — talks only to the API
 NEXT_PUBLIC_API_URL=http://localhost:4000
 NEXT_PUBLIC_FIREBASE_API_KEY=
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 `,
 
-  "apps/mobile": `# Expo customer app — talks only to the gateway
+  "apps/mobile": `# Expo customer app — talks only to the API
 EXPO_PUBLIC_API_URL=http://localhost:4000
 `,
 

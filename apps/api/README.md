@@ -1,13 +1,13 @@
 # `@dream-drive/api`
 
-NestJS HTTP API for Dream-Drive.
+Single NestJS HTTP API for Dream-Drive. Identity, catalog, booking, payment, documents, fleet, partner, notifications, and platform all run in this process.
 
 - Port: `API_PORT` / `PORT` (default `4000`)
-- Global prefix: `/v1`
-- Health: `GET /v1/health`
+- Health: `GET /health`
+- Public prefix: `/v1`
 
 ```bash
 npm run start:dev --workspace=@dream-drive/api
 ```
 
-Domain modules (identity, catalog, booking, payment, etc.) land here first as a modular monolith, then can split into `services/*` when needed.
+Web, admin, and mobile call only `http://localhost:4000`.

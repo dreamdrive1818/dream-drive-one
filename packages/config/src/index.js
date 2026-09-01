@@ -7,17 +7,19 @@ function read(name, fallback) {
 }
 
 function urls() {
+  const api = read("API_URL", "http://localhost:4000");
   return {
-    gateway: read("GATEWAY_URL", "http://localhost:4000"),
-    identity: read("IDENTITY_URL", "http://localhost:4001"),
-    catalog: read("CATALOG_URL", "http://localhost:4002"),
-    booking: read("BOOKING_URL", "http://localhost:4003"),
-    payment: read("PAYMENT_URL", "http://localhost:4004"),
-    document: read("DOCUMENT_URL", "http://localhost:4005"),
-    fleet: read("FLEET_URL", "http://localhost:4006"),
-    partner: read("PARTNER_URL", "http://localhost:4007"),
-    notification: read("NOTIFICATION_URL", "http://localhost:4008"),
-    platform: read("PLATFORM_URL", "http://localhost:4009"),
+    gateway: api,
+    api,
+    identity: api,
+    catalog: api,
+    booking: api,
+    payment: api,
+    document: api,
+    fleet: api,
+    partner: api,
+    notification: api,
+    platform: api,
     socket: read("SOCKET_URL", "http://localhost:4010"),
   };
 }

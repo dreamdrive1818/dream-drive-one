@@ -9,9 +9,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run start:dev --filter=@dream-drive/gateway --filter=@dream-drive/identity-service --filter=@dream-drive/catalog-service --filter=@dream-drive/booking-service --filter=@dream-drive/payment-service --filter=@dream-drive/document-service --filter=@dream-drive/fleet-service --filter=@dream-drive/partner-service --filter=@dream-drive/notification-service --filter=@dream-drive/platform-service --filter=@dream-drive/worker --filter=@dream-drive/web --filter=@dream-drive/admin",
-    "dev:gateway": "npm run start:dev --workspace=@dream-drive/gateway",
-    "dev:api": "npm run start:dev --workspace=@dream-drive/gateway",
+    "dev": "turbo run start:dev --filter=@dream-drive/api --filter=@dream-drive/worker --filter=@dream-drive/web --filter=@dream-drive/admin",
+    "dev:gateway": "npm run start:dev --workspace=@dream-drive/api",
+    "dev:api": "npm run start:dev --workspace=@dream-drive/api",
     "dev:web": "npm run start:dev --workspace=@dream-drive/web",
     "dev:admin": "npm run start:dev --workspace=@dream-drive/admin",
     "dev:worker": "npm run start:dev --workspace=@dream-drive/worker",

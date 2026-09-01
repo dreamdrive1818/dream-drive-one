@@ -1,19 +1,19 @@
 # API route structure
 
-All public/admin traffic hits **gateway** `http://localhost:4000`. Prefix `/v1`.
+All public/admin traffic hits **`apps/api`** `http://localhost:4000`. Prefix `/v1`.
 
-Webhooks are unauthenticated except HMAC. Internal routes `/internal/*` require a service token and are not exposed on the public gateway in production (private network).
+Webhooks are unauthenticated except HMAC. Internal routes `/internal/*` require a service token.
 
-## Gateway
+## API
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/health` | Aggregated |
+| GET | `/health` | Process health |
 | * | `/v1/**` | JWT unless listed public |
 
 Public (no user token): search, car detail, CMS, contact/leads, auth OTP, webhooks.
 
-## Identity `:4001`
+## Identity
 
 ```
 POST /v1/auth/sync
@@ -28,7 +28,7 @@ POST /v1/admin/users/:id/disable
 GET  /v1/admin/audit
 ```
 
-## Catalog `:4002`
+## Catalog
 
 ```
 GET  /v1/public/search
@@ -40,7 +40,7 @@ POST /internal/availability/reserve
 POST /internal/availability/release
 ```
 
-## Booking `:4003`
+## Booking
 
 ```
 POST /v1/quotes
@@ -59,7 +59,7 @@ CRUD /v1/admin/packages
 CRUD /v1/admin/city-pairs
 ```
 
-## Payment `:4004`
+## Payment
 
 ```
 POST /v1/payments/orders
@@ -73,7 +73,7 @@ POST /v1/admin/deposits/:id/capture
 POST /v1/admin/deposits/:id/release
 ```
 
-## Document `:4005`
+## Document
 
 ```
 POST /v1/kyc/uploads
@@ -88,7 +88,7 @@ POST /v1/webhooks/leegality
 GET  /v1/me/agreements/:id
 ```
 
-## Fleet `:4006`
+## Fleet
 
 ```
 CRUD /v1/admin/cities
@@ -101,7 +101,7 @@ POST /v1/admin/bookings/:id/return
 GET  /v1/admin/vehicles/expiries
 ```
 
-## Partner `:4007`
+## Partner
 
 ```
 CRUD /v1/admin/partners
@@ -111,7 +111,7 @@ POST /v1/admin/settlements/:id/mark-paid
 GET  /v1/admin/partners/:id/ledger
 ```
 
-## Notification `:4008`
+## Notification
 
 ```
 POST /internal/notify
@@ -119,7 +119,7 @@ GET  /v1/admin/notifications
 PUT  /v1/admin/notification-templates/:key
 ```
 
-## Platform `:4009`
+## Platform
 
 ```
 GET  /v1/public/pages/:slug

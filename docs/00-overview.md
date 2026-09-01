@@ -2,7 +2,7 @@
 
 **For:** client walkthrough and developer onboarding  
 **Product:** car rental platform — search, book, KYC, pay, e-sign, track  
-**Architecture:** NestJS microservices behind one API gateway
+**Architecture:** NestJS API (port 4000) + Next.js web/admin + Expo mobile
 
 ## What the customer gets
 

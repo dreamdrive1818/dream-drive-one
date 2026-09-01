@@ -1,6 +1,7 @@
 export function read(name: string, fallback?: string): string | undefined;
 export function urls(): {
   gateway: string;
+  api: string;
   identity: string;
   catalog: string;
   booking: string;

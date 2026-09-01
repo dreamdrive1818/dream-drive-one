@@ -1,8 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 
-const BOOKING = process.env.BOOKING_URL ?? "http://localhost:4003";
-const NOTIFY = process.env.NOTIFICATION_URL ?? "http://localhost:4008";
+const API = process.env.API_URL ?? "http://localhost:4000";
 const token = process.env.INTERNAL_TOKEN ?? "dev-internal";
 
 @Injectable()
@@ -12,7 +11,7 @@ export class HoldSweeperJob {
   @Cron(CronExpression.EVERY_MINUTE)
   async handle() {
     try {
-      const res = await fetch(`${BOOKING}/internal/holds/expire`, {
+      const res = await fetch(`${API}/internal/holds/expire`, {
         method: "POST",
         headers: { "x-internal-token": token, "content-type": "application/json" },
         body: "{}",
@@ -32,7 +31,7 @@ export class NotifyRetryJob {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handle() {
     try {
-      const res = await fetch(`${NOTIFY}/internal/notify/retry`, {
+      const res = await fetch(`${API}/internal/notify/retry`, {
         method: "POST",
         headers: { "x-internal-token": token, "content-type": "application/json" },
         body: "{}",
