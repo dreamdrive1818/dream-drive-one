@@ -1,7 +1,7 @@
 # Admin operations console
 
-Next.js + TypeScript + Tailwind + shadcn/ui. Port 3001.
+Next.js. Port 3001.
 
-No partner self-service. Roles enforced by gateway; UI hides pages the role cannot use.
+No partner self-service. Roles enforced by the API; UI hides pages the role cannot use.
 
-Staff login: Firebase Auth → `/v1/auth/sync` → must have a non-CUSTOMER role or 403.
+Staff login talks only to the API (`POST /v1/auth/login` or local `Bearer dev:email`). Firebase, Cloudinary, and the database stay on `apps/api`.

@@ -17,6 +17,7 @@ Public (no user token): search, car detail, CMS, contact/leads, auth OTP, webhoo
 
 ```
 POST /v1/auth/sync
+POST /v1/auth/login
 POST /v1/auth/otp/send
 POST /v1/auth/otp/verify
 GET  /v1/me
@@ -76,6 +77,8 @@ POST /v1/admin/deposits/:id/release
 ## Document
 
 ```
+POST /v1/uploads
+POST /v1/public/uploads
 POST /v1/kyc/uploads
 POST /v1/kyc/submit
 GET  /v1/me/kyc

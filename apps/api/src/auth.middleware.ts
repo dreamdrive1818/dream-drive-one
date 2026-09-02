@@ -17,6 +17,7 @@ const cache = new Map<string, { at: number; user: UserCtx }>();
 const PUBLIC = [
   /^\/v1\/public\//,
   /^\/v1\/auth\/otp\//,
+  /^\/v1\/auth\/login$/,
   /^\/v1\/webhooks\//,
 ];
 
@@ -53,6 +54,10 @@ export class AuthMiddleware implements NestMiddleware {
     }
     if (path === "/v1/auth/otp/send" && !rateLimitOtp(req.ip ?? "local")) {
       res.status(429).json({ error: "Too many OTP requests" });
+      return;
+    }
+    if (path === "/v1/public/uploads" && !rateLimitOtp(req.ip ?? "local")) {
+      res.status(429).json({ error: "Too many upload requests" });
       return;
     }
 

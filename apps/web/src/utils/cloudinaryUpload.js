@@ -1,7 +1,15 @@
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_PRESET;
-const CARS_FOLDER = "dreamdrive/cars";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
+function authHeader() {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("dd_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
+ * Upload a remote URL or File/Blob through the API (API talks to Cloudinary).
+ * Returns the secure HTTPS URL.
+ */
 export const isCloudinaryUrl = (url = "") =>
   typeof url === "string" && /res\.cloudinary\.com\//i.test(url.trim());
 
@@ -14,15 +22,7 @@ export const isHttpUrl = (url = "") => {
   }
 };
 
-/**
- * Upload a remote URL or File/Blob to Cloudinary (unsigned preset).
- * Returns the secure HTTPS Cloudinary URL.
- */
 export const uploadToCloudinary = async (fileOrUrl, options = {}) => {
-  if (!CLOUD_NAME || !UPLOAD_PRESET) {
-    throw new Error("Cloudinary is not configured. Check NEXT_PUBLIC_CLOUDINARY_* env vars.");
-  }
-
   const value = typeof fileOrUrl === "string" ? fileOrUrl.trim() : fileOrUrl;
   if (!value) {
     throw new Error("Nothing to upload.");
@@ -33,32 +33,27 @@ export const uploadToCloudinary = async (fileOrUrl, options = {}) => {
   }
 
   const data = new FormData();
-  data.append("file", value);
-  data.append("upload_preset", UPLOAD_PRESET);
-  data.append("folder", options.folder || CARS_FOLDER);
+  if (typeof value === "string") data.append("url", value);
+  else data.append("file", value);
+  data.append("folder", options.folder || "dreamdrive/cars");
 
-  if (options.publicId) {
-    data.append("public_id", options.publicId);
+  const path = options.public ? "/v1/public/uploads" : "/v1/uploads";
+  const response = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: authHeader(),
+    body: data,
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.url) {
+    throw new Error(result.error || result.message || "Upload failed.");
   }
 
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-    {
-      method: "POST",
-      body: data,
-    }
-  );
-
-  const result = await response.json();
-  if (!response.ok || !result.secure_url) {
-    throw new Error(result.error?.message || "Cloudinary upload failed.");
-  }
-
-  return result.secure_url;
+  return result.url;
 };
 
 /**
- * Ensure every image in the list is a Cloudinary URL.
+ * Ensure every image in the list is hosted via the API upload pipeline.
  * External links are uploaded; blank entries are dropped.
  */
 export const ensureCloudinaryImages = async (images = [], onProgress) => {
@@ -81,7 +76,7 @@ export const ensureCloudinaryImages = async (images = [], onProgress) => {
     }
 
     onProgress?.(i, url, "uploading");
-    const cloudUrl = await uploadToCloudinary(url);
+    const cloudUrl = await uploadToCloudinary(url, { folder: "dreamdrive/cars" });
     next.push(cloudUrl);
     onProgress?.(i, cloudUrl, "done");
   }

@@ -1,6 +1,4 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase/firebaseConfig";
 import { toast } from "react-toastify";
 import api from "../api/http";
 
@@ -14,19 +12,22 @@ export const AdminProvider = ({ children }) => {
 
   useEffect(() => {
     const verifyAdminFromStorage = async () => {
-      const storedUID = localStorage.getItem("admin_uid");
-      if (!storedUID) return;
+      const token = localStorage.getItem("dd_token");
+      if (!token) return;
       try {
-        const { data } = await api.get(`/api/identity/admin/${storedUID}`);
-        if (data?.role === "all") {
+        const { data } = await api.get("/v1/me");
+        const staff = (data?.roles || []).some((role) => role && role !== "CUSTOMER");
+        if (staff) {
           setAdmin(data.email);
         } else {
           localStorage.removeItem("admin_uid");
+          localStorage.removeItem("dd_token");
           setAdmin(null);
         }
       } catch (error) {
         console.error("Failed to verify admin:", error);
         localStorage.removeItem("admin_uid");
+        localStorage.removeItem("dd_token");
         setAdmin(null);
       }
     };
@@ -35,19 +36,27 @@ export const AdminProvider = ({ children }) => {
 
   const AdminLogin = async (email, password, navigate) => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
-      const { data } = await api.get(`/api/identity/admin/${uid}`);
-      if (!data || data.role !== "all") {
+      const { data } = await api.post("/v1/auth/login", { email, password });
+      if (!data?.token) {
+        throw new Error(data?.error || "Login failed");
+      }
+      const staff = (data.user?.roles || []).some((role) => role && role !== "CUSTOMER");
+      if (!staff) {
         throw new Error("Access denied");
       }
       toast.success("Login successful");
-      localStorage.setItem("admin_uid", uid);
+      localStorage.setItem("dd_token", data.token);
+      localStorage.setItem("admin_uid", data.user?.firebaseUid || data.user?.id || "");
       setAdmin(email);
       navigate("/admin/dashboard");
     } catch (err) {
-      console.error("Admin login error:", err.message);
-      toast.error(err.message);
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Login failed";
+      console.error("Admin login error:", message);
+      toast.error(message);
       throw err;
     }
   };
@@ -55,6 +64,7 @@ export const AdminProvider = ({ children }) => {
   const AdminLogout = () => {
     setAdmin(null);
     localStorage.removeItem("admin_uid");
+    localStorage.removeItem("dd_token");
     toast.success("Logged out successfully");
   };
 

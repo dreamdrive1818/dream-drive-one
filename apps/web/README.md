@@ -2,7 +2,7 @@
 
 Public website + admin UI, ported from `dream-drive-static/client-main` into Next.js.
 
-The existing React Router SPA is mounted via a catch-all route (`src/app/[[...slug]]`). Firebase Auth stays in the browser; API calls go to `NEXT_PUBLIC_API_URL` (static backend or MS `apps/api`).
+The existing React Router SPA is mounted via a catch-all route (`src/app/[[...slug]]`). The browser talks **only** to `NEXT_PUBLIC_API_URL` (`apps/api`). Firebase, Cloudinary, and Postgres stay on the API.
 
 ## Run
 
@@ -15,7 +15,7 @@ npm run dev:web
 
 ## Env
 
-Copy `.env.example` → `.env.local` and fill Firebase / Cloudinary / API URL. All former `REACT_APP_*` vars are now `NEXT_PUBLIC_*`.
+Copy `.env.example` → `.env`. The only variable is `NEXT_PUBLIC_API_URL`.
 
 ## Layout
 
@@ -27,7 +27,7 @@ src/
   container/           React Router routes
   context/             Providers
   api/http.js          Axios → NEXT_PUBLIC_API_URL
-  firebase/            Auth + Storage only
+  utils/cloudinaryUpload.js  Uploads via POST /v1/uploads
 ```
 
 Admin can later move to `apps/admin`; for now it stays here so the site works as one app.

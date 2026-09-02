@@ -16,7 +16,7 @@ One admin console to run multi-city / multi-branch operations: users, fleet, boo
 
 Today the live site writes Firestore from the browser. OTP, confirmation mail, and Zoho webhooks sit on a small Express app. That does not scale to payments, e-sign, availability, or multi-branch ops.
 
-This rebuild puts **all business rules on the server**. Firebase Auth stays for login. PostgreSQL becomes the system of record.
+This rebuild puts **all business rules on the server**. Web and admin talk only to the API. Firebase Auth, Cloudinary, and PostgreSQL stay behind `apps/api`.
 
 ## Microservice map (client-friendly)
 
