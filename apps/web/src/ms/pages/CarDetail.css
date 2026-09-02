@@ -1,0 +1,310 @@
+.car-detail-page {
+  padding: 2rem 1.6rem 5rem;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(14, 124, 134, 0.08), transparent 32%),
+    var(--light-bg, #f6fbfe);
+  font-family: var(--font-family-main);
+}
+
+.car-detail-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.car-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--primary-color, #0072ce);
+  text-decoration: none;
+  margin-bottom: 1.4rem;
+}
+
+.car-detail-back:hover {
+  text-decoration: underline;
+}
+
+.car-detail-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.car-detail-gallery-main {
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f4f8fb;
+  border: 1px solid rgba(11, 45, 74, 0.08);
+  margin-bottom: 0.75rem;
+}
+
+.car-detail-gallery-main img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.car-detail-gallery-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 0.5rem;
+  color: #5f7f86;
+  font-size: 1.35rem;
+  font-weight: 600;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(126, 200, 195, 0.35), transparent 55%),
+    linear-gradient(160deg, #e8f6f4, #f7fcfb 60%, #dff3f0);
+}
+
+.car-detail-gallery-placeholder svg {
+  width: 3.6rem;
+  height: 3.6rem;
+  opacity: 0.7;
+}
+
+.car-detail-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.car-detail-thumb {
+  width: 72px;
+  height: 54px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #f4f8fb;
+}
+
+.car-detail-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.car-detail-thumb.is-active {
+  border-color: var(--primary-color, #0072ce);
+}
+
+.car-detail-info h1 {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(2.4rem, 4vw, 3.2rem);
+  color: var(--text-dark, #0c1d2c);
+  margin: 0 0 0.4rem;
+}
+
+.car-detail-city {
+  font-size: 1.4rem;
+  color: var(--monsoon-teal, #0e7c86);
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.car-detail-specs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.2rem;
+}
+
+.car-detail-spec {
+  background: var(--white-bg, #fff);
+  border: 1px solid rgba(11, 45, 74, 0.08);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+}
+
+.car-detail-spec dt {
+  font-size: 1.15rem;
+  color: var(--text-medium, #666);
+  margin-bottom: 0.2rem;
+}
+
+.car-detail-spec dd {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-dark, #0c1d2c);
+  margin: 0;
+}
+
+.car-detail-panel {
+  background: var(--white-bg, #fff);
+  border: 1px solid rgba(11, 45, 74, 0.1);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft, 0 4px 10px rgba(0, 0, 0, 0.08));
+  padding: 1.5rem;
+  position: sticky;
+  top: 1.5rem;
+}
+
+.car-detail-panel h2 {
+  font-size: 1.7rem;
+  margin: 0 0 1rem;
+  color: var(--text-dark, #0c1d2c);
+}
+
+.car-detail-field {
+  margin-bottom: 1rem;
+}
+
+.car-detail-field label {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-dark, #0c1d2c);
+  margin-bottom: 0.35rem;
+}
+
+.car-detail-field select,
+.car-detail-field input {
+  width: 100%;
+  font-size: 1.35rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #c8d8e8;
+  border-radius: 8px;
+  background: #fff;
+  font-family: inherit;
+  color: var(--text-dark, #0c1d2c);
+}
+
+.car-detail-field select:focus,
+.car-detail-field input:focus {
+  outline: none;
+  border-color: var(--primary-color, #0072ce);
+  box-shadow: 0 0 0 3px rgba(0, 114, 206, 0.12);
+}
+
+.car-detail-price-block {
+  margin: 1.2rem 0;
+  padding: 1rem;
+  border-radius: 10px;
+  background: #f0f7fc;
+  border: 1px solid rgba(0, 114, 206, 0.12);
+}
+
+.car-detail-price-block .from-price {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-dark, #0c1d2c);
+}
+
+.car-detail-price-block .from-price span {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--text-medium, #666);
+}
+
+.car-detail-price-meta {
+  font-size: 1.25rem;
+  color: var(--text-medium, #666);
+  margin-top: 0.35rem;
+}
+
+.car-detail-availability {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0.75rem 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+}
+
+.car-detail-availability--checking {
+  color: var(--text-medium, #666);
+  background: #f9fafb;
+}
+
+.car-detail-availability--ok {
+  color: #027a48;
+  background: #ecfdf3;
+  border: 1px solid #abefc6;
+}
+
+.car-detail-availability--bad {
+  color: #b42318;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+}
+
+.car-detail-availability--muted {
+  color: var(--text-medium, #666);
+  font-weight: 500;
+  background: transparent;
+  padding: 0;
+}
+
+.car-detail-hint {
+  font-size: 1.2rem;
+  color: var(--text-medium, #666);
+  line-height: 1.45;
+  margin: 0.5rem 0 1rem;
+}
+
+.car-detail-validation,
+.car-detail-error {
+  font-size: 1.3rem;
+  color: #b42318;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.car-detail-warning {
+  font-size: 1.3rem;
+  color: #b54708;
+  background: #fffaeb;
+  border: 1px solid #fedf89;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.car-detail-cta {
+  width: 100%;
+  padding: 0.85rem 1.2rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--primary-color, #0072ce);
+  color: #fff;
+  font-family: inherit;
+}
+
+.car-detail-cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.car-detail-loading,
+.car-detail-state-error {
+  text-align: center;
+  padding: 4rem 1.5rem;
+  font-size: 1.45rem;
+}
+
+.car-detail-state-error {
+  color: #b42318;
+}
+
+@media (max-width: 900px) {
+  .car-detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .car-detail-panel {
+    position: static;
+  }
+}

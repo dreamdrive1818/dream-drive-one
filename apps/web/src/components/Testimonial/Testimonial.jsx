@@ -111,7 +111,13 @@ const sortedTestimonials = [...testimonials].sort((a, b) => {
       }`}
     >
       <div className="testimonial-container">
-        <h2>What Our Customers Say</h2>
+        <p className="testimonial-eyebrow">Testimonials</p>
+        <h2>
+          What our customers <span>say</span>
+        </h2>
+        <p className="testimonial-lead">
+          Real rides. Real feedback from people who booked with Dream Drive.
+        </p>
         <motion.div
           className="testimonial-grid"
           initial="hidden"
@@ -157,7 +163,11 @@ const sortedTestimonials = [...testimonials].sort((a, b) => {
               </motion.div>
             ))
           ) : (
-            <p className="testimonial-empty">No approved testimonials yet.</p>
+            <div className="testimonial-empty">
+              <FontAwesomeIcon icon={faQuoteLeft} className="testimonial-empty-icon" />
+              <p>No approved testimonials yet.</p>
+              <span>Be among the first to share your Dream Drive experience.</span>
+            </div>
           )}
         </motion.div>
       </div>

@@ -1,176 +1,271 @@
-  .how-it-works {
-    background: radial-gradient(circle at center, var(--medium-bg), var(--light-bg));
+/* How It Works — split intro + vertical timeline */
+
+.how-it-works {
+  position: relative;
+  padding: 7rem 2.4rem;
+  background: #f7fbfb;
+  font-family: var(--font-family-main);
+  overflow: hidden;
+}
+
+.how-it-works::before {
+  content: none;
+}
+
+.hiw-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(300px, 1.1fr);
+  gap: 5rem 6rem;
+  align-items: start;
+}
+
+/* Left intro */
+.hiw-intro {
+  position: sticky;
+  top: 10rem;
+  text-align: left;
+  opacity: 0;
+}
+
+.hiw-eyebrow {
+  display: inline-block;
+  margin: 0 0 1.6rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--monsoon-teal, #0e7c86);
+}
+
+.hiw-title {
+  margin: 0;
+  font-size: clamp(3.6rem, 5vw, 5.2rem);
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: var(--text-dark, #0c1d2c);
+}
+
+.hiw-title span {
+  color: var(--monsoon-teal, #0e7c86);
+}
+
+.hiw-lead {
+  margin: 2rem 0 0;
+  max-width: 36rem;
+  font-size: 1.65rem;
+  line-height: 1.65;
+  color: #5a6b74;
+}
+
+.hiw-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding: 1.1rem 1.2rem 1.1rem 2rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--monsoon-teal, #0e7c86);
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(14, 124, 134, 0.22);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.hiw-cta:hover {
+  background: #0b6a72;
+  transform: translateY(-1px);
+}
+
+.hiw-cta-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--monsoon-teal, #0e7c86);
+  font-size: 1.2rem;
+}
+
+/* Timeline */
+.hiw-timeline {
+  opacity: 0;
+}
+
+.hiw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.hiw-item {
+  display: grid;
+  grid-template-columns: 5.6rem 1fr;
+  gap: 2rem;
+  align-items: stretch;
+  min-height: 12rem;
+}
+
+.hiw-rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.hiw-rail::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    rgba(14, 124, 134, 0.35),
+    rgba(14, 124, 134, 0.12)
+  );
+}
+
+.hiw-item:first-child .hiw-rail::before {
+  top: 2.8rem;
+}
+
+.hiw-item:last-child .hiw-rail::before {
+  bottom: calc(100% - 2.8rem);
+}
+
+.hiw-node {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.6rem;
+  height: 5.6rem;
+  margin-top: 0.2rem;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(14, 124, 134, 0.18);
+  color: var(--monsoon-teal, #0e7c86);
+  font-size: 2rem;
+  box-shadow: 0 8px 20px rgba(10, 61, 74, 0.08);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.hiw-item:hover .hiw-node {
+  background: var(--monsoon-teal, #0e7c86);
+  border-color: var(--monsoon-teal, #0e7c86);
+  color: #fff;
+}
+
+.hiw-copy {
+  padding: 0.4rem 0 3.2rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(14, 124, 134, 0.1);
+}
+
+.hiw-item:last-child .hiw-copy {
+  border-bottom: none;
+  padding-bottom: 0.4rem;
+}
+
+.hiw-index {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(14, 124, 134, 0.7);
+}
+
+.hiw-copy h3 {
+  margin: 0 0 0.7rem;
+  font-size: 2.4rem;
+  font-weight: 750;
+  color: var(--text-dark, #0c1d2c);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.hiw-copy p {
+  margin: 0;
+  max-width: 42rem;
+  font-size: 1.55rem;
+  line-height: 1.6;
+  color: #5f717a;
+}
+
+@media (max-width: 900px) {
+  .hiw-shell {
+    grid-template-columns: 1fr;
+    gap: 3.6rem;
+  }
+
+  .hiw-intro {
+    position: static;
     text-align: center;
-    padding: 6rem 2rem;
-    font-family: var(--font-family-main);
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .sub-heading {
-    text-transform: uppercase;
-    font-size: 1.25rem;
-    letter-spacing: 1px;
-    color: var(--text-dark);
-    margin-bottom: 0.5rem;
-  }
-  
-  .main-heading {
-    font-size: 2.5rem;
-    font-weight: bold;
-    margin-bottom: 3rem;
-    color: var(--text-dark);
-  }
-  
-  .steps-container {
-    position: relative;
-    max-width: 1000px;
-    margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 4rem;
-  }
-  
-  .vertical-line {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 50%;
-    width: 4px;
-    background-color: var(--verticle-line);
-    transform: translateX(-50%);
-    z-index: 1;
-  }
-  
-  .step-block {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    z-index: 2;
   }
-  
-  .step-circle {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 18px;
-    height: 18px;
-    background-color: var(--step-circle);
-    border-radius: 50%;
-    z-index: 3;
-    box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+
+  .hiw-lead {
+    max-width: 48rem;
   }
-  
-  .step-content {
+}
+
+@media (max-width: 600px) {
+  .how-it-works {
+    padding: 5rem 1.4rem;
+  }
+
+  .hiw-item {
+    grid-template-columns: 4.4rem 1fr;
+    gap: 1.4rem;
+    min-height: 0;
+  }
+
+  .hiw-node {
+    width: 4.4rem;
+    height: 4.4rem;
+    font-size: 1.6rem;
+  }
+
+  .hiw-item:first-child .hiw-rail::before {
+    top: 2.2rem;
+  }
+
+  .hiw-item:last-child .hiw-rail::before {
+    bottom: calc(100% - 2.2rem);
+  }
+
+  .hiw-copy {
+    padding-bottom: 2.4rem;
+  }
+
+  .hiw-copy h3 {
+    font-size: 2.1rem;
+  }
+
+  .hiw-copy p {
+    font-size: 1.45rem;
+  }
+
+  .hiw-cta {
     width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    max-width: 400px;
-    padding: 1.5rem;
-    /* background-color: white; */
-    border-radius: 20px;
-    /* box-shadow: var(--shadow-soft); */
-    z-index: 2;
-  }
-  
-  .step-block:nth-child(odd) .step-content {
-    margin-left: auto;
-    text-align: left;
-  }
-  
-  .step-block:nth-child(even) .step-content {
-    margin-right: auto;
-    text-align: right;
-    flex-direction: row-reverse;
-  }
-  
-  .step-icon {
-    background: var(--light-bg);
-    border-radius: 16px;
-    padding: 18px;
-    width: 70px;
-    height: 70px;
-    display: flex;
-    align-items: center;
+    max-width: 32rem;
     justify-content: center;
-    font-size: 2rem;
-    color: var(--text-dark);
-    border: 1px solid #eee;
   }
-  
-  .step-text h3 {
-    margin-bottom: 0.3rem;
-    font-size: 2.26rem;
-    font-weight: bold;
-    color: var(--text-dark);
-  }
-  
-  .step-text p {
-    width: 100%;
-    font-size: 1.5rem;
-    color: var(--text-medium);
-    margin: 0;
-  }
-  
-  /* Highlight Active Step */
-  .step-block.active .step-content {
-    color: var(--primary-color);
-  }
-  
-  .step-block.active .step-icon {
-    background-color: var(--primary-color);
-    color: var(--text-light);
-  }
-  
-
-  
-  /* Background DRIVOKE Text */
-  .how-it-works::before {
-    content: "DREAM DRIVE";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 15rem;
-    font-weight: bold;
-    color: rgba(255, 255, 255, 0.782);
-    z-index: 0;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: var(--text-opacity);
-  }
-  
-  @media (max-width: 768px) {
-    .step-content {
-      flex-direction: column !important;
-      text-align: center !important;
-    }
-
-    .step-circle{
-      width: 10px;
-      height: 10px;
-     background-color: var(--step-circle-dark);
-    }
-  
-    .step-block:nth-child(even) .step-content,
-    .step-block:nth-child(odd) .step-content {
-      margin: auto;
-    }
-  
-    .how-it-works::before {
-      font-size: 5rem;
-      top: 47%;
-      color: rgba(255, 255, 255, 0.869);
-    }
-
-      .sub-heading{
-        font-size: 1.25rem;
-      }
-
-      .main-heading{
-        font-size: 4rem;
-      }
-  }
-  
+}

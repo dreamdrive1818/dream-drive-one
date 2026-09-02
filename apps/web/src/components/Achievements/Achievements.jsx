@@ -1,9 +1,7 @@
 import React from "react";
-import "./Achievement.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faThumbsUp,
-  faCarCrash,
   faLightbulb,
   faLeaf,
   faStar,
@@ -13,6 +11,7 @@ import {
   faCarOn,
 } from "@fortawesome/free-solid-svg-icons";
 import AnimateOnScroll from "../../assets/Animation/AnimateOnScroll";
+import "./Achievement.css";
 
 const achievements = [
   { icon: faThumbsUp, title: "Customer Choice Award" },
@@ -28,20 +27,33 @@ const achievements = [
 const Achievements = () => {
   return (
     <section className="achievements">
-      <AnimateOnScroll className="achievements-left delay-2">
-        <p className="achievements-subtitle">ACHIEVEMENTS</p>
-        <h2 className="achievements-heading">
-          Let’s See Our <br /> Celebrate Milestones
-        </h2>
-      </AnimateOnScroll>
-      <AnimateOnScroll className="achievements-right delay-2">
-        {achievements.map((item, index) => (
-          <div className="achievement-card" key={index}>
-            <FontAwesomeIcon icon={item.icon} className="icon" />
-            <p>{item.title}</p>
-          </div>
-        ))}
-      </AnimateOnScroll>
+      <div className="achievements-shell">
+        <AnimateOnScroll className="achievements-intro delay-2">
+          <p className="achievements-eyebrow">Achievements</p>
+          <h2 className="achievements-heading">
+            Milestones we’re
+            <br />
+            <span>proud of</span>
+          </h2>
+          <p className="achievements-lead">
+            Recognition that reflects how we care for every ride — safety,
+            service, and trust on the road in Ranchi.
+          </p>
+        </AnimateOnScroll>
+
+        <AnimateOnScroll className="achievements-grid-wrap delay-3">
+          <ul className="achievements-grid">
+            {achievements.map((item) => (
+              <li className="achievement-item" key={item.title}>
+                <span className="achievement-icon" aria-hidden="true">
+                  <FontAwesomeIcon icon={item.icon} />
+                </span>
+                <p>{item.title}</p>
+              </li>
+            ))}
+          </ul>
+        </AnimateOnScroll>
+      </div>
     </section>
   );
 };

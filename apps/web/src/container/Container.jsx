@@ -5,7 +5,6 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import Home from "../components/home/Home";
 import Header from "../components/header/Header";
 import Footer from "../components/footer/Footer";
-import FleetCarousel from "../components/fleetCarousel/FleetCarousel";
 import HowItWorks from "../components/HowItWorks/HowItWorks";
 import Contact from "../components/contact/Contact";
 import DreamCarBanner from "../components/DreamCarBanner/DreamCarBanner";
@@ -26,6 +25,7 @@ import SaleModal from "../components/SaleModal/SaleModal";
 import MonsoonPromoBar from "../components/MonsoonPromoBar/MonsoonPromoBar";
 import Login from "../ms/pages/Login";
 import Search from "../ms/pages/Search";
+import CarsRedirect from "../ms/pages/CarsRedirect";
 import CarDetail from "../ms/pages/CarDetail";
 import Checkout from "../ms/pages/Checkout";
 import SuccessMs from "../ms/pages/Success";
@@ -83,7 +83,7 @@ const AppRoute = () => {
             <div className="fade-in-bottom">
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/cars" element={<FleetCarousel />} />
+                <Route path="/cars" element={<CarsRedirect />} />
                 <Route path="/fleet" element={<Search />} />
                 <Route path="/cars/:slug" element={<CarDetail />} />
                 <Route path="/login" element={<Login />} />

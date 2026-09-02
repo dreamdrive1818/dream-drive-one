@@ -6,12 +6,16 @@ import { api } from "../api";
 import { useAuth } from "../AuthContext";
 
 export default function Account() {
-  const { user, logout } = useAuth();
+  const { user, ready, logout } = useAuth();
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
     if (user) api("/v1/me/bookings").then(setBookings).catch(() => setBookings([]));
   }, [user]);
+
+  if (!ready) {
+    return <p style={{ padding: 24 }}>Loading…</p>;
+  }
 
   if (!user) {
     return <p style={{ padding: 24 }}>Please <Link to="/login">sign in</Link>.</p>;

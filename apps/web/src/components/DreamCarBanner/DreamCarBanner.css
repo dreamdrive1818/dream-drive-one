@@ -1,104 +1,221 @@
+/* DreamCarBanner — monsoon CTA strip */
+
 .dream-banner {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  background-image: url("https://images.unsplash.com/photo-1610290478737-019e38efcca1?q=80&w=2076&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D");
-  background-position: center;
-  background-size: cover;
-  border-radius: 20px;
-  padding: 40px 60px;
-  max-width: 1250px;
-  margin: 40px auto;
-  overflow: hidden;
-  box-shadow: var(--shadow-soft);
+  padding: 1.6rem 2.4rem 4rem;
+  background: transparent;
   font-family: var(--font-family-main);
-  gap: 20px;
+}
+
+.dream-banner-shell {
+  position: relative;
+  isolation: isolate;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(260px, 1.1fr) minmax(200px, 0.9fr);
+  align-items: center;
+  gap: 2rem 3rem;
+  padding: 4.4rem 4.8rem;
+  border-radius: 2.8rem;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      115deg,
+      #0a3d4a 0%,
+      #0e7c86 48%,
+      #1a9aa3 100%
+    );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 22px 48px rgba(10, 61, 74, 0.28);
+}
+
+.dream-banner-glow {
+  position: absolute;
+  right: -10%;
+  top: -30%;
+  width: 55%;
+  height: 140%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(232, 197, 71, 0.18) 0%,
+    rgba(126, 200, 195, 0.12) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dream-banner-dots {
+  position: absolute;
+  left: 2.4rem;
+  bottom: 2.4rem;
+  z-index: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 0.5rem);
+  gap: 0.7rem 0.8rem;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.dream-banner-dots span {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .banner-content {
-  flex: 1 1 500px;
-  color: var(--text-light);
+  position: relative;
+  z-index: 1;
+  color: #f4fffc;
+  text-align: left;
+}
+
+.dream-banner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 1.6rem;
+  padding: 0.55rem 1.2rem;
+  border-radius: 999px;
+  background: var(--monsoon-gold, #e8c547);
+  color: #12332c;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .banner-content h2 {
-  font-size: 36px;
-  font-weight: 700;
-  line-height: 1.4;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: clamp(2.8rem, 4vw, 4rem);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.banner-content h2 span {
+  display: block;
+  margin-top: 0.4rem;
+  font-weight: 650;
+  color: rgba(244, 255, 252, 0.92);
+}
+
+.banner-content p {
+  margin: 1.6rem 0 0;
+  max-width: 44rem;
+  font-size: 1.55rem;
+  line-height: 1.6;
+  color: rgba(244, 255, 252, 0.78);
 }
 
 .banner-btn {
-  background-color: var(--primary-color);
-  color: var(--text-light);
-  padding: 12px 24px;
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2.6rem;
+  padding: 1.15rem 1.2rem 1.15rem 2rem;
   border: none;
   border-radius: 999px;
+  background: var(--monsoon-gold, #e8c547);
+  color: #12332c;
+  font-size: 1.5rem;
+  font-weight: 750;
   cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.3s ease;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .banner-btn:hover {
-  background-color: var(--accent-color);
+  background: #f0d26a;
+  transform: translateY(-1px);
+}
+
+.banner-btn-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 50%;
+  background: #12332c;
+  color: var(--monsoon-gold, #e8c547);
+  font-size: 1.2rem;
 }
 
 .banner-image {
-  flex: 1 1 400px;
+  position: relative;
+  z-index: 1;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-end;
+  pointer-events: none;
 }
 
 .banner-image img {
-  width: 100%;
-  max-width: 500px;
+  width: min(100%, 42rem);
   height: auto;
-  border-radius: 0 20px 20px 0;
+  object-fit: contain;
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.35));
+  animation: dreamBannerFloat 5.5s ease-in-out infinite;
 }
 
-/* 🔸 Media Queries for Responsiveness */
-@media (max-width: 1024px) {
-  .dream-banner {
-    padding: 30px 40px;
+@keyframes dreamBannerFloat {
+  0%,
+  100% {
+    transform: translateY(0);
   }
-
-  .banner-content h2 {
-    font-size: 30px;
+  50% {
+    transform: translateY(-0.8rem);
   }
 }
 
-@media (max-width: 768px) {
-  .dream-banner {
-    flex-direction: column;
+@media (max-width: 900px) {
+  .dream-banner-shell {
+    grid-template-columns: 1fr;
+    padding: 3.6rem 2.4rem 2.4rem;
     text-align: center;
-    padding: 30px 20px;
-    border-radius: 0;
-    margin: 0;
+  }
+
+  .banner-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .banner-content p {
+    max-width: 48rem;
+  }
+
+  .banner-image {
+    order: -1;
   }
 
   .banner-image img {
-    border-radius: 20px;
+    width: min(100%, 32rem);
   }
 
-  .banner-content h2 {
-    font-size: 26px;
-  }
-
-  .banner-btn {
-    padding: 10px 20px;
-    font-size: 15px;
+  .dream-banner-dots {
+    display: none;
   }
 }
 
-@media (max-width: 480px) {
-  .banner-content h2 {
-    font-size: 22px;
+@media (max-width: 640px) {
+  .dream-banner {
+    padding: 1rem 1.4rem 3rem;
+  }
+
+  .dream-banner-shell {
+    border-radius: 2rem;
+    padding: 3rem 1.6rem 2rem;
   }
 
   .banner-btn {
-    font-size: 14px;
-    padding: 10px 16px;
+    width: 100%;
+    max-width: 32rem;
+    justify-content: center;
   }
 }

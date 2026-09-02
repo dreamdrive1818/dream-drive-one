@@ -4,8 +4,6 @@ import Modal from "react-modal";
 import "./ManageFormEntries.css";
 import { toast } from "react-toastify";
 
-Modal.setAppElement("#root");
-
 const ManageFormEntries = () => {
   const { fetchFormEntries, deleteFormEntry } = useAdminContext();
   const [entries, setEntries] = useState([]);
