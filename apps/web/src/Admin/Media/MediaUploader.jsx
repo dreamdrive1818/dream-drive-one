@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { storage } from "../../firebase/firebaseConfig";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import api from "../../api/http";
+import { uploadToCloudinary } from "../../utils/cloudinaryUpload";
 import "./MediaUploader.css";
 
 const MediaUploader = ({ onSelectImage }) => {
@@ -20,9 +19,7 @@ const MediaUploader = ({ onSelectImage }) => {
     let url = imageUrl; // Use direct URL if provided
 
     if (image) {
-      const storageRef = ref(storage, `images/${image.name}`);
-      await uploadBytes(storageRef, image);
-      url = await getDownloadURL(storageRef);
+      url = await uploadToCloudinary(image, { folder: "dreamdrive/media" });
     }
 
     await api.post("/api/cms/media", { url, category });
@@ -46,14 +43,7 @@ const MediaUploader = ({ onSelectImage }) => {
   const handleDelete = async (id, url) => {
     if (window.confirm("Are you sure you want to delete this image?")) {
       await api.delete(`/api/cms/media/${id}`);
-
-      // Delete from Firebase Storage if it's an uploaded file
-      if (url.startsWith("https://firebasestorage.googleapis.com")) {
-        const storageRef = ref(storage, url);
-        await deleteObject(storageRef).catch((error) => console.error("Storage delete error:", error));
-      }
-
-      fetchImages(); // Refresh images after deletion
+      fetchImages();
     }
   };
 

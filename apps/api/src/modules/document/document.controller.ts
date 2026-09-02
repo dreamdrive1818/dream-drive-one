@@ -1,20 +1,47 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UploadedFile,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
 import { KycStatus } from "@prisma/client";
 import { DocumentEngine } from "./document.service";
 import { assertOwnerOrStaff, currentUser, requireRoles } from "../../lib/auth";
-import { cloudinaryUploadConfig } from "../../lib/cloudinary";
+import { sanitizeFolder, uploadToCloudinary } from "../../lib/cloudinary";
 
 @Controller()
 export class DocumentController {
   constructor(private readonly docs: DocumentEngine) {}
 
   @Post("v1/kyc/uploads")
-  upload(@Req() req: Request, @Body() body: { kind?: string; url?: string }) {
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 8 * 1024 * 1024 },
+    })
+  )
+  async upload(
+    @Req() req: Request,
+    @UploadedFile() file: { buffer?: Buffer; originalname?: string; mimetype?: string } | undefined,
+    @Body() body: { kind?: string; url?: string }
+  ) {
     currentUser(req);
     const kind = body?.kind ?? "id";
-    if (body?.url) return { ok: true, kind, url: body.url };
-    return { ok: true, kind, ...cloudinaryUploadConfig("dreamdrive/kyc") };
+    if (body?.url && !file?.buffer) return { ok: true, kind, url: body.url };
+    const uploaded = await uploadToCloudinary({
+      folder: sanitizeFolder("dreamdrive/kyc"),
+      url: body?.url,
+      buffer: file?.buffer,
+      filename: file?.originalname,
+      mimetype: file?.mimetype,
+    });
+    return { ok: true, kind, ...uploaded };
   }
 
   @Post("v1/kyc/submit")

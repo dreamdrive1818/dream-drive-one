@@ -38,6 +38,14 @@ export class IdentityController {
     });
   }
 
+  @Post("v1/auth/login")
+  login(@Body() body: { email?: string; password?: string }) {
+    if (!body?.email || !body?.password) {
+      return { error: "email and password required" };
+    }
+    return this.identity.loginWithPassword(body.email, body.password);
+  }
+
   @Post("v1/auth/otp/send")
   async sendOtp(@Body() body: { email?: string }) {
     if (!body?.email) return { error: "email required" };

@@ -11,6 +11,7 @@ import { BookingEngine } from "./modules/booking/booking.service";
 import { PaymentController } from "./modules/payment/payment.controller";
 import { PaymentEngine } from "./modules/payment/payment.service";
 import { DocumentController } from "./modules/document/document.controller";
+import { UploadsController } from "./modules/document/uploads.controller";
 import { DocumentEngine } from "./modules/document/document.service";
 import { FleetController } from "./modules/fleet/fleet.controller";
 import { FleetEngine } from "./modules/fleet/fleet.service";
@@ -35,6 +36,7 @@ import { PlatformEngine } from "./modules/platform/platform.service";
     BookingController,
     PaymentController,
     DocumentController,
+    UploadsController,
     FleetController,
     PartnerController,
     NotifyController,

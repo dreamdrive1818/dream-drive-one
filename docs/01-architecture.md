@@ -20,8 +20,7 @@ dream-drive-MS/
 ## App conventions
 
 - `apps/web` and `apps/admin` use App Router, Tailwind, shadcn/ui, Framer Motion.
-- Both call **only** `NEXT_PUBLIC_API_URL` (the API on :4000). No Prisma, no Firebase Admin, no Razorpay secret in the browser.
-- Firebase client SDK is used **only** for Auth (getIdToken). Storage uploads go through signed URLs or Cloudinary signed presets issued by the API.
+- Both call **only** `NEXT_PUBLIC_API_URL` (the API on :4000). No Prisma, no Firebase, no Cloudinary, no Razorpay in the browser. Auth and uploads go through the API.
 
 ## API conventions
 

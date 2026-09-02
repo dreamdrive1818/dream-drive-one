@@ -2,9 +2,11 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { RoleName, UserStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { firebaseSignInWithPassword } from "../../lib/firebase-rest";
 
 const otpStore = new Map<string, { code: string; expiresAt: number }>();
 
@@ -141,6 +143,19 @@ export class IdentityService {
       expiresAt: Date.now() + 5 * 60 * 1000,
     });
     return code;
+  }
+
+  async loginWithPassword(email: string, password: string) {
+    const fb = await firebaseSignInWithPassword(email, password);
+    const user = await this.upsertFromIdentity({
+      firebaseUid: fb.uid,
+      email: fb.email,
+      fullName: fb.name,
+    });
+    if (user.status === UserStatus.DISABLED) {
+      throw new UnauthorizedException("Account disabled");
+    }
+    return { token: fb.idToken, user };
   }
 
   verifyOtp(email: string, code: string) {

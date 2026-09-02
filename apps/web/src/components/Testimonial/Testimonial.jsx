@@ -10,6 +10,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as regularStar } from "@fortawesome/free-regular-svg-icons";
 import { useTestimonialContext } from "../../context/TestimonialContext";
+import { uploadToCloudinary } from "../../utils/cloudinaryUpload";
 
 const Testimonial = () => {
   const location = useLocation();
@@ -30,9 +31,6 @@ const sortedTestimonials = [...testimonials].sort((a, b) => {
   });
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_PRESET;
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -75,67 +73,30 @@ const sortedTestimonials = [...testimonials].sort((a, b) => {
           return;
         }
 
-        const data = new FormData();
-        data.append("file", formData.imageFile);
-        data.append("upload_preset", uploadPreset);
-
-        const xhr = new XMLHttpRequest();
-        xhr.open(
-          "POST",
-          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
-        );
-
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            const percent = (e.loaded / e.total) * 100;
-            setUploadProgress(Math.round(percent));
-          }
+        setUploadProgress(40);
+        imageUrl = await uploadToCloudinary(formData.imageFile, {
+          folder: "dreamdrive/testimonials",
+          public: true,
         });
-
-        xhr.onload = async () => {
-          const res = JSON.parse(xhr.responseText);
-          imageUrl = res.secure_url;
-
-          await submitTestimonial({
-            name: formData.name,
-            message: formData.message,
-            rating: formData.rating,
-            image: imageUrl,
-          });
-
-          setFormData({
-            name: "",
-            message: "",
-            rating: 0,
-            imageFile: null,
-          });
-          setShowModal(false);
-          setUploading(false);
-          setUploadProgress(0);
-        };
-
-        xhr.onerror = () => {
-          alert("Upload failed");
-          setUploading(false);
-        };
-
-        xhr.send(data);
-      } else {
-        await submitTestimonial({
-          name: formData.name,
-          message: formData.message,
-          rating: formData.rating,
-          image: "",
-        });
-        setFormData({
-          name: "",
-          message: "",
-          rating: 0,
-          imageFile: null,
-        });
-        setShowModal(false);
-        setUploading(false);
+        setUploadProgress(80);
       }
+
+      await submitTestimonial({
+        name: formData.name,
+        message: formData.message,
+        rating: formData.rating,
+        image: imageUrl,
+      });
+
+      setFormData({
+        name: "",
+        message: "",
+        rating: 0,
+        imageFile: null,
+      });
+      setShowModal(false);
+      setUploading(false);
+      setUploadProgress(0);
     } catch (err) {
       console.error(err);
       alert("Failed to submit testimonial.");

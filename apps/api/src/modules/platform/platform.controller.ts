@@ -10,7 +10,6 @@ import {
 import type { Request } from "express";
 import { PlatformEngine } from "./platform.service";
 import { currentUser, requireRoles, requireStaff } from "../../lib/auth";
-import { publicClientConfig } from "../../lib/cloudinary";
 
 @Controller()
 export class PlatformController {
@@ -18,7 +17,7 @@ export class PlatformController {
 
   @Get("v1/public/config")
   publicConfig() {
-    return publicClientConfig();
+    return { ok: true };
   }
 
   @Get("v1/public/pages/:slug")
