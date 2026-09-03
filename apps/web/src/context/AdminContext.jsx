@@ -20,14 +20,14 @@ export const AdminProvider = ({ children }) => {
         if (staff) {
           setAdmin(data.email);
         } else {
+          // Customer (or other non-staff) session — keep dd_token for MS auth.
           localStorage.removeItem("admin_uid");
-          localStorage.removeItem("dd_token");
           setAdmin(null);
         }
       } catch (error) {
         console.error("Failed to verify admin:", error);
+        // Transient /v1/me failure must not log out a customer session.
         localStorage.removeItem("admin_uid");
-        localStorage.removeItem("dd_token");
         setAdmin(null);
       }
     };

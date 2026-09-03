@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
-import api from "../api/http";
-import { usePageSeoSuppression } from "../utils/usePageSeoSuppression";
-import "../components/TermsAndConditions/TermsAndConditions.css";
+import api from "../../api/http";
+import { usePageSeoSuppression } from "../../utils/usePageSeoSuppression";
+import "../TermsAndConditions/TermsAndConditions.css";
 
 export default function CmsPage({ slug: slugProp }) {
   const params = useParams();

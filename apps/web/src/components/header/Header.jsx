@@ -17,6 +17,9 @@ import { trackWhatsApp } from "../../utils/trackLead";
 const Header = () => {
   const navigate = useNavigate();
   const auth = useAuth();
+  const authReady = Boolean(auth?.ready);
+  const signedIn = Boolean(auth?.user);
+  const authLabel = !authReady ? "…" : signedIn ? "Account" : "Sign in";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const cartItemCount = 2; 
   const [isScrolled, setIsScrolled] = useState(false);
@@ -38,6 +41,11 @@ useEffect(() => {
   const handleRoute = (route) => {
     navigate(route);
     setIsMobileMenuOpen(false);
+  };
+
+  const goAuth = () => {
+    if (!authReady) return;
+    handleRoute(signedIn ? "/account" : "/login");
   };
 
   useEffect(() => {
@@ -81,9 +89,11 @@ useEffect(() => {
       <button
         className="contact-btn"
         type="button"
-        onClick={() => handleRoute(auth?.user ? "/account" : "/login")}
+        onClick={goAuth}
+        disabled={!authReady}
+        aria-busy={!authReady}
       >
-        {auth?.user ? "Account" : "Sign in"}
+        {authLabel}
       </button>
       <span>|</span>
      <button className="signup-btn">
@@ -122,8 +132,8 @@ useEffect(() => {
       <p onClick={() => handleRoute("/blogs")}>Blogs</p>
       <p onClick={() => handleRoute("/faq")}>FAQs</p>
       <p onClick={() => handleRoute("/contact")}>Contact</p>
-        <p onClick={() => handleRoute(auth?.user ? "/account" : "/login")}>
-          {auth?.user ? "Account" : "Sign in"}
+        <p onClick={goAuth}>
+          {authLabel}
         </p>
       </div>
     </div>
