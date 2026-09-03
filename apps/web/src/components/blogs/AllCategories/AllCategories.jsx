@@ -23,8 +23,8 @@ const AllCategories = () => {
     loadCategories();
   }, [fetchCategories]);
 
-  const handleCategoryClick = (catId) => {
-    navigate(`/blogs/${catId}`);
+  const handleCategoryClick = (cat) => {
+    navigate(`/blogs?category=${cat.slug || cat.id}`);
   };
 
   return (
@@ -32,7 +32,7 @@ const AllCategories = () => {
       <h3 className="category-heading"> <FaFolderOpen className="category-icon" /> Categories</h3>
       <ul className="category-list">
         {categories.map((cat) => (
-          <li key={cat.id} onClick={() => handleCategoryClick(cat.id)} className="category-item">
+          <li key={cat.id} onClick={() => handleCategoryClick(cat)} className="category-item">
             {cat.name} ↗
           </li>
         ))}

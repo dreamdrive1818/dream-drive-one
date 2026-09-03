@@ -6,18 +6,20 @@ export function getToken() {
 }
 
 export function setToken(token) {
-  localStorage.setItem("dd_token", token);
+  if (token) localStorage.setItem("dd_token", token);
+  else localStorage.removeItem("dd_token");
 }
 
 export async function api(path, options = {}) {
+  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
   const res = await fetch(`${API}${path}`, {
     ...options,
     headers: {
-      "content-type": "application/json",
+      ...(isForm ? {} : { "content-type": "application/json" }),
       Authorization: getToken() ? `Bearer ${getToken()}` : "",
       ...(options.headers || {}),
     },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body: options.body == null ? undefined : isForm ? options.body : JSON.stringify(options.body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

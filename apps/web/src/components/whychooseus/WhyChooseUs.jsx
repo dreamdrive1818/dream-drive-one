@@ -35,7 +35,7 @@ const FEATURES = [
 ];
 
 const WhyChoose = () => {
-  const { webinfo } = useLocalContext();
+  const { webinfo, promoBanner } = useLocalContext();
   const navigate = useNavigate();
   const brand = webinfo?.name || "Dream Drive";
   const phoneHref = webinfo?.phonecall
@@ -63,16 +63,16 @@ const WhyChoose = () => {
           <span className="why-rule" aria-hidden="true" />
 
           <p>
-            Monsoon Sale is live — easy bookings, clean rides, and special
-            rainy-season rates so you can hit the road with confidence.
+            {promoBanner?.body ||
+              "Monsoon Sale is live — easy bookings, clean rides, and special rainy-season rates so you can hit the road with confidence."}
           </p>
 
           <button
             type="button"
             className="why-cta"
-            onClick={() => navigate("/fleet")}
+            onClick={() => navigate(promoBanner?.link || "/fleet")}
           >
-            View Monsoon Deals
+            {promoBanner?.ctaText || "View Monsoon Deals"}
             <span className="why-cta-arrow" aria-hidden="true">
               <FontAwesomeIcon icon={faArrowRight} />
             </span>

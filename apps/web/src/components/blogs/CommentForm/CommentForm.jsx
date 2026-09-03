@@ -22,18 +22,13 @@ const handleSubmit = async (e) => {
     setLoading(true);
 
     // Add the comment to the blog's comments subcollection
-    await api.post(`/api/cms/blogs/${blogId}/comments`, {
+    await api.post(`/v1/public/blogs/${encodeURIComponent(blogId)}/comments`, {
       name,
       email,
       comment,
-      saveInfo,
-      blogId,
-      blogTitle,
-      approved: false,
-      createdAt: new Date(),
     });
 
-    toast.success("Comment submitted successfully!");
+    toast.success("Comment submitted. It will appear after review.");
     setName("");
     setEmail("");
     setComment("");

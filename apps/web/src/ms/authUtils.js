@@ -38,7 +38,10 @@ export function getPostLoginPath(rawRedirect) {
 /** Read ?redirect= from the current URL ( reliable at login completion time ). */
 export function readRedirectFromLocation() {
   if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get("redirect");
+  return (
+    new URLSearchParams(window.location.search).get("redirect") ||
+    new URLSearchParams(window.location.search).get("next")
+  );
 }
 
 const AUTH_MESSAGES = {

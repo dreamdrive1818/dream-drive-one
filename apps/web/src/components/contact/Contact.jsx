@@ -14,6 +14,7 @@ import { toast } from "react-toastify";
 import AnimateOnScroll from "../../assets/Animation/AnimateOnScroll";
 import { useLocalContext } from "../../context/LocalContext";
 import api from "../../api/http";
+import { trackWhatsApp } from "../../utils/trackLead";
 import "./Contact.css";
 
 const Contact = () => {
@@ -44,7 +45,14 @@ const Contact = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post("/api/cms/contacts", formData);
+      await api.post("/v1/public/contact", {
+        first: formData.first,
+        last: formData.last,
+        name: `${formData.first} ${formData.last}`.trim(),
+        email: formData.email,
+        phone: formData.phone,
+        message: formData.message,
+      });
       toast.success("Message submitted successfully!");
       setFormData({
         first: "",
@@ -132,6 +140,7 @@ const Contact = () => {
             target="_blank"
             rel="noopener noreferrer"
             className="contact-wa-card"
+            onClick={() => trackWhatsApp(webinfo?.phonecall)}
           >
             <span className="contact-wa-icon" aria-hidden="true">
               <FontAwesomeIcon icon={faWhatsapp} />

@@ -34,7 +34,7 @@ const Blogspage = () => {
     return doc.body.innerHTML;
   };
 
-  const enhancedContent = injectHeadingIds(selectedBlog.content);
+  const enhancedContent = injectHeadingIds(selectedBlog.content || selectedBlog.body || "");
 
   return (
     <>
@@ -65,9 +65,9 @@ const Blogspage = () => {
             </ul>
           </div>
 
-          {selectedBlog.imageBase64 || selectedBlog.imageLink ? (
+          {selectedBlog.coverUrl || selectedBlog.imageBase64 || selectedBlog.imageLink ? (
             <img
-              src={selectedBlog.imageBase64 || selectedBlog.imageLink}
+              src={selectedBlog.coverUrl || selectedBlog.imageBase64 || selectedBlog.imageLink}
               alt={selectedBlog.title}
               className="blog-cover-image"
             />

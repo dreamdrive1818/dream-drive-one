@@ -17,6 +17,32 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
 
+  const applySession = useCallback(async (token, nextUser) => {
+    if (token) setToken(token);
+    if (nextUser) {
+      setUser(nextUser);
+      setReady(true);
+      return nextUser;
+    }
+    if (!getToken()) {
+      setUser(null);
+      setReady(true);
+      return null;
+    }
+    try {
+      await api("/v1/auth/sync", { method: "POST", body: {} });
+      const me = await api("/v1/me");
+      setUser(me);
+      return me;
+    } catch {
+      setUser(null);
+      setToken("");
+      return null;
+    } finally {
+      setReady(true);
+    }
+  }, []);
+
   const refresh = useCallback(async () => {
     if (!getToken()) {
       setUser(null);
@@ -70,15 +96,39 @@ export function AuthProvider({ children }) {
       if (!data?.token) {
         throw new Error("Login failed. No token returned.");
       }
-      setToken(data.token);
-      if (data.user) {
-        setUser(data.user);
-        setReady(true);
-        return data.user;
-      }
+      const me = await applySession(data.token, data.user);
+      if (me) return me;
       return requireSession(refresh);
     },
-    [refresh, requireSession]
+    [applySession, refresh, requireSession]
+  );
+
+  const register = useCallback(
+    async (email, password, fullName) => {
+      const data = await api("/v1/auth/register", {
+        method: "POST",
+        body: { email, password, fullName },
+      });
+      if (data?.error) throw new Error(data.error);
+      const me = await applySession(data.token, data.user);
+      if (me) return me;
+      return requireSession(refresh);
+    },
+    [applySession, refresh, requireSession]
+  );
+
+  const loginGoogle = useCallback(
+    async (idToken) => {
+      const data = await api("/v1/auth/google", {
+        method: "POST",
+        body: { idToken },
+      });
+      if (data?.error) throw new Error(data.error);
+      const me = await applySession(data.token, data.user);
+      if (me) return me;
+      return requireSession(refresh);
+    },
+    [applySession, refresh, requireSession]
   );
 
   const loginDev = useCallback(
@@ -115,6 +165,11 @@ export function AuthProvider({ children }) {
         throw new Error(data.error);
       }
 
+      if (data?.token) {
+        await applySession(data.token, data.user);
+        return { verified: true, sessionStarted: true };
+      }
+
       if (isLocalDev()) {
         setToken(`dev:${normalized}`);
         await requireSession(refresh);
@@ -123,7 +178,7 @@ export function AuthProvider({ children }) {
 
       return { verified: true, sessionStarted: false };
     },
-    [refresh, requireSession]
+    [applySession, refresh, requireSession]
   );
 
   const logout = useCallback(() => {
@@ -137,9 +192,19 @@ export function AuthProvider({ children }) {
       ready,
       refresh,
       loginWithEmailPassword,
+      loginPassword: loginWithEmailPassword,
+      register,
+      loginGoogle,
       loginDev,
       sendOtp,
       verifyOtp,
+      loginOtp: async (email, code) => {
+        const result = await verifyOtp(email, code);
+        if (!result.sessionStarted) {
+          throw new Error("OTP verified, but a session token was not issued.");
+        }
+        return refresh();
+      },
       logout,
     }),
     [
@@ -147,6 +212,8 @@ export function AuthProvider({ children }) {
       ready,
       refresh,
       loginWithEmailPassword,
+      register,
+      loginGoogle,
       loginDev,
       sendOtp,
       verifyOtp,

@@ -11,7 +11,7 @@ import { faArrowUp } from "@fortawesome/free-solid-svg-icons";
 library.add(fab, faArrowUp);
 
 const Footer = () => {
-  const { webinfo } = useLocalContext();
+  const { webinfo, promoBanner } = useLocalContext();
   const navigate = useNavigate();
 
   const scrollToTop = () => {
@@ -23,7 +23,7 @@ const Footer = () => {
       <div className="footer-top">
         <div className="footer-left">
           <h2>Don’t Miss a Thing</h2>
-          <p>Monsoon Sale alerts — get exclusive rainy-season deals and updates first.</p>
+          <p>{promoBanner?.body || "Get trip offers and updates first."}</p>
           <div className="newsletter">
             <input
               type="email"
@@ -47,6 +47,8 @@ const Footer = () => {
             <h4>Legal</h4>
             <p onClick={() => navigate("/howitworks")}>How it works</p>
             <p onClick={() => navigate("/termsandconditions")}>Terms And Conditions</p>
+            <p onClick={() => navigate("/legal/privacy")}>Privacy Policy</p>
+            <p onClick={() => navigate("/faq")}>FAQs</p>
           </div>
           <div className="footer-column">
             <h4>Social Media</h4>

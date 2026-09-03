@@ -22,7 +22,7 @@ const MediaUploader = ({ onSelectImage }) => {
       url = await uploadToCloudinary(image, { folder: "dreamdrive/media" });
     }
 
-    await api.post("/api/cms/media", { url, category });
+    await api.post("/v1/admin/cms/media", { url, category });
 
     setImage(null);
     setImageUrl("");
@@ -31,7 +31,7 @@ const MediaUploader = ({ onSelectImage }) => {
   };
 
   const fetchImages = async () => {
-    const { data } = await api.get("/api/cms/media");
+    const { data } = await api.get("/v1/admin/cms/media");
     setUploadedImages(data);
   };
 
@@ -42,7 +42,7 @@ const MediaUploader = ({ onSelectImage }) => {
   // Handle Delete
   const handleDelete = async (id, url) => {
     if (window.confirm("Are you sure you want to delete this image?")) {
-      await api.delete(`/api/cms/media/${id}`);
+      await api.delete(`/v1/admin/cms/media/${id}`);
       fetchImages();
     }
   };

@@ -21,6 +21,8 @@ import { NotifyController } from "./modules/notification/notify.controller";
 import { NotifyEngine } from "./modules/notification/notify.service";
 import { PlatformController } from "./modules/platform/platform.controller";
 import { PlatformEngine } from "./modules/platform/platform.service";
+import { CmsController } from "./modules/platform/cms.controller";
+import { CmsService } from "./modules/platform/cms.service";
 
 @Module({
   imports: [
@@ -41,6 +43,7 @@ import { PlatformEngine } from "./modules/platform/platform.service";
     PartnerController,
     NotifyController,
     PlatformController,
+    CmsController,
   ],
   providers: [
     AuthMiddleware,
@@ -53,6 +56,7 @@ import { PlatformEngine } from "./modules/platform/platform.service";
     PartnerEngine,
     NotifyEngine,
     PlatformEngine,
+    CmsService,
   ],
 })
 export class AppModule implements NestModule {

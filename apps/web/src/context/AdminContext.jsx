@@ -69,8 +69,15 @@ export const AdminProvider = ({ children }) => {
   };
 
   const fetchCars = async () => {
-    const { data } = await api.get("/api/catalog/cars");
-    return data;
+    const { data } = await api.get("/v1/public/search");
+    const list = Array.isArray(data) ? data : data?.results || [];
+    return list.map((car) => ({
+      ...car,
+      images: (car.images || []).map((img) => (typeof img === "string" ? img : img.url)),
+      price: (car.pricePaise ?? 0) / 100,
+      available: car.available === false ? "Unavailable" : "Available",
+      details: { type: car.type, seats: car.seats, fuel: car.fuel, transmission: car.transmission },
+    }));
   };
 
   const addCar = async (carData) => {
@@ -166,18 +173,34 @@ export const AdminProvider = ({ children }) => {
   };
 
   const fetchMessages = async () => {
-    const { data } = await api.get("/api/cms/contacts");
+    const { data } = await api.get("/v1/admin/leads");
     return data;
   };
 
   const fetchBlogs = async () => {
-    const { data } = await api.get("/api/cms/blogs");
+    const { data } = await api.get("/v1/public/blogs");
+    return data;
+  };
+
+  const fetchBlogsFromCategory = async (category) => {
+    const { data } = await api.get("/v1/public/blogs", { params: { category } });
     return data;
   };
 
   const addBlog = async (blogData) => {
     try {
-      const { data } = await api.post("/api/cms/blogs", blogData);
+      const { data } = await api.post("/v1/admin/cms/blogs", {
+        title: blogData.title,
+        body: blogData.content || blogData.body,
+        coverUrl: blogData.imageLink || blogData.coverUrl,
+        slug: blogData.urlSlug || blogData.slug,
+        author: blogData.author,
+        categoryId: blogData.category || blogData.categoryId,
+        published: blogData.published !== false,
+        metaTitle: blogData.seoTitle || blogData.metaTitle,
+        metaDescription: blogData.seoDescription || blogData.metaDescription,
+        excerpt: blogData.excerpt,
+      });
       toast.success("Blog added successfully!");
       return data.id;
     } catch (error) {
@@ -188,7 +211,7 @@ export const AdminProvider = ({ children }) => {
 
   const deleteBlog = async (blogId) => {
     try {
-      await api.delete(`/api/cms/blogs/${blogId}`);
+      await api.delete(`/v1/admin/cms/blogs/${blogId}`);
       toast.success("Blog deleted");
     } catch (error) {
       console.error("Delete error:", error.message);
@@ -198,7 +221,14 @@ export const AdminProvider = ({ children }) => {
 
   const updateBlog = async (blogId, updatedData) => {
     try {
-      await api.patch(`/api/cms/blogs/${blogId}`, updatedData);
+      await api.patch(`/v1/admin/cms/blogs/${blogId}`, {
+        ...updatedData,
+        body: updatedData.content || updatedData.body,
+        coverUrl: updatedData.imageLink || updatedData.coverUrl,
+        slug: updatedData.urlSlug || updatedData.slug,
+        metaTitle: updatedData.seoTitle || updatedData.metaTitle,
+        metaDescription: updatedData.seoDescription || updatedData.metaDescription,
+      });
       toast.success("Blog updated successfully");
     } catch (error) {
       console.error("Update error:", error.message);
@@ -208,7 +238,7 @@ export const AdminProvider = ({ children }) => {
 
   const fetchComments = async () => {
     try {
-      const { data } = await api.get("/api/cms/comments");
+      const { data } = await api.get("/v1/admin/cms/comments");
       setAllComments(data);
       return data;
     } catch (error) {
@@ -218,43 +248,34 @@ export const AdminProvider = ({ children }) => {
   };
 
   const addCategory = async (name) => {
-    const formattedName = name.toLowerCase().replace(/\s+/g, "-");
-    await api.put(`/api/cms/categories/${formattedName}`, {
-      name,
-      createdAt: new Date(),
-    });
-    return formattedName;
+    const { data } = await api.post("/v1/admin/cms/categories", { name });
+    return data.slug;
   };
 
   const fetchCategories = async () => {
-    const { data } = await api.get("/api/cms/categories");
+    const { data } = await api.get("/v1/public/blog-categories");
     return data;
   };
 
   const fetchCategoryById = async (docId) => {
-    const { data } = await api.get(`/api/cms/categories/${docId}`);
+    const { data } = await api.get(`/v1/public/blog-categories/${docId}`);
     return data;
   };
 
   const deleteCategory = async (categoryId) => {
-    await api.delete(`/api/cms/categories/${categoryId}`);
+    await api.delete(`/v1/admin/cms/categories/${categoryId}`);
     toast.success("Category deleted");
   };
 
   const updateCategory = async (oldId, newData) => {
-    if (typeof newData === "string") {
-      const newId = newData.toLowerCase().replace(/\s+/g, "-");
-      await api.post(`/api/cms/categories/${oldId}/rename`, { newId, name: newData });
-      toast.success("Category updated");
-    } else if (typeof newData === "object") {
-      await api.patch(`/api/cms/categories/${oldId}`, newData);
-      toast.success("SEO metadata updated");
-    }
+    const payload = typeof newData === "string" ? { name: newData } : newData;
+    await api.patch(`/v1/admin/cms/categories/${oldId}`, payload);
+    toast.success("Category updated");
   };
 
   const updateCommentApproval = async (commentId, path, currentStatus) => {
     try {
-      await api.patch("/api/cms/comments", { path, approved: !currentStatus });
+      await api.patch(`/v1/admin/cms/comments/${commentId}`, { approved: !currentStatus });
       setAllComments((prev) =>
         prev.map((comment) =>
           comment.id === commentId ? { ...comment, approved: !currentStatus } : comment
@@ -268,16 +289,16 @@ export const AdminProvider = ({ children }) => {
   };
 
   const fetchTestimonials = async () => {
-    const { data } = await api.get("/api/cms/testimonials");
+    const { data } = await api.get("/v1/admin/cms/testimonials");
     return data;
   };
 
   const approveTestimonial = async (id) => {
-    await api.patch(`/api/cms/testimonials/${id}`, { status: "approved" });
+    await api.patch(`/v1/admin/cms/testimonials/${id}`, { status: "approved" });
   };
 
   const deleteTestimonial = async (id) => {
-    await api.delete(`/api/cms/testimonials/${id}`);
+    await api.delete(`/v1/admin/cms/testimonials/${id}`);
   };
 
   return (
@@ -299,6 +320,7 @@ export const AdminProvider = ({ children }) => {
         deleteUser,
         fetchMessages,
         fetchBlogs,
+        fetchBlogsFromCategory,
         addBlog,
         deleteBlog,
         updateBlog,

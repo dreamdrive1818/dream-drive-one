@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { getToken } from "../lib/api";
-import { useEffect } from "react";
+import { api, getToken } from "../lib/api";
+import { useEffect, useState } from "react";
 
 const LINKS = [
   ["/", "Dashboard"],
@@ -18,15 +18,47 @@ const LINKS = [
   ["/leads", "Leads"],
   ["/offers", "Offers"],
   ["/cms", "CMS"],
+  ["/banners", "Banners"],
+  ["/blogs", "Blogs"],
+  ["/media", "Media"],
   ["/reports", "Reports"],
+  ["/audit", "Audit"],
 ];
+
+const STAFF = new Set([
+  "SUPPORT",
+  "SALES",
+  "FLEET_OPS",
+  "FINANCE",
+  "BRANCH_MANAGER",
+  "CITY_MANAGER",
+  "SUPER_ADMIN",
+]);
 
 export default function Shell({ children }) {
   const path = usePathname();
   const router = useRouter();
+  const [me, setMe] = useState(null);
 
   useEffect(() => {
-    if (path !== "/login" && !getToken()) router.replace("/login");
+    if (path === "/login") return;
+    if (!getToken()) {
+      router.replace("/login");
+      return;
+    }
+    api("/v1/me")
+      .then((user) => {
+        if (!(user.roles || []).some((r) => STAFF.has(r))) {
+          localStorage.removeItem("dd_token");
+          router.replace("/login");
+          return;
+        }
+        setMe(user);
+      })
+      .catch(() => {
+        localStorage.removeItem("dd_token");
+        router.replace("/login");
+      });
   }, [path, router]);
 
   if (path === "/login") return children;
@@ -35,7 +67,7 @@ export default function Shell({ children }) {
     <div className="shell">
       <aside>
         <h1>Dream-Drive</h1>
-        <p className="muted">Operations</p>
+        <p className="muted">{me?.email || "Operations"}</p>
         <nav>
           {LINKS.map(([href, label]) => (
             <Link key={href} href={href} className={path === href ? "active" : ""}>
