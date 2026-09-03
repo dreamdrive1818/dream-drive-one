@@ -1,8 +1,11 @@
 import React from "react";
 import "./WhatsAppPopup.css";
+import { useLocalContext } from "../../context/LocalContext";
+import { trackWhatsApp } from "../../utils/trackLead";
 
 const WhatsAppPopup = () => {
-  const phoneNumber = "919999999999"; // Replace with your number
+  const { webinfo } = useLocalContext();
+  const phoneNumber = webinfo.phonecall || "919942027772";
 
   return (
     <div className="whatsapp-popup">
@@ -12,6 +15,7 @@ const WhatsAppPopup = () => {
         rel="noopener noreferrer"
         className="whatsapp-button"
         aria-label="Chat on WhatsApp"
+        onClick={() => trackWhatsApp(phoneNumber)}
       >
         <img
           src="https://res.cloudinary.com/dcrfks1tq/image/upload/v1750415914/1022px-WhatsApp.svg_c4u0ss.png"

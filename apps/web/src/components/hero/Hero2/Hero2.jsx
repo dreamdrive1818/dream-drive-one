@@ -10,6 +10,7 @@ import {
   faLocationDot,
 } from "@fortawesome/free-solid-svg-icons";
 import "./Hero2.css";
+import { useLocalContext } from "../../../context/LocalContext";
 
 const SteeringWheelIcon = ({ className }) => (
   <svg
@@ -38,9 +39,16 @@ const DotGrid = ({ className }) => (
   </div>
 );
 
+function go(navigate, link) {
+  const href = link || "/fleet";
+  if (/^https?:/i.test(href)) window.location.href = href;
+  else navigate(href);
+}
+
 const Hero2 = () => {
   const navigate = useNavigate();
-  const goFleet = () => navigate("/fleet");
+  const { heroBanner } = useLocalContext();
+  const goFleet = () => go(navigate, heroBanner?.link);
 
   return (
     <section className="hero-banner hero2">
@@ -84,7 +92,9 @@ const Hero2 = () => {
         <div className="hero-content hero2-content">
           <div className="hero2-pill">
             <FontAwesomeIcon icon={faCloudShowersHeavy} className="hero2-pill-icon" />
-            <span>Monsoon Sale • Save on self-drive now</span>
+            <span>
+              {heroBanner?.title || "Monsoon Sale • Save on self-drive now"}
+            </span>
           </div>
 
           <h1 className="hero2-title">
@@ -111,19 +121,23 @@ const Hero2 = () => {
           </div>
 
           <p className="hero-subtitle hero2-subtitle">
-            Rain or shine — book discounted self-drive cars for weekends,
-            business trips, and city rides across{" "}
-            <span className="hero2-city">Ranchi</span>.
+            {heroBanner?.body || (
+              <>
+                Rain or shine — book discounted self-drive cars for weekends,
+                business trips, and city rides across{" "}
+                <span className="hero2-city">Ranchi</span>.
+              </>
+            )}
           </p>
 
           <div className="hero-buttons hero2-buttons">
             <button type="button" className="btn-rent hero2-btn-primary" onClick={goFleet}>
-              View Monsoon Deals
+              {heroBanner?.ctaText || "View Monsoon Deals"}
               <span className="hero2-btn-arrow" aria-hidden="true">
                 <FontAwesomeIcon icon={faArrowRight} />
               </span>
             </button>
-            <button type="button" className="btn-self hero2-btn-secondary" onClick={goFleet}>
+            <button type="button" className="btn-self hero2-btn-secondary" onClick={() => navigate("/fleet")}>
               <SteeringWheelIcon className="hero2-btn-wheel" />
               Self Drive
             </button>
@@ -137,7 +151,10 @@ const Hero2 = () => {
             alt=""
           />
           <img
-            src="https://res.cloudinary.com/df10iqj1i/image/upload/v1766399135/24df9713-f67d-4f45-9da9-7ac8d7e124e8.png"
+            src={
+              heroBanner?.imageUrl ||
+              "https://res.cloudinary.com/df10iqj1i/image/upload/v1766399135/24df9713-f67d-4f45-9da9-7ac8d7e124e8.png"
+            }
             className="hero2-car hero2-car--center"
             alt=""
           />

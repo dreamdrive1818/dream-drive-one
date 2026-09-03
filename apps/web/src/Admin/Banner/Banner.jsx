@@ -41,11 +41,16 @@ const Banner = () => {
         name: img.name,
         image: img.file || img.link,
       }));
-      await api.put("/api/cms/banners/Hero", {
-        section: 'Hero',
-        mode: 'carousel',
-        carouselBanners: payload,
-      });
+      for (const item of payload) {
+        if (!item.image) continue;
+        await api.post("/v1/admin/cms/banners", {
+          title: item.name || "Hero banner",
+          imageUrl: item.image,
+          placement: "HERO",
+          active: true,
+          link: "/fleet",
+        });
+      }
       toast.success('Carousel saved successfully!');
     } catch (error) {
       console.error('Error:', error);

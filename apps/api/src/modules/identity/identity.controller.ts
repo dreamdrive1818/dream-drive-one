@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -13,6 +14,7 @@ import { RoleName } from "@prisma/client";
 import { IdentityService } from "./identity.service";
 import {
   assertInternal,
+  clientIp,
   currentUser,
   requireRoles,
 } from "../../lib/auth";
@@ -28,28 +30,54 @@ export class IdentityController {
     const email = (req.headers["x-email"] as string) || "";
     const phone = (req.headers["x-phone"] as string) || undefined;
     if (!firebaseUid || !email) {
-      return { error: "Gateway must attach identity headers" };
+      throw new BadRequestException("Gateway must attach identity headers");
     }
     return this.identity.upsertFromIdentity({
       firebaseUid,
       email,
       phone,
       fullName: body?.fullName,
+      ip: clientIp(req),
     });
   }
 
   @Post("v1/auth/login")
-  login(@Body() body: { email?: string; password?: string }) {
+  login(
+    @Req() req: Request,
+    @Body() body: { email?: string; password?: string }
+  ) {
     if (!body?.email || !body?.password) {
-      return { error: "email and password required" };
+      throw new BadRequestException("email and password required");
     }
-    return this.identity.loginWithPassword(body.email, body.password);
+    return this.identity.loginWithPassword(body.email, body.password, clientIp(req));
+  }
+
+  @Post("v1/auth/register")
+  register(
+    @Req() req: Request,
+    @Body() body: { email?: string; password?: string; fullName?: string }
+  ) {
+    if (!body?.email || !body?.password) {
+      throw new BadRequestException("email and password required");
+    }
+    return this.identity.registerWithPassword(
+      body.email,
+      body.password,
+      body.fullName,
+      clientIp(req)
+    );
+  }
+
+  @Post("v1/auth/google")
+  google(@Req() req: Request, @Body() body: { idToken?: string }) {
+    if (!body?.idToken) throw new BadRequestException("idToken required");
+    return this.identity.loginWithGoogle(body.idToken, clientIp(req));
   }
 
   @Post("v1/auth/otp/send")
   async sendOtp(@Body() body: { email?: string }) {
-    if (!body?.email) return { error: "email required" };
-    const code = this.identity.issueOtp(body.email);
+    if (!body?.email) throw new BadRequestException("email required");
+    const code = await this.identity.issueOtp(body.email);
     try {
       await internalFetch(serviceUrls().notification, "/internal/notify", {
         method: "POST",
@@ -67,9 +95,14 @@ export class IdentityController {
   }
 
   @Post("v1/auth/otp/verify")
-  verifyOtp(@Body() body: { email?: string; code?: string }) {
-    if (!body?.email || !body?.code) return { error: "email and code required" };
-    return this.identity.verifyOtp(body.email, body.code);
+  verifyOtp(
+    @Req() req: Request,
+    @Body() body: { email?: string; code?: string }
+  ) {
+    if (!body?.email || !body?.code) {
+      throw new BadRequestException("email and code required");
+    }
+    return this.identity.verifyOtp(body.email, body.code, clientIp(req));
   }
 
   @Get("v1/me")
@@ -90,7 +123,7 @@ export class IdentityController {
     @Req() req: Request,
     @Body() body: { token?: string; platform?: string }
   ) {
-    if (!body?.token) return { error: "token required" };
+    if (!body?.token) throw new BadRequestException("token required");
     return this.identity.registerDevice(
       currentUser(req).id,
       body.token,
@@ -99,9 +132,40 @@ export class IdentityController {
   }
 
   @Get("v1/admin/users")
-  adminUsers(@Req() req: Request, @Query("q") q?: string) {
+  adminUsers(
+    @Req() req: Request,
+    @Query("q") q?: string,
+    @Query("take") take?: string
+  ) {
     requireRoles(req, "SUPPORT", "SALES", "CITY_MANAGER", "SUPER_ADMIN");
-    return this.identity.listUsers(q);
+    return this.identity.listUsers(q, take ? Number(take) : 100);
+  }
+
+  @Post("v1/admin/users/invite")
+  invite(
+    @Req() req: Request,
+    @Body()
+    body: {
+      email?: string;
+      fullName?: string;
+      roles?: RoleName[];
+      cityId?: string;
+      branchId?: string;
+    }
+  ) {
+    const actor = requireRoles(req, "SUPER_ADMIN");
+    if (!body?.email) throw new BadRequestException("email required");
+    return this.identity.inviteStaff(
+      actor.id,
+      {
+        email: body.email,
+        fullName: body.fullName,
+        roles: body.roles,
+        cityId: body.cityId,
+        branchId: body.branchId,
+      },
+      clientIp(req)
+    );
   }
 
   @Patch("v1/admin/users/:id/roles")
@@ -111,19 +175,19 @@ export class IdentityController {
     @Body() body: { roles?: RoleName[] }
   ) {
     const actor = requireRoles(req, "SUPER_ADMIN");
-    return this.identity.setRoles(actor.id, id, body.roles ?? []);
+    return this.identity.setRoles(actor.id, id, body.roles ?? [], clientIp(req));
   }
 
   @Post("v1/admin/users/:id/disable")
   disable(@Req() req: Request, @Param("id") id: string) {
     const actor = requireRoles(req, "SUPER_ADMIN");
-    return this.identity.disable(actor.id, id);
+    return this.identity.disable(actor.id, id, clientIp(req));
   }
 
   @Get("v1/admin/audit")
   audit(@Req() req: Request, @Query("take") take?: string) {
     requireRoles(req, "SUPER_ADMIN");
-    return this.identity.audit(take ? Number(take) : 100);
+    return this.identity.auditLog(take ? Number(take) : 100);
   }
 
   @Get("internal/users/by-firebase/:uid")
@@ -150,7 +214,7 @@ export class IdentityController {
     }
   ) {
     assertInternal(req);
-    if (!body?.email) return { error: "email required" };
+    if (!body?.email) throw new BadRequestException("email required");
     return this.identity.upsertFromIdentity({
       firebaseUid: body.firebaseUid ?? `dev:${body.email.toLowerCase()}`,
       email: body.email,

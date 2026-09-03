@@ -5,10 +5,20 @@ import {
   faCloudShowersHeavy,
   faArrowRight,
 } from "@fortawesome/free-solid-svg-icons";
+import { useLocalContext } from "../../context/LocalContext";
 import "./DreamCarBanner.css";
 
 const DreamCarBanner = () => {
   const navigate = useNavigate();
+  const { promoBanner } = useLocalContext();
+
+  const title = promoBanner?.body || promoBanner?.title;
+  const cta = promoBanner?.ctaText || "Grab Monsoon Deal";
+  const go = () => {
+    const link = promoBanner?.link || "/fleet";
+    if (/^https?:/i.test(link)) window.location.href = link;
+    else navigate(link);
+  };
 
   return (
     <section className="dream-banner">
@@ -23,22 +33,24 @@ const DreamCarBanner = () => {
         <div className="banner-content">
           <span className="dream-banner-badge">
             <FontAwesomeIcon icon={faCloudShowersHeavy} aria-hidden="true" />
-            Monsoon Sale
+            {promoBanner?.title || "Monsoon Sale"}
           </span>
           <h2>
-            Monsoon Sale is On —
-            <span>Reserve your dream car before offers end</span>
+            {title ? (
+              title
+            ) : (
+              <>
+                Monsoon Sale is On —
+                <span>Reserve your dream car before offers end</span>
+              </>
+            )}
           </h2>
           <p>
             Rain or shine deals on self-drive cars across Ranchi. Limited-time
             rates — book while they last.
           </p>
-          <button
-            type="button"
-            className="banner-btn"
-            onClick={() => navigate("/fleet")}
-          >
-            Grab Monsoon Deal
+          <button type="button" className="banner-btn" onClick={go}>
+            {cta}
             <span className="banner-btn-arrow" aria-hidden="true">
               <FontAwesomeIcon icon={faArrowRight} />
             </span>
@@ -47,7 +59,10 @@ const DreamCarBanner = () => {
 
         <div className="banner-image" aria-hidden="true">
           <img
-            src="https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/maruti-suzuki-vitara-brezza-ldi-diesel-pearl-arctic-white-82811366-6pbqe-removebg-preview_pgoccl.png"
+            src={
+              promoBanner?.imageUrl ||
+              "https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/maruti-suzuki-vitara-brezza-ldi-diesel-pearl-arctic-white-82811366-6pbqe-removebg-preview_pgoccl.png"
+            }
             alt=""
           />
         </div>

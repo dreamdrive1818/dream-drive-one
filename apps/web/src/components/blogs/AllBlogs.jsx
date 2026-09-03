@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "./AllBlogs.css";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import { useLocalContext } from "../../context/LocalContext";
 import { useAdminContext } from "../../context/AdminContext";
@@ -20,7 +20,8 @@ const toAbsolute = (base, path = "") => {
 };
 
 const AllBlogs = () => {
-  const { category } = useParams();
+  const [searchParams] = useSearchParams();
+  const category = searchParams.get("category");
   const location = useLocation();
   const navigate = useNavigate();
   usePageSeoSuppression(true)
@@ -55,18 +56,13 @@ const AllBlogs = () => {
         const formatted = blogs.map((blog) => ({
           ...blog,
           formattedDate: blog.formattedDate
-            ? new Date(blog.formattedDate).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })
-            : blog.createdAt?.seconds
-            ? new Date(blog.createdAt.seconds * 1000).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })
-            : "Date not available",
+            || (blog.publishedAt || blog.createdAt
+              ? new Date(blog.publishedAt || blog.createdAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "Date not available"),
         }));
 
         setOriginalPosts(formatted);
@@ -127,7 +123,7 @@ const AllBlogs = () => {
 
   const handleBlogClick = (blog) => {
     setSelectedUserBlog(blog);
-    navigate(`/blogs/${blog.urlSlug}`);
+    navigate(`/blogs/${blog.slug || blog.urlSlug}`);
   };
 
   // ------- pagination calc -------
@@ -227,16 +223,16 @@ const AllBlogs = () => {
                       <span>{blog.formattedDate}</span> • By <span>{blog.author}</span>
                     </p>
                   </div>
-                  {(blog.imageBase64 || blog.imageLink) && (
+                  {(blog.coverUrl || blog.imageBase64 || blog.imageLink) && (
                     <img
-                      src={blog.imageBase64 || blog.imageLink}
+                      src={blog.coverUrl || blog.imageBase64 || blog.imageLink}
                       alt="Blog"
                       className="user-blog-image"
                       loading="lazy"
                     />
                   )}
                   <p className="user-blog-description">
-                    {blog.content.replace(/<[^>]+>/g, "").slice(0, 300)}...
+                    {(blog.excerpt || blog.content || blog.body || "").replace(/<[^>]+>/g, "").slice(0, 300)}...
                   </p>
                   <button
                     className="user-read-more-btn"

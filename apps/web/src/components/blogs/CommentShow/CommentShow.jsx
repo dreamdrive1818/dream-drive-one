@@ -8,8 +8,8 @@ const CommentShow = ({ blogId }) => {
 
   const fetchComments = async () => {
     try {
-      const { data } = await api.get(`/api/cms/blogs/${blogId}/comments`);
-      setComments(data.filter((comment) => comment.approved === true));
+      const { data } = await api.get(`/v1/public/blogs/${encodeURIComponent(blogId)}/comments`);
+      setComments((data || []).filter((comment) => comment.approved !== false));
     } catch (err) {
       console.error("Error loading comments:", err.message);
     } finally {
@@ -31,7 +31,7 @@ const CommentShow = ({ blogId }) => {
       <h3 className="comment-title">Comments</h3>
       {comments.map((comment, index) => (
         <div className="comment-box" key={index}>
-          <p className="comment-text">“{comment.comment}”</p>
+          <p className="comment-text">“{comment.comment || comment.body}”</p>
           <p className="comment-meta">— {comment.name}</p>
         </div>
       ))}

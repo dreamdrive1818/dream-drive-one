@@ -12,6 +12,7 @@ import {
 import "./Login.css";
 
 const OTP_RESEND_SECONDS = 60;
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
 export default function Login() {
   const {
@@ -21,12 +22,15 @@ export default function Login() {
     loginDev,
     sendOtp,
     verifyOtp,
+    register,
+    loginGoogle,
   } = useAuth();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -46,6 +50,17 @@ export default function Login() {
 
   useEffect(() => {
     setShowDevLogin(isLocalDev());
+  }, []);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || typeof window === "undefined") return undefined;
+    if (document.getElementById("dd-google-gsi")) return undefined;
+    const script = document.createElement("script");
+    script.id = "dd-google-gsi";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    document.head.appendChild(script);
+    return undefined;
   }, []);
 
   // Already signed in when landing on /login (not a fresh form submit).
@@ -138,9 +153,58 @@ export default function Login() {
     }
   }
 
+  async function handleRegisterSubmit(e) {
+    e.preventDefault();
+    resetMessages();
+    setLoading(true);
+    isSubmitLogin.current = true;
+    try {
+      await register(email, password, fullName);
+      completeLogin();
+    } catch (err) {
+      isSubmitLogin.current = false;
+      setError(firebaseAuthMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogle() {
+    if (!window.google?.accounts?.id) {
+      setError("Google Sign-In is still loading. Try again in a moment.");
+      return;
+    }
+    resetMessages();
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: async (response) => {
+        setLoading(true);
+        isSubmitLogin.current = true;
+        try {
+          await loginGoogle(response.credential);
+          completeLogin();
+        } catch (err) {
+          isSubmitLogin.current = false;
+          setError(firebaseAuthMessage(err));
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+    window.google.accounts.id.prompt();
+  }
+
   function switchToPassword() {
     resetMessages();
     setMode("password");
+    setOtpSent(false);
+    setOtpCode("");
+    setResendSeconds(0);
+  }
+
+  function switchToRegister() {
+    resetMessages();
+    setMode("register");
     setOtpSent(false);
     setOtpCode("");
     setResendSeconds(0);
@@ -198,6 +262,16 @@ export default function Login() {
             disabled={loading}
           >
             Email OTP
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "register"}
+            className={`customer-login-tab${mode === "register" ? " is-active" : ""}`}
+            onClick={switchToRegister}
+            disabled={loading}
+          >
+            Create account
           </button>
         </div>
 
@@ -259,6 +333,56 @@ export default function Login() {
               disabled={loading || !email.trim() || !password}
             >
               {loading ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+        ) : mode === "register" ? (
+          <form onSubmit={handleRegisterSubmit} noValidate>
+            <div className="customer-login-field">
+              <label htmlFor="register-name">Full name</label>
+              <input
+                id="register-name"
+                type="text"
+                autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Your name"
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="customer-login-field">
+              <label htmlFor="register-email">Email</label>
+              <input
+                id="register-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="customer-login-field">
+              <label htmlFor="register-password">Password</label>
+              <input
+                id="register-password"
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                required
+                minLength={8}
+                disabled={loading}
+              />
+            </div>
+            <button
+              type="submit"
+              className="customer-login-submit"
+              disabled={loading || !email.trim() || !password || !fullName.trim()}
+            >
+              {loading ? "Creating account…" : "Create account"}
             </button>
           </form>
         ) : (
@@ -348,6 +472,18 @@ export default function Login() {
             )}
           </form>
         )}
+
+        {GOOGLE_CLIENT_ID ? (
+          <button
+            type="button"
+            className="customer-login-link-btn"
+            onClick={handleGoogle}
+            disabled={loading}
+            style={{ marginTop: 16 }}
+          >
+            Continue with Google
+          </button>
+        ) : null}
 
         {showDevLogin && (
           <details className="customer-login-dev" open>

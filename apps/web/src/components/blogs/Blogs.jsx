@@ -11,17 +11,11 @@ const Blogs = () => {
 
   useEffect(() => {
     const fetchBlogs = async () => {
-      const { data } = await api.get("/api/cms/blogs");
-      const blogData = data.map((doc) => ({
+      const { data } = await api.get("/v1/public/blogs", { params: { take: 6 } });
+      const blogData = (Array.isArray(data) ? data : []).map((doc) => ({
           id: doc.id,
           ...doc,
-          formattedDate: doc.date
-            ? new Date(doc.date).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })
-            : "Date not available",
+          formattedDate: doc.formattedDate || "Date not available",
       }));
       setBlogPosts(blogData);
     };
@@ -32,7 +26,7 @@ const Blogs = () => {
   const handleBlogClick = (blog) => {
     setSelectedUserBlog(blog);
     const formattedTitle = blog.title.toLowerCase().replace(/\s+/g, '-');  // Replace spaces with hyphens
-    navigate(`/blog/${formattedTitle}`);
+    navigate(`/blogs/${blog.slug || blog.urlSlug || formattedTitle}`);
   };
 
   return (
@@ -40,7 +34,7 @@ const Blogs = () => {
       <div className="categories-header">
         <div className="head">
           <div></div>
-          <h2 className="categories-heading">Stay Ahead in Cybersecurity</h2>
+          <h2 className="categories-heading">Guides & trip ideas</h2>
         </div>
       </div>
       <div className="blogs-section blogs-section-user">
@@ -55,16 +49,16 @@ const Blogs = () => {
               </div>
               <div className="blog-card-bot">
                 <div className="blog-content">
-                  {(blog.imageBase64 || blog.imageLink) && (
+                  {(blog.coverUrl || blog.imageBase64 || blog.imageLink) && (
                     <img
-                      src={blog.imageBase64 || blog.imageLink}
+                      src={blog.coverUrl || blog.imageBase64 || blog.imageLink}
                       alt="Blog"
                       className="blog-image"
                     />
                   )}
                   <div className="blog-content-right">
                     <p className="blog-description">
-                      {blog.content.replace(/<[^>]+>/g, "").slice(0, 180)}...
+                      {(blog.excerpt || blog.content || blog.body || "").replace(/<[^>]+>/g, "").slice(0, 180)}...
                     </p>
                     <button className="blog-btn" onClick={() => handleBlogClick(blog)}>
                       Read More

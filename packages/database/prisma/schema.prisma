@@ -136,6 +136,20 @@ enum OfferType {
   FLAT
 }
 
+enum CmsPageKind {
+  LEGAL
+  FAQ
+  LANDING
+  CUSTOM
+}
+
+enum BannerPlacement {
+  HERO
+  STRIP
+  HOME_PROMO
+  SIDE
+}
+
 // ─── Identity ────────────────────────────────────────
 
 model User {
@@ -161,6 +175,7 @@ model User {
   wallet       Wallet?
   loyalty      LoyaltyAccount?
   referralsSent Referral[] @relation("Referrer")
+  blogComments BlogComment[]
 }
 
 model Role {
@@ -217,6 +232,15 @@ model DeviceToken {
   token  String @unique
   platform String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailOtp {
+  email       String   @id
+  codeHash    String
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  windowStart DateTime @default(now())
+  windowCount Int      @default(0)
 }
 
 model StaffScope {
@@ -765,65 +789,115 @@ model SettlementLine {
 // ─── Platform / CMS / CRM / growth ───────────────────
 
 model CmsPage {
-  id        String  @id @default(cuid())
-  slug      String  @unique
+  id        String      @id @default(cuid())
+  slug      String      @unique
   title     String
   body      String
-  published Boolean @default(false)
+  excerpt   String?
+  kind      CmsPageKind @default(CUSTOM)
+  sortOrder Int         @default(0)
+  published Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  metadata  PageMetadata?
+
+  @@index([published, kind])
 }
 
 model Banner {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   title     String
+  body      String?
   imageUrl  String
   link      String?
+  ctaText   String?
+  placement BannerPlacement @default(HERO)
   startsAt  DateTime?
   endsAt    DateTime?
-  active    Boolean  @default(true)
+  sortOrder Int             @default(0)
+  active    Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([active, placement])
 }
 
 model BlogPost {
-  id         String  @id @default(cuid())
-  slug       String  @unique
-  title      String
-  body       String
-  published  Boolean @default(false)
-  categoryId String?
-  category   BlogCategory? @relation(fields: [categoryId], references: [id])
-  comments   BlogComment[]
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  title           String
+  excerpt         String?
+  body            String
+  coverUrl        String?
+  author          String?
+  published       Boolean        @default(false)
+  publishedAt     DateTime?
+  metaTitle       String?
+  metaDescription String?
+  categoryId      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  category        BlogCategory?  @relation(fields: [categoryId], references: [id])
+  comments        BlogComment[]
+
+  @@index([published, publishedAt])
 }
 
 model BlogCategory {
-  id    String     @id @default(cuid())
-  name  String     @unique
-  posts BlogPost[]
+  id              String     @id @default(cuid())
+  slug            String     @unique
+  name            String     @unique
+  description     String?
+  metaTitle       String?
+  metaDescription String?
+  posts           BlogPost[]
 }
 
 model BlogComment {
-  id     String   @id @default(cuid())
-  postId String
-  body   String
-  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String?
+  name      String?
+  email     String?
+  body      String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([postId, approved])
 }
 
 model MediaAsset {
-  id       String @id @default(cuid())
-  url      String
-  category String?
+  id        String   @id @default(cuid())
+  url       String
+  filename  String?
+  mimeType  String   @default("application/octet-stream")
+  sizeBytes Int      @default(0)
+  category  String?
+  createdAt DateTime @default(now())
 }
 
 model PageMetadata {
-  id          String @id @default(cuid())
-  pageId      String @unique
+  id          String  @id @default(cuid())
+  pageId      String  @unique
   title       String
   description String
+  keywords    String?
+  ogImage     String?
+  page        CmsPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
 }
 
 model Testimonial {
-  id     String  @id @default(cuid())
-  name   String
-  body   String
-  active Boolean @default(true)
+  id        String   @id @default(cuid())
+  name      String
+  body      String
+  city      String?
+  rating    Int      @default(5)
+  photoUrl  String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
 }
 
 model Offer {

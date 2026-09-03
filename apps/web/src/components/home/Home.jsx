@@ -7,24 +7,28 @@ import Achievements from "../Achievements/Achievements";
 import Contact from "../contact/Contact";
 import Hero2 from "../hero/Hero2/Hero2";
 import Testimonial from "../Testimonial/Testimonial";
+import Blogs from "../blogs/Blogs";
 import "./Home.css";
 import { Helmet } from "react-helmet-async";
-import { usePageSeoSuppression } from '../../utils/usePageSeoSuppression';
+import { usePageSeoSuppression } from "../../utils/usePageSeoSuppression";
+import { useLocalContext } from "../../context/LocalContext";
 
 const Home = () => {
-    usePageSeoSuppression(true);
+  usePageSeoSuppression(true);
+  const { cms, webinfo } = useLocalContext();
+  const title = cms.page?.seoTitle || cms.page?.title || webinfo.seo.defaultTitle;
+  const description = cms.page?.seoDescription || cms.page?.excerpt || webinfo.seo.description;
+  const ogImage = cms.page?.seoOgImage || webinfo.seo.ogImage;
+
   return (
     <div className="home">
-     <Helmet>
-        <title>Dream Drive | Ranchi’s Trusted Self-Drive Car Rentals</title>
-        <meta
-    name="description"
-    content="Welcome to Dream Drive – Ranchi’s top choice for self-drive car rentals. Book SUVs like Nexon & Compass with flexible packages, 24x7 support, and doorstep delivery."
-  />
-   <meta
-    property="og:title"
-    content="Dream Drive | Self-Drive Car Rentals in Ranchi"
-  />
+      <Helmet>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        {cms.page?.seoKeywords ? <meta name="keywords" content={cms.page.seoKeywords} /> : null}
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        {ogImage ? <meta property="og:image" content={ogImage} /> : null}
       </Helmet>
 
       <Hero2 />
@@ -32,6 +36,7 @@ const Home = () => {
       <WhyChoose />
       <HowItWorks />
       <Achievements />
+      <Blogs />
       <Contact />
       <Testimonial />
     </div>

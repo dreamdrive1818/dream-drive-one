@@ -14,7 +14,7 @@ const ReadBlog = () => {
   useEffect(() => {
     const fetchBlog = async () => {
       try {
-        const { data: blogs } = await api.get('/api/cms/legacy-blogs');
+        const { data: blogs } = await api.get('/v1/admin/cms/blogs');
   
         console.log("Fetched blogs:", blogs.map(b => b.title)); // Debugging
         console.log("Decoded title from URL:", decodedTitle); // Debugging

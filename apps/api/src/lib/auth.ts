@@ -28,6 +28,12 @@ export function header(req: Request, name: string): string | undefined {
   return raw;
 }
 
+export function clientIp(req: Request): string | undefined {
+  const forwarded = header(req, "x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim();
+  return req.ip || undefined;
+}
+
 export function currentUser(req: Request): AuthUser {
   const id = header(req, "x-user-id");
   if (!id) throw new UnauthorizedException("Sign in required");

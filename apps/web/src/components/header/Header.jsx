@@ -11,9 +11,12 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
+import { useAuth } from "../../ms/AuthContext";
+import { trackWhatsApp } from "../../utils/trackLead";
 
 const Header = () => {
   const navigate = useNavigate();
+  const auth = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const cartItemCount = 2; 
   const [isScrolled, setIsScrolled] = useState(false);
@@ -66,12 +69,21 @@ useEffect(() => {
         <p onClick={() => handleRoute("/testimonials")}>Testimonials</p>
         <p onClick={() => handleRoute("/howitworks")}>How It Works</p>
       <p onClick={() => handleRoute("/blogs")}>Blogs</p>
+      <p onClick={() => handleRoute("/faq")}>FAQs</p>
     </nav>
 
     {/* Right Actions */}
     <div className="header-actions">
       <button className="contact-btn" onClick={() => handleRoute("/contact")}>
         Contact
+      </button>
+      <span>|</span>
+      <button
+        className="contact-btn"
+        type="button"
+        onClick={() => handleRoute(auth?.user ? "/account" : "/login")}
+      >
+        {auth?.user ? "Account" : "Sign in"}
       </button>
       <span>|</span>
      <button className="signup-btn">
@@ -81,6 +93,9 @@ useEffect(() => {
     rel="noopener noreferrer"
     aria-label="Chat on WhatsApp"
     className="whatsapp-button"
+    onClick={() => {
+      trackWhatsApp(phoneNumber);
+    }}
   >
     <FontAwesomeIcon icon={faWhatsapp} className="whatsapp-icon" />
     <span>Chat on WhatsApp</span>
@@ -104,7 +119,12 @@ useEffect(() => {
       <p onClick={() => handleRoute("/cars")}>Cars</p>
        <p onClick={() => handleRoute("/order-tracking")}>Track Your Order</p>
       <p onClick={() => handleRoute("/about")}>About Us</p>
-        <p onClick={() => handleRoute("/booking-form")}>Book Now</p>
+      <p onClick={() => handleRoute("/blogs")}>Blogs</p>
+      <p onClick={() => handleRoute("/faq")}>FAQs</p>
+      <p onClick={() => handleRoute("/contact")}>Contact</p>
+        <p onClick={() => handleRoute(auth?.user ? "/account" : "/login")}>
+          {auth?.user ? "Account" : "Sign in"}
+        </p>
       </div>
     </div>
   </div>

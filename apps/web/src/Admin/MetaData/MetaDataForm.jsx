@@ -17,12 +17,11 @@ const MetaDataForm = ({ pageId }) => {
     }
 
     try {
-      // Save metadata to Firestore under a specific pageId
-      await api.put(`/api/cms/metadata/${pageId}`, {
+      // Save metadata on the CMS page
+      await api.put(`/v1/admin/cms/pages/${pageId}/metadata`, {
         title,
         description,
         keywords,
-        timestamp: new Date(),
       });
 
       toast.success('Meta data updated successfully!');

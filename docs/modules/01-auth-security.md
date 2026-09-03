@@ -21,15 +21,21 @@ Give every app (website, admin, mobile) one secure way to call the platform. Ver
 
 | Method | Route | Service |
 | --- | --- | --- |
-| POST | `/v1/auth/sync` | identity — upsert PG user from Firebase token |
+| POST | `/v1/auth/sync` | identity — upsert PG user from Firebase / session token |
+| POST | `/v1/auth/login` | Firebase email + password → ID token |
+| POST | `/v1/auth/register` | Firebase email + password sign-up |
+| POST | `/v1/auth/google` | Google / Firebase ID token → session |
+| POST | `/v1/auth/otp/send` | email OTP (Postgres, 5 min TTL, 3 / 15 min) |
+| POST | `/v1/auth/otp/verify` | verify OTP and mint session token |
 | GET | `/v1/me` | identity |
 | PATCH | `/v1/me` | identity |
 | GET | `/v1/admin/users` | identity |
+| POST | `/v1/admin/users/invite` | identity — create/assign staff |
 | PATCH | `/v1/admin/users/:id/roles` | identity |
 | POST | `/v1/admin/users/:id/disable` | identity |
 | GET | `/v1/admin/audit` | identity |
 
-Gateway verifies `Authorization: Bearer <Firebase ID token>` on all `/v1/*` except public catalog and webhooks.
+Gateway verifies `Authorization: Bearer <Firebase ID token | dd1 session | dev:email>` on all `/v1/*` except public catalog, auth login/OTP/register/google, and webhooks. `/v1/admin/*` is staff-only. Dev bypass is off in production.
 
 ## Database (identity schema)
 

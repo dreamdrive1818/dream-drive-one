@@ -14,6 +14,7 @@ import {
 import { ClipLoader } from "react-spinners";
 import HowItWorks from "../HowItWorks/HowItWorks";
 import { motion } from "framer-motion";
+import { useLocalContext } from "../../context/LocalContext";
 
 const isDiscountedCar = (car) => {
   const sale = Number(car?.salePrice);
@@ -23,6 +24,8 @@ const isDiscountedCar = (car) => {
 
 const FleetCarousel = () => {
   const { fetchCars } = useAdminContext();
+  const { promoBanner, stripBanner } = useLocalContext();
+  const offerLabel = promoBanner?.title || stripBanner?.title || "Offers";
   const { handleOrder } = useOrderContext();
 
   const pricingVisible = true;
@@ -159,18 +162,22 @@ const FleetCarousel = () => {
       >
         <div className="fleet-div">
           <div className="fleet-header">
-            <span className="monsoon-section-tag">Monsoon Sale</span>
+            {promoBanner || stripBanner ? (
+              <span className="monsoon-section-tag">{offerLabel}</span>
+            ) : null}
             <h4>THE CARS</h4>
             <h2>Our Impressive Fleet</h2>
             <p className="fleet-subtitle">
-              Discounted cars first — grab monsoon offers before they wash away.
+              {promoBanner?.body ||
+                stripBanner?.body ||
+                "Self-drive and chauffeur cars for city trips, weekends, and longer drives."}
             </p>
             {dealCount > 0 ? (
               <div className="fleet-deal-legend">
                 <span className="fleet-deal-legend__swatch" />
                 <span>
-                  Teal-bordered cards are <strong>Monsoon Deals</strong> ({dealCount}{" "}
-                  live)
+                  Highlighted cards are live deals ({dealCount}{" "}
+                  available)
                 </span>
               </div>
             ) : null}
@@ -261,7 +268,7 @@ const FleetCarousel = () => {
                       >
                         {hasDiscount ? (
                           <div className="fleet-deal-ribbon" aria-hidden="true">
-                            Monsoon Deal
+                            {offerLabel}
                           </div>
                         ) : null}
 

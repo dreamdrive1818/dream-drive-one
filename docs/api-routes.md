@@ -18,12 +18,15 @@ Public (no user token): search, car detail, CMS, contact/leads, auth OTP, webhoo
 ```
 POST /v1/auth/sync
 POST /v1/auth/login
+POST /v1/auth/register
+POST /v1/auth/google
 POST /v1/auth/otp/send
 POST /v1/auth/otp/verify
 GET  /v1/me
 PATCH /v1/me
 POST /v1/me/devices
 GET  /v1/admin/users
+POST /v1/admin/users/invite
 PATCH /v1/admin/users/:id/roles
 POST /v1/admin/users/:id/disable
 GET  /v1/admin/audit

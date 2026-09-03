@@ -2,13 +2,14 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { useLocalContext } from "../context/LocalContext";
 import Home from "../components/home/Home";
 import Header from "../components/header/Header";
 import Footer from "../components/footer/Footer";
 import HowItWorks from "../components/HowItWorks/HowItWorks";
 import Contact from "../components/contact/Contact";
 import DreamCarBanner from "../components/DreamCarBanner/DreamCarBanner";
-import TermsAndConditions from "../components/TermsAndConditions/TermsAndConditions";
+import CmsPage from "../components/CmsPage/CmsPage";
 import About from "../components/About/About";
 import Order from "../components/Order/Order";
 import AdminLayout from "./AdminLayout";
@@ -20,6 +21,8 @@ import StatusTracking from "../components/statusTracking/StatusTracking";
 import Testimonial from "../components/Testimonial/Testimonial";
 import FormEntryChecker from "../components/FormEntryChecker/FormEntryChecker";
 import Numberattach from "../components/Numberattach/Numberattach";
+import ContactPopup from "../components/ContactPopup/ContactPopup";
+import WhatsAppPopup from "../components/WhatsAppPopup/WhatsAppPopup";
 import SeoDefaults from "../utils/SeoDefaults";
 import SaleModal from "../components/SaleModal/SaleModal";
 import MonsoonPromoBar from "../components/MonsoonPromoBar/MonsoonPromoBar";
@@ -48,6 +51,7 @@ const AppRoute = () => {
   const [loading, setLoading] = useState(true);
   const isFirstRender = useRef(true);
   const isAdminPage = location.pathname.includes("admin");
+  const { campaignActive } = useLocalContext();
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -62,15 +66,17 @@ const AppRoute = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    document.body.classList.toggle("monsoon-sale", !isAdminPage);
+    document.body.classList.toggle("monsoon-sale", !isAdminPage && campaignActive);
     return () => document.body.classList.remove("monsoon-sale");
-  }, [isAdminPage]);
+  }, [isAdminPage, campaignActive]);
 
   return (
     <>
       <ScrollToTop />
 
       {!isAdminPage && <Numberattach />}
+      {!isAdminPage && <WhatsAppPopup />}
+      {!isAdminPage && <ContactPopup />}
       {!isAdminPage && <MonsoonPromoBar />}
       {!isAdminPage && <SaleModal />}
 
@@ -103,7 +109,10 @@ const AppRoute = () => {
                 <Route path="/success" element={<Success />} />
                 <Route path="/howitworks" element={<HowItWorks />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/termsandconditions" element={<TermsAndConditions />} />
+                <Route path="/faq" element={<CmsPage slug="faq" />} />
+                <Route path="/legal/:slug" element={<CmsPage />} />
+                <Route path="/privacy" element={<CmsPage slug="privacy" />} />
+                <Route path="/termsandconditions" element={<CmsPage slug="terms" />} />
               </Routes>
             </div>
           )}
