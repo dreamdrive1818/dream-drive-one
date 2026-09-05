@@ -1,1 +1,1 @@
-export { NotifyRetryJob } from "./hold-sweeper.job";
+export { NotifyRetryJob, VehicleExpiryJob } from "./hold-sweeper.job";

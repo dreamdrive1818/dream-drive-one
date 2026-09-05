@@ -1,9 +1,12 @@
 import "dotenv/config";
 import "reflect-metadata";
+import { mkdirSync } from "fs";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import type { NextFunction, Request, Response } from "express";
 import { AppModule } from "./app.module";
+import { uploadRoot } from "./lib/cloudinary";
 
 function corsOrigins() {
   const raw =
@@ -19,7 +22,10 @@ function corsOrigins() {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const filesDir = uploadRoot();
+  mkdirSync(filesDir, { recursive: true });
+  app.useStaticAssets(filesDir, { prefix: "/v1/files/" });
   app.enableCors({
     origin: corsOrigins(),
     credentials: true,

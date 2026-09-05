@@ -8,7 +8,7 @@ Each microservice is the **only writer** of its tables.
 | --- | --- |
 | identity | User, Role, UserRole, CustomerProfile, Address, AuditLog, DeviceToken, StaffScope |
 | fleet | City, Branch, Vehicle, VehicleDocument, AvailabilityBlock, Driver*, Workshop, Maintenance*, Inspection*, AirportTerminal |
-| catalog | CarModel, CarImage, PricingRule, CityPairRate, TourPackage, TourDay, SubscriptionPlan |
+| catalog | CarModel, CarImage, PricingRule, CityPairRate, TourPackage, TourDay, TripExtra, SubscriptionPlan |
 | booking | Quote, Booking, BookingStatusHistory, BookingExtra, Subscription |
 | payment | Payment, PaymentAttempt, Invoice, InvoiceLine, SecurityDeposit, Refund, Wallet, WalletTxn |
 | document | KycCase, KycDocument, ZohoSubmission, AgreementTemplate, Agreement, SignatureEnvelope |

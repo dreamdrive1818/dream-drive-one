@@ -10,6 +10,7 @@ import {
   RENTAL_TYPE_LABELS,
   RENTAL_TYPES,
   SORT_OPTIONS,
+  TYPE_OPTIONS,
   SEAT_OPTIONS,
   FUEL_OPTIONS,
   TRANSMISSION_OPTIONS,
@@ -33,6 +34,7 @@ const EMPTY_FILTERS = {
   from: "",
   to: "",
   rentalType: "SELF_DRIVE",
+  type: "",
   seats: "",
   fuel: "",
   transmission: "",
@@ -49,6 +51,7 @@ export default function Search() {
   const [citiesLoading, setCitiesLoading] = useState(true);
   const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
+  const [maxRentalDays, setMaxRentalDays] = useState(30);
 
   const filters = useMemo(
     () => parseFleetFilters(searchParams),
@@ -56,8 +59,8 @@ export default function Search() {
   );
 
   const dateError = useMemo(
-    () => validateDateRange(filters.from, filters.to),
-    [filters.from, filters.to]
+    () => validateDateRange(filters.from, filters.to, maxRentalDays),
+    [filters.from, filters.to, maxRentalDays]
   );
 
   const minPriceRupees = paiseToRupeesInput(filters.minPrice);
@@ -81,7 +84,9 @@ export default function Search() {
     filters.from,
     filters.to,
     filters.rentalType,
+    filters.type,
     filters.seats,
+    filters.sort,
     filters.fuel,
     filters.transmission,
     filters.minPrice,
@@ -91,7 +96,7 @@ export default function Search() {
   const runSearch = useCallback(
     async (activeFilters) => {
       if (!activeFilters.cityId) return;
-      if (validateDateRange(activeFilters.from, activeFilters.to)) return;
+      if (validateDateRange(activeFilters.from, activeFilters.to, maxRentalDays)) return;
 
       setLoading(true);
       setError("");
@@ -109,7 +114,7 @@ export default function Search() {
         setLoading(false);
       }
     },
-    []
+    [maxRentalDays]
   );
 
   useEffect(() => {
@@ -137,6 +142,11 @@ export default function Search() {
       .finally(() => {
         if (!cancelled) setCitiesLoading(false);
       });
+    api("/v1/public/catalog-config")
+      .then((cfg) => {
+        if (!cancelled && cfg?.maxRentalDays) setMaxRentalDays(Number(cfg.maxRentalDays));
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -219,6 +229,21 @@ export default function Search() {
                 {RENTAL_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="fleet-search-field">
+              <label htmlFor="fleet-type">Car type</label>
+              <select
+                id="fleet-type"
+                value={filters.type}
+                onChange={(e) => setFilters({ type: e.target.value })}
+              >
+                {TYPE_OPTIONS.map((o) => (
+                  <option key={o.value || "any"} value={o.value}>
+                    {o.label}
                   </option>
                 ))}
               </select>
@@ -419,6 +444,11 @@ export default function Search() {
                     >
                       {available ? "Available" : "Unavailable"}
                     </span>
+                    {car.featured ? (
+                      <span className="fleet-search-badge fleet-search-badge--featured">
+                        Featured
+                      </span>
+                    ) : null}
                   </div>
                   <div className="fleet-search-card-body">
                     <h3>{car.name}</h3>

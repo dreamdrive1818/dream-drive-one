@@ -11,14 +11,15 @@ export function setToken(token) {
 }
 
 export async function api(path, options = {}) {
+  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
   const res = await fetch(`${API}${path}`, {
     method: options.method || "GET",
     headers: {
-      "content-type": "application/json",
+      ...(isForm ? {} : { "content-type": "application/json" }),
       ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
       ...(options.headers || {}),
     },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body: options.body == null ? undefined : isForm ? options.body : JSON.stringify(options.body),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

@@ -249,6 +249,103 @@
   margin: 0.5rem 0 1rem;
 }
 
+.car-detail-calendar {
+  margin: 0.4rem 0 1rem;
+  border: 1px solid rgba(11, 45, 74, 0.08);
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #f8fcff;
+}
+
+.car-detail-calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  font-size: 1.3rem;
+}
+
+.car-detail-cal-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #c8d8e8;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.4rem;
+}
+
+.car-detail-cal-week,
+.car-detail-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.car-detail-cal-week {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #667;
+  margin-bottom: 4px;
+}
+
+.car-detail-cal-day {
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: #ecfdf3;
+  color: #027a48;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.car-detail-cal-day.is-busy,
+.car-detail-cal-day.is-past {
+  background: #f2f4f7;
+  color: #98a2b3;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.car-detail-cal-day.is-selected {
+  background: rgba(0, 114, 206, 0.16);
+  color: #0c1d2c;
+  text-decoration: none;
+}
+
+.car-detail-cal-day.is-start,
+.car-detail-cal-day.is-end {
+  background: var(--primary-color, #0072ce);
+  color: #fff;
+}
+
+.car-detail-cal-empty {
+  height: 34px;
+}
+
+.car-detail-cal-legend {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 1.15rem;
+  color: #667;
+  margin: 0.7rem 0 0;
+}
+
+.car-detail-cal-legend .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.car-detail-cal-legend .dot.busy { background: #d0d5dd; }
+.car-detail-cal-legend .dot.ok { background: #abefc6; }
+.car-detail-cal-legend .dot.sel { background: #0072ce; }
+
 .car-detail-validation,
 .car-detail-error {
   font-size: 1.3rem;

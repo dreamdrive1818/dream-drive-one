@@ -1,0 +1,451 @@
+{
+  "info": {
+    "name": "Dream Drive Customer API v1",
+    "description": "Customer-facing endpoints only. Set baseUrl to the live API before use.\nAuth: after OTP verify, collection variable `token` is set if you run Verify OTP.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "token", "value": "" },
+    { "key": "email", "value": "customer@dreamdrive.test" },
+    { "key": "quoteId", "value": "" },
+    { "key": "bookingId", "value": "" },
+    { "key": "paymentId", "value": "" },
+    { "key": "cityId", "value": "" },
+    { "key": "carSlug", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "OTP send",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": "{{baseUrl}}/v1/auth/otp/send"
+          }
+        },
+        {
+          "name": "OTP verify",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.token) pm.collectionVariables.set('token', j.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"123456\"\n}" },
+            "url": "{{baseUrl}}/v1/auth/otp/verify"
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"secret123\",\n  \"fullName\": \"Test Customer\"\n}" },
+            "url": "{{baseUrl}}/v1/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"secret123\"\n}" },
+            "url": "{{baseUrl}}/v1/auth/login"
+          }
+        },
+        {
+          "name": "Google",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"idToken\": \"REPLACE\"\n}" },
+            "url": "{{baseUrl}}/v1/auth/google"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me",
+      "item": [
+        {
+          "name": "GET me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/me"
+          }
+        },
+        {
+          "name": "GET dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/me/dashboard"
+          }
+        },
+        {
+          "name": "PATCH me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Test Customer\",\n  \"phone\": \"9876543210\"\n}" },
+            "url": "{{baseUrl}}/v1/me"
+          }
+        },
+        {
+          "name": "Verify phone OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"123456\"\n}" },
+            "url": "{{baseUrl}}/v1/me/phone/verify"
+          }
+        },
+        {
+          "name": "Register device",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"fcm-test-token\",\n  \"platform\": \"android\"\n}" },
+            "url": "{{baseUrl}}/v1/me/devices"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public catalog",
+      "item": [
+        {
+          "name": "Home",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/public/home" }
+        },
+        {
+          "name": "Config",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/public/config" }
+        },
+        {
+          "name": "Catalog config",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/public/catalog-config" }
+        },
+        {
+          "name": "Cities",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/public/cities" }
+        },
+        {
+          "name": "Airports",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/public/airports?cityId={{cityId}}" }
+        },
+        {
+          "name": "Search",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/public/search?cityId={{cityId}}&from=2026-09-12T04:30:00.000Z&to=2026-09-14T04:30:00.000Z&rentalType=SELF_DRIVE"
+          }
+        },
+        {
+          "name": "Car by slug",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/public/cars/{{carSlug}}" }
+        },
+        {
+          "name": "Packages",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/public/packages" }
+        },
+        {
+          "name": "Subscription plans",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/public/subscriptions/plans" }
+        },
+        {
+          "name": "Contact",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Anita\",\n  \"email\": \"anita@example.com\",\n  \"phone\": \"9876543210\",\n  \"message\": \"Need a car\",\n  \"source\": \"app\"\n}" },
+            "url": "{{baseUrl}}/v1/public/contact"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Quote and booking",
+      "item": [
+        {
+          "name": "Create quote",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.id) pm.collectionVariables.set('quoteId', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"carModelId\": \"REPLACE\",\n  \"rentalType\": \"SELF_DRIVE\",\n  \"startsAt\": \"2026-09-12T04:30:00.000Z\",\n  \"endsAt\": \"2026-09-14T04:30:00.000Z\",\n  \"pickupBranchId\": \"REPLACE\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/quotes"
+          }
+        },
+        {
+          "name": "Get quote",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/quotes/{{quoteId}}"
+          }
+        },
+        {
+          "name": "Apply offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"WELCOME10\"\n}" },
+            "url": "{{baseUrl}}/v1/quotes/{{quoteId}}/apply-offer"
+          }
+        },
+        {
+          "name": "Create booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.id) pm.collectionVariables.set('bookingId', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"quoteId\": \"{{quoteId}}\"\n}" },
+            "url": "{{baseUrl}}/v1/bookings"
+          }
+        },
+        {
+          "name": "Get booking",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/bookings/{{bookingId}}"
+          }
+        },
+        {
+          "name": "My bookings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/me/bookings"
+          }
+        },
+        {
+          "name": "Cancel booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Plans changed\"\n}" },
+            "url": "{{baseUrl}}/v1/bookings/{{bookingId}}/cancel"
+          }
+        },
+        {
+          "name": "Guest track OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"publicId\": \"DD-XXXX\",\n  \"phone\": \"9876543210\"\n}" },
+            "url": "{{baseUrl}}/v1/public/bookings/track/otp"
+          }
+        },
+        {
+          "name": "Guest track verify",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"publicId\": \"DD-XXXX\",\n  \"phone\": \"9876543210\",\n  \"code\": \"123456\"\n}" },
+            "url": "{{baseUrl}}/v1/public/bookings/track/verify"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create order TOKEN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.paymentId) pm.collectionVariables.set('paymentId', j.paymentId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"kind\": \"TOKEN\"\n}" },
+            "url": "{{baseUrl}}/v1/payments/orders"
+          }
+        },
+        {
+          "name": "Verify payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{paymentId}}\",\n  \"razorpayOrderId\": \"order_xxx\",\n  \"razorpayPaymentId\": \"pay_xxx\",\n  \"razorpaySignature\": \"xxx\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/payments/verify"
+          }
+        },
+        {
+          "name": "Poll payment",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/payments/{{paymentId}}"
+          }
+        },
+        {
+          "name": "Invoices",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/me/invoices"
+          }
+        },
+        {
+          "name": "Wallet",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/me/wallet"
+          }
+        }
+      ]
+    },
+    {
+      "name": "KYC and agreements",
+      "item": [
+        {
+          "name": "My KYC",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/me/kyc"
+          }
+        },
+        {
+          "name": "Submit KYC",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"dlExpiresOn\": \"2028-03-31\",\n  \"documents\": [\n    { \"kind\": \"DL\", \"url\": \"https://example.com/dl.jpg\" },\n    { \"kind\": \"AADHAAR\", \"url\": \"https://example.com/aadhaar.jpg\" },\n    { \"kind\": \"SELFIE\", \"url\": \"https://example.com/selfie.jpg\" }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/v1/kyc/submit"
+          }
+        },
+        {
+          "name": "My agreements",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/me/agreements"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "item": [
+        {
+          "name": "Create ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"subject\": \"Help\",\n  \"body\": \"Need support\",\n  \"bookingId\": \"{{bookingId}}\"\n}" },
+            "url": "{{baseUrl}}/v1/me/tickets"
+          }
+        },
+        {
+          "name": "My tickets",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/v1/me/tickets"
+          }
+        }
+      ]
+    }
+  ]
+}

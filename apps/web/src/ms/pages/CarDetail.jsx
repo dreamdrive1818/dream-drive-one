@@ -19,6 +19,10 @@ import {
   sortedCarImages,
   pricingRuleForType,
   formatInr,
+  monthKey,
+  shiftMonth,
+  dateToIsoAtHour,
+  isoDate,
 } from "../fleetSearch";
 import { saveQuoteHandoff } from "../quoteStorage";
 import "./CarDetail.css";
@@ -44,6 +48,11 @@ export default function CarDetail() {
   const [availabilityError, setAvailabilityError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [quoteError, setQuoteError] = useState("");
+  const [month, setMonth] = useState(() => monthKey());
+  const [busyDays, setBusyDays] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [airports, setAirports] = useState([]);
+  const [packages, setPackages] = useState([]);
 
   const context = useMemo(
     () => parseFleetFilters(searchParams),
@@ -51,14 +60,19 @@ export default function CarDetail() {
   );
 
   const dateError = useMemo(
-    () => validateDateRange(context.from, context.to),
-    [context.from, context.to]
+    () =>
+      validateDateRange(
+        context.from,
+        context.to,
+        car?.maxDaysByType?.[context.rentalType] || car?.maxRentalDays || 30
+      ),
+    [context.from, context.to, context.rentalType, car]
   );
 
   const images = useMemo(() => sortedCarImages(car), [car]);
   const pricingRule = useMemo(
-    () => pricingRuleForType(car?.pricingRules, context.rentalType),
-    [car?.pricingRules, context.rentalType]
+    () => pricingRuleForType(car?.pricingRules, context.rentalType, context.from),
+    [car?.pricingRules, context.rentalType, context.from]
   );
 
   const updateContext = useCallback(
@@ -95,8 +109,20 @@ export default function CarDetail() {
   }, [slug]);
 
   useEffect(() => {
-    if (!car?.id || dateError || !context.from || !context.to) {
+    api("/v1/public/cities").then(setCities).catch(() => {});
+    api("/v1/public/packages").then(setPackages).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const cityId = car?.city?.id || context.cityId;
+    const params = cityId ? `?cityId=${encodeURIComponent(cityId)}` : "";
+    api(`/v1/public/airports${params}`).then(setAirports).catch(() => setAirports([]));
+  }, [car?.city?.id, context.cityId]);
+
+  useEffect(() => {
+    if (!car?.id) {
       setAvailability(null);
+      setBusyDays([]);
       setAvailabilityError("");
       setAvailabilityChecking(false);
       return undefined;
@@ -107,20 +133,22 @@ export default function CarDetail() {
     setAvailabilityError("");
 
     const timer = setTimeout(() => {
-      const params = new URLSearchParams({
-        from: context.from,
-        to: context.to,
-      });
+      const params = new URLSearchParams({ month });
+      if (context.from && context.to && !dateError) {
+        params.set("from", context.from);
+        params.set("to", context.to);
+      }
       api(`/v1/public/cars/${car.id}/availability?${params}`)
         .then((res) => {
-          if (!cancelled) {
-            setAvailability(res);
-            setAvailabilityError("");
-          }
+          if (cancelled) return;
+          setAvailability(res);
+          setBusyDays(Array.isArray(res.busyDays) ? res.busyDays : []);
+          setAvailabilityError("");
         })
         .catch((err) => {
           if (!cancelled) {
             setAvailability(null);
+            setBusyDays([]);
             setAvailabilityError(
               err.message || "Could not check availability for these dates."
             );
@@ -135,19 +163,51 @@ export default function CarDetail() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [car?.id, context.from, context.to, dateError]);
+  }, [car?.id, context.from, context.to, dateError, month]);
 
   const fleetBackHref = useMemo(() => {
     const qs = detailPreserveParams(context).toString();
     return `/fleet${qs ? `?${qs}` : ""}`;
   }, [context]);
 
+  const selectedPackage = packages.find((p) => p.id === context.packageId);
+
   const canQuote =
-    Boolean(context.from && context.to && !dateError && pricingRule) &&
+    Boolean(context.from && context.to && !dateError) &&
+    (Boolean(pricingRule) || context.rentalType === "TOUR_PACKAGE") &&
+    (context.rentalType !== "TOUR_PACKAGE" || Boolean(context.packageId)) &&
+    (context.rentalType !== "ONE_WAY" || Boolean(context.dropBranchId)) &&
     availability?.available === true &&
     !availabilityChecking &&
     !availabilityError &&
     !submitting;
+
+  const calendarDays = useMemo(() => {
+    const [y, m] = month.split("-").map(Number);
+    const first = new Date(y, m - 1, 1);
+    const startPad = first.getDay();
+    const lastDate = new Date(y, m, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < startPad; i += 1) cells.push(null);
+    for (let d = 1; d <= lastDate; d += 1) {
+      cells.push(new Date(y, m - 1, d));
+    }
+    return cells;
+  }, [month]);
+
+  const selectedFromDay = context.from ? isoDate(new Date(context.from)) : "";
+  const selectedToDay = context.to ? isoDate(new Date(context.to)) : "";
+  const todayKey = isoDate(new Date());
+
+  function pickDay(day) {
+    const key = isoDate(day);
+    if (busyDays.includes(key) || key < todayKey) return;
+    if (!context.from || (context.from && context.to) || key <= selectedFromDay) {
+      updateContext({ from: dateToIsoAtHour(key, 10), to: "" });
+      return;
+    }
+    updateContext({ to: dateToIsoAtHour(key, 10) });
+  }
 
   async function handleQuote(e) {
     e.preventDefault();
@@ -164,8 +224,16 @@ export default function CarDetail() {
       return;
     }
 
-    if (!pricingRule) {
+    if (!pricingRule && context.rentalType !== "TOUR_PACKAGE") {
       setQuoteError("This rental type is not available for this car.");
+      return;
+    }
+    if (context.rentalType === "TOUR_PACKAGE" && !context.packageId) {
+      setQuoteError("Choose a tour package first.");
+      return;
+    }
+    if (context.rentalType === "ONE_WAY" && !context.dropBranchId) {
+      setQuoteError("Pick a drop branch in a different city for one-way.");
       return;
     }
 
@@ -191,6 +259,12 @@ export default function CarDetail() {
           rentalType: context.rentalType,
           startsAt: context.from,
           endsAt: context.to,
+          dropBranchId: context.dropBranchId || undefined,
+          packageId: context.packageId || undefined,
+          terminalId: context.terminalId || undefined,
+          flightNumber: context.flightNumber || undefined,
+          waitMinutes: context.waitMinutes ? Number(context.waitMinutes) : undefined,
+          estimatedKm: context.estimatedKm ? Number(context.estimatedKm) : undefined,
         },
       });
 
@@ -345,14 +419,188 @@ export default function CarDetail() {
                 />
               </div>
 
+              {context.rentalType === "AIRPORT" && (
+                <>
+                  <div className="car-detail-field">
+                    <label htmlFor="detail-terminal">Airport terminal</label>
+                    <select
+                      id="detail-terminal"
+                      value={context.terminalId}
+                      onChange={(e) => updateContext({ terminalId: e.target.value })}
+                      disabled={submitting}
+                    >
+                      <option value="">Select terminal</option>
+                      {airports.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="car-detail-field">
+                    <label htmlFor="detail-flight">Flight number (optional)</label>
+                    <input
+                      id="detail-flight"
+                      value={context.flightNumber}
+                      onChange={(e) => updateContext({ flightNumber: e.target.value })}
+                      placeholder="6E 123"
+                      disabled={submitting}
+                    />
+                  </div>
+                  <div className="car-detail-field">
+                    <label htmlFor="detail-wait">Expected wait (minutes)</label>
+                    <input
+                      id="detail-wait"
+                      type="number"
+                      min="0"
+                      value={context.waitMinutes}
+                      onChange={(e) => updateContext({ waitMinutes: e.target.value })}
+                      disabled={submitting}
+                    />
+                  </div>
+                </>
+              )}
+
+              {context.rentalType === "OUTSTATION" && (
+                <div className="car-detail-field">
+                  <label htmlFor="detail-km">Estimated kilometres</label>
+                  <input
+                    id="detail-km"
+                    type="number"
+                    min="0"
+                    value={context.estimatedKm}
+                    onChange={(e) => updateContext({ estimatedKm: e.target.value })}
+                    disabled={submitting}
+                  />
+                </div>
+              )}
+
+              {context.rentalType === "ONE_WAY" && (
+                <div className="car-detail-field">
+                  <label htmlFor="detail-drop">Drop branch (other city)</label>
+                  <select
+                    id="detail-drop"
+                    value={context.dropBranchId}
+                    onChange={(e) => updateContext({ dropBranchId: e.target.value })}
+                    disabled={submitting}
+                  >
+                    <option value="">Select drop branch</option>
+                    {cities.flatMap((c) =>
+                      (c.branches || [])
+                        .filter((b) => c.id !== car.city?.id)
+                        .map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {c.name} · {b.name}
+                          </option>
+                        ))
+                    )}
+                  </select>
+                </div>
+              )}
+
+              {context.rentalType === "TOUR_PACKAGE" && (
+                <div className="car-detail-field">
+                  <label htmlFor="detail-pack">Tour package</label>
+                  <select
+                    id="detail-pack"
+                    value={context.packageId}
+                    onChange={(e) => updateContext({ packageId: e.target.value })}
+                    disabled={submitting}
+                  >
+                    <option value="">Select package</option>
+                    {packages.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.days}d)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {dateError && (
                 <p className="car-detail-validation" role="alert">
                   {dateError}
                 </p>
               )}
 
+              <div className="car-detail-calendar" aria-label="Availability calendar">
+                <div className="car-detail-calendar-nav">
+                  <button
+                    type="button"
+                    className="car-detail-cal-btn"
+                    onClick={() => setMonth((m) => shiftMonth(m, -1))}
+                  >
+                    ‹
+                  </button>
+                  <strong>
+                    {new Date(`${month}-01`).toLocaleString("en-IN", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </strong>
+                  <button
+                    type="button"
+                    className="car-detail-cal-btn"
+                    onClick={() => setMonth((m) => shiftMonth(m, 1))}
+                  >
+                    ›
+                  </button>
+                </div>
+                <div className="car-detail-cal-week">
+                  {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                    <span key={`${d}-${i}`}>{d}</span>
+                  ))}
+                </div>
+                <div className="car-detail-cal-grid">
+                  {calendarDays.map((day, i) => {
+                    if (!day) return <span key={`e-${i}`} className="car-detail-cal-empty" />;
+                    const key = isoDate(day);
+                    const busy = busyDays.includes(key);
+                    const past = key < todayKey;
+                    const selected =
+                      key === selectedFromDay ||
+                      key === selectedToDay ||
+                      (selectedFromDay &&
+                        selectedToDay &&
+                        key > selectedFromDay &&
+                        key < selectedToDay);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        disabled={busy || past || submitting}
+                        className={[
+                          "car-detail-cal-day",
+                          busy ? "is-busy" : "",
+                          past ? "is-past" : "",
+                          selected ? "is-selected" : "",
+                          key === selectedFromDay ? "is-start" : "",
+                          key === selectedToDay ? "is-end" : "",
+                        ].join(" ")}
+                        onClick={() => pickDay(day)}
+                      >
+                        {day.getDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="car-detail-cal-legend">
+                  <span className="dot busy" /> Blocked
+                  <span className="dot ok" /> Free
+                  <span className="dot sel" /> Selected
+                </p>
+              </div>
+
               <div className="car-detail-price-block">
-                {pricingRule ? (
+                {context.rentalType === "TOUR_PACKAGE" && selectedPackage ? (
+                  <>
+                    <p className="from-price">
+                      {formatInr(selectedPackage.pricePaise)}{" "}
+                      <span>fixed · {selectedPackage.days} day{selectedPackage.days === 1 ? "" : "s"}</span>
+                    </p>
+                    <p className="car-detail-price-meta">{selectedPackage.name}</p>
+                  </>
+                ) : pricingRule ? (
                   <>
                     <p className="from-price">
                       {formatInr(pricingRule.dailyPaise)}{" "}
@@ -374,8 +622,8 @@ export default function CarDetail() {
               </div>
 
               <p className="car-detail-hint">
-                Availability is checked for your selected date range. A full
-                blocked-date calendar is not available yet.
+                Grey dates are fully booked or blocked (including a {car.bufferHours ?? 3}-hour
+                buffer between trips). Tap a start and end date, or use the pickers above.
               </p>
 
               {availabilityChecking && (

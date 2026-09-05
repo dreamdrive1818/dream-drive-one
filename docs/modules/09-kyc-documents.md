@@ -14,8 +14,9 @@ Collect and verify identity documents before self-drive handover. Store files in
 
 - Review queue
 - Approve / reject with reason
-- Request re-upload of a specific doc
-- Flag expiry of DL
+- Request re-upload of a specific doc (`POST /v1/admin/kyc/:id/request-reupload`)
+- Mark under review (`POST /v1/admin/kyc/:id/review`)
+- Flag expiry of DL (queue shows expired / expiring / misses drop-off)
 
 ## Backend APIs
 
@@ -25,8 +26,11 @@ Collect and verify identity documents before self-drive handover. Store files in
 | POST | `/v1/kyc/submit` |
 | GET | `/v1/me/kyc` |
 | GET | `/v1/admin/kyc` |
+| POST | `/v1/admin/kyc/:id/review` |
+| POST | `/v1/admin/kyc/:id/request-reupload` |
 | POST | `/v1/admin/kyc/:id/decision` |
 | POST | `/v1/webhooks/zoho-form` |
+| POST | `/internal/kyc/apply-reusable` |
 
 Zoho Forms remain an **alternate ingest** (current production path). Webhook upserts a `KycCase` + `ZohoSubmission` and attaches files (existing Cloudinary/Zoho attachment flow).
 
@@ -43,7 +47,7 @@ Zoho Forms remain an **alternate ingest** (current production path). Webhook ups
 
 ## RBAC
 
-CUSTOMER: own. SUPPORT/SALES: view. SUPER_ADMIN + designated KYC role: decide.
+CUSTOMER: own. SUPPORT/SALES: view. SUPER_ADMIN + SUPPORT (designated KYC role): decide. There is no separate `KYC_OFFICER` role in `RoleName`.
 
 ## Business benefit
 

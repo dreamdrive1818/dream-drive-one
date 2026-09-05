@@ -38,11 +38,20 @@ function urls() {
 
 function targetFor(path: string): string {
   const u = urls();
+  if (path.startsWith("/v1/me/bookings")) return u.booking;
+  if (path.startsWith("/v1/me/invoices") || path.startsWith("/v1/me/wallet")) return u.payment;
+  if (
+    path.startsWith("/v1/me/kyc") ||
+    path.startsWith("/v1/me/agreements") ||
+    path.startsWith("/v1/me/documents")
+  )
+    return u.document;
+  if (path.startsWith("/v1/me/tickets")) return u.platform;
   if (
     path.startsWith("/v1/auth") ||
-    path.startsWith("v1/me") ||
     path.startsWith("/v1/me") ||
     path.startsWith("/v1/admin/users") ||
+    path.startsWith("/v1/admin/customers") ||
     path.startsWith("/v1/admin/audit")
   )
     return u.identity;
@@ -59,40 +68,41 @@ function targetFor(path: string): string {
     path.startsWith("/v1/quotes") ||
     path.startsWith("/v1/bookings") ||
     path.startsWith("/v1/subscriptions") ||
+    path.startsWith("/v1/public/subscriptions") ||
+    path.startsWith("/v1/admin/subscriptions") ||
     path.startsWith("/v1/public/packages") ||
+    path.startsWith("/v1/public/city-pairs") ||
     path.startsWith("/v1/admin/bookings") ||
     path.startsWith("/v1/admin/packages") ||
     path.startsWith("/v1/admin/city-pairs") ||
-    path.startsWith("/v1/me/bookings")
+    path.startsWith("/v1/admin/trip-extras")
   )
     return u.booking;
   if (
     path.startsWith("/v1/payments") ||
     path.startsWith("/v1/webhooks/razorpay") ||
-    path.startsWith("/v1/me/invoices") ||
-    path.startsWith("/v1/me/wallet") ||
     path.startsWith("/v1/admin/payments") ||
     path.startsWith("/v1/admin/deposits")
   )
     return u.payment;
   if (
-    path.startsWith("v1/kyc") ||
     path.startsWith("/v1/kyc") ||
     path.startsWith("/v1/agreements") ||
-    path.startsWith("/v1/me/kyc") ||
-    path.startsWith("/v1/me/agreements") ||
     path.startsWith("/v1/admin/kyc") ||
     path.startsWith("/v1/admin/agreements") ||
+    path.startsWith("/v1/admin/agreement-templates") ||
     path.startsWith("/v1/webhooks/zoho-form") ||
     path.startsWith("/v1/webhooks/leegality")
   )
     return u.document;
-  if (path.startsWith("/v1/public/cities")) return u.fleet;
+  if (path.startsWith("/v1/public/cities") || path.startsWith("/v1/public/airports")) return u.fleet;
   if (
     path.startsWith("/v1/admin/branches") ||
     path.startsWith("/v1/admin/vehicles") ||
     path.startsWith("/v1/admin/drivers") ||
-    path.startsWith("/v1/admin/maintenance")
+    path.startsWith("/v1/admin/maintenance") ||
+    path.startsWith("/v1/admin/workshops") ||
+    path.startsWith("/v1/admin/airports")
   )
     return u.fleet;
   if (
@@ -111,6 +121,7 @@ function targetFor(path: string): string {
 function isPublic(path: string, method: string) {
   if (PUBLIC.some((re) => re.test(path))) return true;
   if (path.startsWith("/v1/public/packages")) return true;
+  if (path.startsWith("/v1/public/subscriptions")) return true;
   return false;
 }
 

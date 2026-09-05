@@ -5,11 +5,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
 } from "@nestjs/common";
 import type { Request } from "express";
 import { PlatformEngine } from "./platform.service";
-import { currentUser, requireRoles, requireStaff } from "../../lib/auth";
+import { currentUser, isStaff, requireRoles, requireStaff } from "../../lib/auth";
 
 @Controller()
 export class PlatformController {
@@ -40,8 +41,62 @@ export class PlatformController {
 
   @Get("v1/admin/tickets")
   tickets(@Req() req: Request) {
+    return this.platform.tickets(requireStaff(req));
+  }
+
+  @Get("v1/admin/tickets/:id")
+  adminTicket(@Req() req: Request, @Param("id") id: string) {
     requireStaff(req);
-    return this.platform.tickets();
+    return this.platform.adminTicket(id);
+  }
+
+  @Patch("v1/admin/tickets/:id")
+  patchTicket(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { status?: "OPEN" | "PENDING" | "RESOLVED" | "CLOSED" }
+  ) {
+    requireRoles(req, "SUPPORT", "SALES", "SUPER_ADMIN");
+    if (!body?.status) return this.platform.adminTicket(id);
+    return this.platform.setTicketStatus(id, body.status);
+  }
+
+  @Post("v1/admin/tickets/:id/messages")
+  adminReply(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { body?: string; internal?: boolean }
+  ) {
+    const actor = requireRoles(req, "SUPPORT", "SALES", "SUPER_ADMIN");
+    return this.platform.replyTicket(actor.id, id, body.body ?? "", true, Boolean(body.internal));
+  }
+
+  @Get("v1/me/tickets")
+  myTickets(@Req() req: Request) {
+    return this.platform.myTickets(currentUser(req).id);
+  }
+
+  @Get("v1/me/tickets/:id")
+  myTicket(@Req() req: Request, @Param("id") id: string) {
+    return this.platform.myTicket(currentUser(req).id, id);
+  }
+
+  @Post("v1/me/tickets")
+  createMyTicket(
+    @Req() req: Request,
+    @Body() body: { subject: string; body: string; bookingId?: string }
+  ) {
+    return this.platform.createTicket(currentUser(req).id, body);
+  }
+
+  @Post("v1/me/tickets/:id/messages")
+  replyMyTicket(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { body?: string }
+  ) {
+    const user = currentUser(req);
+    return this.platform.replyTicket(user.id, id, body.body ?? "", isStaff(user), false);
   }
 
   @Post("v1/tickets")
@@ -89,9 +144,9 @@ export class PlatformController {
   }
 
   @Get("v1/admin/dashboard")
-  dashboard(@Req() req: Request) {
-    requireStaff(req);
-    return this.platform.dashboard();
+  dashboard(@Req() req: Request, @Query("from") from?: string, @Query("to") to?: string) {
+    const user = requireStaff(req);
+    return this.platform.dashboard(user, { from, to });
   }
 
   @Get("v1/admin/reports/:kind")

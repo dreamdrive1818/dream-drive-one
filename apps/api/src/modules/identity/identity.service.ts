@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -22,6 +23,7 @@ const memoryOtp = new Map<
   string,
   { codeHash: string; expiresAt: number; attempts: number; windowStart: number; windowCount: number }
 >();
+const pendingPhones = new Map<string, string>();
 const STAFF_ROLES: RoleName[] = [
   "SUPPORT",
   "SALES",
@@ -115,7 +117,7 @@ export class IdentityService {
     return user ? this.present(user) : null;
   }
 
-  async me(userId: string) {
+  async me(userId: string, opts: { allowDisabled?: boolean } = {}) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -126,7 +128,7 @@ export class IdentityService {
       },
     });
     if (!user) throw new NotFoundException("User not found");
-    if (user.status === UserStatus.DISABLED) {
+    if (user.status === UserStatus.DISABLED && !opts.allowDisabled) {
       throw new UnauthorizedException("Account disabled");
     }
     return this.present(user);
@@ -134,37 +136,274 @@ export class IdentityService {
 
   async patchMe(
     userId: string,
-    body: { fullName?: string; phone?: string; address?: Record<string, string> }
+    body: { fullName?: string; phone?: string; address?: Record<string, string> },
+    opts: { adminOverride?: boolean } = {}
   ) {
-    if (body.phone) {
-      const taken = await prisma.user.findFirst({
-        where: { phone: body.phone, NOT: { id: userId } },
-      });
-      if (taken) throw new BadRequestException("Phone already in use");
-    }
-    await prisma.user.update({
+    const current = await prisma.user.findUnique({
       where: { id: userId },
+      include: { profile: true },
+    });
+    if (!current) throw new NotFoundException("User not found");
+    const kycApproved = current.profile?.kycStatus === "APPROVED";
+
+    if (body.fullName != null) {
+      const next = normalizeName(body.fullName);
+      if (!next) throw new BadRequestException("Name is required");
+      if (kycApproved && !opts.adminOverride && !namesMatch(next, current.profile?.fullName ?? "")) {
+        throw new ForbiddenException(
+          "Name is locked to the approved KYC record. Contact support to change it."
+        );
+      }
+      await prisma.customerProfile.upsert({
+        where: { userId },
+        create: { userId, fullName: next },
+        update: { fullName: next },
+      });
+    }
+
+    let otpCode: string | undefined;
+    let pendingPhone: string | null = pendingPhones.get(userId) ?? current.profile?.pendingPhone ?? null;
+    if (body.phone != null && body.phone !== "") {
+      const phone = normalizePhone(body.phone);
+      if (phone !== current.phone) {
+        const taken = await prisma.user.findFirst({
+          where: { phone, NOT: { id: userId } },
+        });
+        if (taken) throw new BadRequestException("Phone already in use");
+        if (opts.adminOverride) {
+          await prisma.user.update({ where: { id: userId }, data: { phone } });
+          pendingPhones.delete(userId);
+          await prisma.customerProfile.updateMany({ where: { userId }, data: { pendingPhone: null } });
+          pendingPhone = null;
+        } else {
+          pendingPhones.set(userId, phone);
+          await prisma.customerProfile.upsert({
+            where: { userId },
+            create: { userId, fullName: current.profile?.fullName || current.email, pendingPhone: phone },
+            update: { pendingPhone: phone },
+          });
+          otpCode = await this.issueOtp(current.email);
+          pendingPhone = phone;
+        }
+      }
+    }
+
+    if (body.address?.line1) {
+      await this.upsertAddress(userId, body.address);
+    }
+
+    const user = await this.me(userId);
+    return { user, otpCode, pendingPhone };
+  }
+
+  async confirmPhoneChange(userId: string, code: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
+    if (!user) throw new NotFoundException("User not found");
+    const pending = pendingPhones.get(userId) ?? user.profile?.pendingPhone ?? null;
+    if (!pending) throw new BadRequestException("No phone change is pending");
+    await this.assertOtp(user.email, code);
+    const taken = await prisma.user.findFirst({
+      where: { phone: pending, NOT: { id: userId } },
+    });
+    if (taken) throw new BadRequestException("Phone already in use");
+    await prisma.user.update({ where: { id: userId }, data: { phone: pending } });
+    pendingPhones.delete(userId);
+    await prisma.customerProfile.updateMany({ where: { userId }, data: { pendingPhone: null } });
+    await this.audit({
+      actorId: userId,
+      action: "profile.phone",
+      entityId: userId,
+      payload: { phone: pending },
+    });
+    return this.me(userId);
+  }
+
+  async addAddress(userId: string, body: Record<string, string | boolean | undefined>) {
+    return this.upsertAddress(userId, body);
+  }
+
+  async updateAddress(
+    userId: string,
+    addressId: string,
+    body: Record<string, string | boolean | undefined>
+  ) {
+    const row = await prisma.address.findUnique({ where: { id: addressId } });
+    if (!row || row.userId !== userId) throw new NotFoundException("Address not found");
+    if (body.isDefault === true || body.isDefault === "true") {
+      await prisma.address.updateMany({
+        where: { userId },
+        data: { isDefault: false },
+      });
+    }
+    await prisma.address.update({
+      where: { id: addressId },
       data: {
-        phone: body.phone,
-        profile: body.fullName
-          ? { upsert: { create: { fullName: body.fullName }, update: { fullName: body.fullName } } }
-          : undefined,
+        line1: String(body.line1 ?? row.line1),
+        line2: body.line2 == null ? row.line2 : String(body.line2),
+        city: String(body.city ?? row.city),
+        state: String(body.state ?? row.state),
+        zip: String(body.zip ?? row.zip),
+        country: String(body.country ?? row.country ?? "IN"),
+        isDefault: body.isDefault === true || body.isDefault === "true" || row.isDefault,
       },
     });
-    if (body.address?.line1) {
-      await prisma.address.create({
-        data: {
-          userId,
-          line1: body.address.line1,
-          line2: body.address.line2,
-          city: body.address.city ?? "",
-          state: body.address.state ?? "",
-          zip: body.address.zip ?? "",
-          isDefault: true,
-        },
-      });
-    }
     return this.me(userId);
+  }
+
+  async deleteAddress(userId: string, addressId: string) {
+    const row = await prisma.address.findUnique({ where: { id: addressId } });
+    if (!row || row.userId !== userId) throw new NotFoundException("Address not found");
+    await prisma.address.delete({ where: { id: addressId } });
+    return this.me(userId);
+  }
+
+  async dashboard(userId: string) {
+    const profile = await this.me(userId);
+    const [bookings, kyc, agreements, invoices, tickets, wallet, subscriptions] = await Promise.all([
+      prisma.booking.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: {
+          payments: true,
+          kycCase: { select: { id: true, status: true } },
+          agreements: { select: { id: true, status: true, pdfUrl: true, signedPdfUrl: true } },
+          pickupBranch: { select: { id: true, name: true } },
+          subscription: { select: { id: true, status: true, swapDueReason: true } },
+        },
+      }),
+      prisma.kycCase.findMany({
+        where: { userId },
+        include: { documents: true },
+        orderBy: { id: "desc" },
+        take: 10,
+      }),
+      prisma.agreement.findMany({
+        where: { booking: { userId } },
+        include: { envelope: true, booking: { select: { publicId: true, status: true } } },
+        orderBy: { id: "desc" },
+        take: 20,
+      }),
+      prisma.invoice.findMany({
+        where: { booking: { userId } },
+        include: { booking: { select: { publicId: true, status: true } }, lines: true },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+      prisma.ticket.findMany({
+        where: { userId },
+        include: { messages: { where: { internal: false }, orderBy: { createdAt: "asc" } } },
+        orderBy: { id: "desc" },
+        take: 10,
+      }),
+      prisma.wallet.upsert({
+        where: { userId },
+        create: { userId, balancePaise: 0 },
+        update: {},
+      }),
+      prisma.subscription.findMany({
+        where: { booking: { userId }, status: { in: ["ACTIVE", "PAUSED"] } },
+        include: {
+          plan: { select: { id: true, months: true, swapAllowed: true, maintenanceIncl: true } },
+          booking: {
+            select: {
+              publicId: true,
+              status: true,
+              vehicle: { select: { id: true, registration: true, status: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+    ]);
+    const models = await this.carModelsFor(bookings.map((b) => b.carModelId));
+    return {
+      profile,
+      bookings: bookings.map((b) => ({ ...b, carModel: models.get(b.carModelId) ?? null })),
+      subscriptions,
+      documents: { kycStatus: profile.kycStatus, kyc, agreements },
+      invoices,
+      tickets,
+      wallet,
+    };
+  }
+
+  async adminCustomer(id: string) {
+    const profile = await this.me(id, { allowDisabled: true });
+    const [bookings, kyc, agreements, invoices, tickets, notes] = await Promise.all([
+      prisma.booking.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        include: {
+          payments: true,
+          kycCase: { select: { id: true, status: true } },
+          agreements: { select: { id: true, status: true } },
+        },
+      }),
+      prisma.kycCase.findMany({
+        where: { userId: id },
+        include: { documents: true, booking: { select: { publicId: true } } },
+        orderBy: { id: "desc" },
+      }),
+      prisma.agreement.findMany({
+        where: { booking: { userId: id } },
+        include: { envelope: true, booking: { select: { publicId: true } } },
+      }),
+      prisma.invoice.findMany({
+        where: { booking: { userId: id } },
+        include: { lines: true, booking: { select: { publicId: true } } },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.ticket.findMany({
+        where: { userId: id },
+        include: { messages: { orderBy: { createdAt: "asc" } } },
+        orderBy: { id: "desc" },
+      }),
+      prisma.auditLog.findMany({
+        where: { entity: "User", entityId: id, action: { in: ["customer.note", "profile.phone", "profile.name", "kyc.reset"] } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        include: { actor: { select: { email: true } } },
+      }),
+    ]);
+    return {
+      ...profile,
+      bookings,
+      documents: { kycStatus: profile.kycStatus, kyc, agreements },
+      invoices,
+      tickets,
+      notes,
+    };
+  }
+
+  async addCustomerNote(actorId: string, userId: string, note: string, ip?: string) {
+    if (!note?.trim()) throw new BadRequestException("Note is required");
+    await this.me(userId);
+    await this.audit({
+      actorId,
+      action: "customer.note",
+      entityId: userId,
+      payload: { note: note.trim() },
+      ip,
+    });
+    return this.adminCustomer(userId);
+  }
+
+  async overrideName(actorId: string, userId: string, fullName: string, ip?: string) {
+    const { user } = await this.patchMe(userId, { fullName }, { adminOverride: true });
+    await this.audit({
+      actorId,
+      action: "profile.name",
+      entityId: userId,
+      payload: { fullName: user.fullName },
+      ip,
+    });
+    return user;
   }
 
   async registerDevice(userId: string, token: string, platform: string) {
@@ -339,18 +578,38 @@ export class IdentityService {
     };
   }
 
-  async listUsers(q?: string, take = 100) {
+  async listUsers(
+    actor: { roles: string[]; assignedCityId?: string | null },
+    q?: string,
+    take = 100,
+    opts?: { staff?: boolean; role?: string }
+  ) {
     const limit = Math.min(Math.max(Number(take) || 100, 1), 200);
+    const term = q?.trim();
+    const superAdmin = actor.roles.includes("SUPER_ADMIN");
+    const cityId = actor.assignedCityId || null;
     return prisma.user.findMany({
-      where: q
-        ? {
-            OR: [
-              { email: { contains: q, mode: "insensitive" } },
-              { phone: { contains: q } },
-              { profile: { fullName: { contains: q, mode: "insensitive" } } },
-            ],
-          }
-        : undefined,
+      where: {
+        ...(term
+          ? {
+              OR: [
+                { email: { contains: term, mode: "insensitive" } },
+                { phone: { contains: term } },
+                { profile: { fullName: { contains: term, mode: "insensitive" } } },
+              ],
+            }
+          : {}),
+        ...(opts?.staff
+          ? { roles: { some: { role: { name: { not: "CUSTOMER" } } } } }
+          : opts?.role
+            ? { roles: { some: { role: { name: opts.role as RoleName } } } }
+            : {}),
+        ...(!superAdmin
+          ? cityId
+            ? { staffScopes: { some: { cityId } } }
+            : { id: { in: [] } }
+          : {}),
+      },
       include: { roles: { include: { role: true } }, profile: true, staffScopes: true },
       orderBy: { createdAt: "desc" },
       take: limit,
@@ -393,10 +652,38 @@ export class IdentityService {
     },
     ip?: string
   ) {
+    const actor = await this.me(actorId);
     const email = input.email.toLowerCase().trim();
     const roles = [...new Set(input.roles?.length ? input.roles : (["SUPPORT"] as RoleName[]))];
     if (!roles.some((r) => STAFF_ROLES.includes(r))) {
       throw new BadRequestException("Invite requires a staff role");
+    }
+    const actorIsSuper = actor.roles.includes("SUPER_ADMIN");
+    if (!actorIsSuper) {
+      if (roles.includes("SUPER_ADMIN") || roles.includes("CITY_MANAGER")) {
+        throw new ForbiddenException("City managers cannot invite SUPER_ADMIN or CITY_MANAGER");
+      }
+      if (!actor.cityId) throw new ForbiddenException("Assign yourself a city before inviting staff");
+    }
+    let cityId = input.cityId || null;
+    let branchId = input.branchId || null;
+    if (!actorIsSuper) {
+      cityId = actor.cityId;
+      if (branchId) {
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+        if (!branch || branch.cityId !== actor.cityId) {
+          throw new ForbiddenException("Branch is outside your city");
+        }
+      }
+    }
+    if (roles.includes("CITY_MANAGER") && !cityId) {
+      throw new BadRequestException("City manager must be assigned a city");
+    }
+    if (roles.includes("BRANCH_MANAGER") && !branchId) {
+      throw new BadRequestException("Branch manager must be assigned a branch");
+    }
+    if (!actorIsSuper && !roles.includes("SUPER_ADMIN") && !cityId) {
+      throw new BadRequestException("Staff must be assigned a city");
     }
     const existing = await prisma.user.findUnique({ where: { email } });
     const user = existing
@@ -413,13 +700,13 @@ export class IdentityService {
           ip,
         });
     await this.setRoles(actorId, user.id, roles, ip);
-    if (input.cityId || input.branchId) {
+    if (cityId || branchId) {
       await prisma.staffScope.deleteMany({ where: { userId: user.id } });
       await prisma.staffScope.create({
         data: {
           userId: user.id,
-          cityId: input.cityId,
-          branchId: input.branchId,
+          cityId,
+          branchId,
         },
       });
     }
@@ -427,10 +714,98 @@ export class IdentityService {
       actorId,
       action: "user.invite",
       entityId: user.id,
-      payload: { email, roles },
+      payload: { email, roles, cityId, branchId },
       ip,
     });
     return this.me(user.id);
+  }
+
+  async setScope(
+    actorId: string,
+    userId: string,
+    input: { cityId?: string | null; branchId?: string | null },
+    ip?: string
+  ) {
+    const actor = await this.me(actorId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { roles: { include: { role: true } } },
+    });
+    if (!user) throw new NotFoundException("User not found");
+    const targetRoles = user.roles.map((r) => r.role.name);
+    const actorIsSuper = actor.roles.includes("SUPER_ADMIN");
+    let cityId = input.cityId || null;
+    let branchId = input.branchId || null;
+    if (branchId) {
+      const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+      if (!branch) throw new NotFoundException("Branch not found");
+      cityId = cityId || branch.cityId;
+      if (cityId && branch.cityId !== cityId) {
+        throw new BadRequestException("Branch does not belong to that city");
+      }
+    }
+    if (!actorIsSuper) {
+      if (!actor.cityId) throw new ForbiddenException("Assign yourself a city first");
+      if (targetRoles.includes("SUPER_ADMIN")) {
+        throw new ForbiddenException("Cannot change a super admin's scope");
+      }
+      cityId = actor.cityId;
+      if (branchId) {
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+        if (!branch || branch.cityId !== actor.cityId) {
+          throw new ForbiddenException("Branch is outside your city");
+        }
+      }
+    }
+    if (targetRoles.includes("CITY_MANAGER") && !cityId) {
+      throw new BadRequestException("City manager must keep a city assignment");
+    }
+    await prisma.staffScope.deleteMany({ where: { userId } });
+    if (cityId || branchId) {
+      await prisma.staffScope.create({
+        data: { userId, cityId, branchId },
+      });
+    }
+    await this.audit({
+      actorId,
+      action: "user.scope",
+      entityId: userId,
+      payload: { cityId, branchId },
+      ip,
+    });
+    return this.me(userId);
+  }
+
+  async resolveOpsScope(
+    user: { roles: string[]; cityId?: string | null; branchId?: string | null },
+    requestedCityId?: string,
+    requestedBranchId?: string
+  ) {
+    const reqCity = String(requestedCityId || "").trim();
+    const reqBranch = String(requestedBranchId || "").trim();
+    const roles = user.roles || [];
+
+    if (roles.includes("SUPER_ADMIN")) {
+      if (reqBranch) {
+        const branch = await prisma.branch.findUnique({ where: { id: reqBranch } });
+        if (!branch) return { cityId: reqCity || null, branchId: null };
+        if (reqCity && branch.cityId !== reqCity) return { cityId: reqCity, branchId: null };
+        return { cityId: branch.cityId, branchId: branch.id };
+      }
+      return { cityId: reqCity || null, branchId: null };
+    }
+
+    if (roles.includes("CITY_MANAGER") && user.cityId) {
+      if (reqBranch) {
+        const branch = await prisma.branch.findUnique({ where: { id: reqBranch } });
+        if (branch && branch.cityId === user.cityId) {
+          return { cityId: user.cityId, branchId: branch.id };
+        }
+      }
+      return { cityId: user.cityId, branchId: null };
+    }
+
+    return { cityId: user.cityId || null, branchId: user.branchId || null };
   }
 
   async disable(actorId: string, userId: string, ip?: string) {
@@ -492,6 +867,61 @@ export class IdentityService {
     });
   }
 
+  async assertOtp(emailRaw: string, code: string) {
+    const email = emailRaw.toLowerCase().trim();
+    const row = await this.loadOtp(email);
+    if (!row || row.expiresAt < Date.now()) {
+      throw new BadRequestException("Invalid or expired OTP");
+    }
+    if (row.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.clearOtp(email);
+      throw new BadRequestException("Too many attempts. Request a new OTP.");
+    }
+    if (!hashesMatch(row.codeHash, hashOtp(email, code.trim()))) {
+      await this.saveOtp(email, {
+        codeHash: row.codeHash,
+        expiresAt: new Date(row.expiresAt),
+        attempts: row.attempts + 1,
+        windowStart: new Date(row.windowStart),
+        windowCount: row.windowCount,
+      });
+      throw new BadRequestException("Invalid or expired OTP");
+    }
+    await this.clearOtp(email);
+  }
+
+  private async upsertAddress(userId: string, body: Record<string, string | boolean | undefined>) {
+    const line1 = String(body.line1 ?? "").trim();
+    if (!line1) throw new BadRequestException("Address line 1 is required");
+    const isDefault = body.isDefault !== false && body.isDefault !== "false";
+    if (isDefault) {
+      await prisma.address.updateMany({ where: { userId }, data: { isDefault: false } });
+    }
+    const created = await prisma.address.create({
+      data: {
+        userId,
+        line1,
+        line2: body.line2 ? String(body.line2) : undefined,
+        city: String(body.city ?? ""),
+        state: String(body.state ?? ""),
+        zip: String(body.zip ?? ""),
+        country: String(body.country ?? "IN"),
+        isDefault,
+      },
+    });
+    return { ...created, profile: await this.me(userId) };
+  }
+
+  private async carModelsFor(ids: string[]) {
+    const unique = [...new Set(ids.filter(Boolean))];
+    if (!unique.length) return new Map<string, { id: string; name: string; slug: string; images: { url: string }[] }>();
+    const rows = await prisma.carModel.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, name: true, slug: true, images: { select: { url: true }, take: 1, orderBy: { sortOrder: "asc" } } },
+    });
+    return new Map(rows.map((m) => [m.id, m]));
+  }
+
   private async ensureRole(name: RoleName) {
     const found = await prisma.role.findUnique({ where: { name } });
     if (found) return found;
@@ -506,25 +936,57 @@ export class IdentityService {
     status: UserStatus;
     createdAt: Date;
     roles: { role: { name: RoleName } }[];
-    profile?: { fullName: string; kycStatus: string } | null;
+    profile?: {
+      fullName: string;
+      kycStatus: string;
+      pendingPhone?: string | null;
+      kycValidUntil?: Date | null;
+    } | null;
     addresses?: unknown;
     staffScopes?: { cityId: string | null; branchId: string | null }[];
   }) {
     const roles = user.roles.map((r) => r.role.name);
     const scope = user.staffScopes?.[0];
+    const kycStatus = user.profile?.kycStatus ?? "NOT_STARTED";
+    const isSuperAdmin = roles.includes("SUPER_ADMIN");
+    const isCityManager = roles.includes("CITY_MANAGER");
     return {
       id: user.id,
       firebaseUid: user.firebaseUid,
       email: user.email,
       phone: user.phone,
+      pendingPhone: user.profile?.pendingPhone ?? pendingPhones.get(user.id) ?? null,
       status: user.status,
       createdAt: user.createdAt,
       fullName: user.profile?.fullName ?? null,
-      kycStatus: user.profile?.kycStatus ?? "NOT_STARTED",
+      kycStatus,
+      kycValidUntil: user.profile?.kycValidUntil ?? null,
+      nameLocked: kycStatus === "APPROVED",
       roles,
       cityId: scope?.cityId ?? null,
       branchId: scope?.branchId ?? null,
+      canSwitchCity: isSuperAdmin,
+      canSwitchBranch: isSuperAdmin || isCityManager,
       addresses: user.addresses,
     };
   }
+}
+
+function normalizeName(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function namesMatch(a: string, b: string) {
+  return normalizeName(a).toLowerCase() === normalizeName(b).toLowerCase();
+}
+
+function normalizePhone(raw: string) {
+  const digits = String(raw).replace(/\D/g, "");
+  let phone = digits;
+  if (phone.length === 12 && phone.startsWith("91")) phone = phone.slice(2);
+  if (phone.length === 11 && phone.startsWith("0")) phone = phone.slice(1);
+  if (!/^[6-9]\d{9}$/.test(phone)) {
+    throw new BadRequestException("Enter a valid 10-digit Indian mobile number");
+  }
+  return phone;
 }
