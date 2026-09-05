@@ -15,6 +15,10 @@ import { UploadsController } from "./modules/document/uploads.controller";
 import { DocumentEngine } from "./modules/document/document.service";
 import { FleetController } from "./modules/fleet/fleet.controller";
 import { FleetEngine } from "./modules/fleet/fleet.service";
+import { MaintenanceController } from "./modules/fleet/maintenance.controller";
+import { MaintenanceEngine } from "./modules/fleet/maintenance.service";
+import { InspectionController } from "./modules/fleet/inspection.controller";
+import { InspectionEngine } from "./modules/fleet/inspection.service";
 import { PartnerController } from "./modules/partner/partner.controller";
 import { PartnerEngine } from "./modules/partner/partner.service";
 import { NotifyController } from "./modules/notification/notify.controller";
@@ -40,6 +44,8 @@ import { CmsService } from "./modules/platform/cms.service";
     DocumentController,
     UploadsController,
     FleetController,
+    MaintenanceController,
+    InspectionController,
     PartnerController,
     NotifyController,
     PlatformController,
@@ -53,6 +59,8 @@ import { CmsService } from "./modules/platform/cms.service";
     PaymentEngine,
     DocumentEngine,
     FleetEngine,
+    MaintenanceEngine,
+    InspectionEngine,
     PartnerEngine,
     NotifyEngine,
     PlatformEngine,

@@ -60,3 +60,32 @@ export function addHours(date: Date, hours: number): Date {
 export function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
 }
+
+export function hourInIst(date: Date): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "numeric",
+    hour12: false,
+  }).formatToParts(date);
+  return Number(parts.find((p) => p.type === "hour")?.value ?? 0) % 24;
+}
+
+export function nightsBetween(start: Date, end: Date): number {
+  const ymd = (d: Date) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  const a = new Date(`${ymd(start)}T00:00:00+05:30`);
+  const b = new Date(`${ymd(end)}T00:00:00+05:30`);
+  const days = Math.round((b.getTime() - a.getTime()) / 86_400_000);
+  return Math.max(0, days);
+}
+
+export function isNightHour(hour: number, startsHour = 22, endsHour = 6): boolean {
+  if (startsHour === endsHour) return false;
+  if (startsHour > endsHour) return hour >= startsHour || hour < endsHour;
+  return hour >= startsHour && hour < endsHour;
+}

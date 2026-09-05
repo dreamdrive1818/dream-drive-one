@@ -30,11 +30,19 @@ import Login from "../ms/pages/Login";
 import Search from "../ms/pages/Search";
 import CarsRedirect from "../ms/pages/CarsRedirect";
 import CarDetail from "../ms/pages/CarDetail";
+import Packages from "../ms/pages/Packages";
 import Checkout from "../ms/pages/Checkout";
 import SuccessMs from "../ms/pages/Success";
-import Account from "../ms/pages/Account";
+import AccountLayout from "../ms/pages/account/AccountLayout";
+import AccountHome from "../ms/pages/account/AccountHome";
+import AccountBookings from "../ms/pages/account/AccountBookings";
+import AccountBookingDetail from "../ms/pages/account/AccountBookingDetail";
+import AccountKyc from "../ms/pages/account/AccountKyc";
+import AccountAgreements from "../ms/pages/account/AccountAgreements";
+import AccountInvoices from "../ms/pages/account/AccountInvoices";
+import AccountWallet from "../ms/pages/account/AccountWallet";
+import AccountTickets from "../ms/pages/account/AccountTickets";
 import Track from "../ms/pages/Track";
-import Kyc from "../ms/pages/Kyc";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -91,10 +99,20 @@ const AppRoute = () => {
                 <Route path="/" element={<Home />} />
                 <Route path="/cars" element={<CarsRedirect />} />
                 <Route path="/fleet" element={<Search />} />
+                <Route path="/packages/:slug" element={<Packages />} />
+                <Route path="/packages" element={<Packages />} />
                 <Route path="/cars/:slug" element={<CarDetail />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/account" element={<Account />} />
-                <Route path="/account/kyc" element={<Kyc />} />
+                <Route path="/account" element={<AccountLayout />}>
+                  <Route index element={<AccountHome />} />
+                  <Route path="bookings" element={<AccountBookings />} />
+                  <Route path="bookings/:id" element={<AccountBookingDetail />} />
+                  <Route path="kyc" element={<AccountKyc />} />
+                  <Route path="agreements" element={<AccountAgreements />} />
+                  <Route path="invoices" element={<AccountInvoices />} />
+                  <Route path="wallet" element={<AccountWallet />} />
+                  <Route path="tickets" element={<AccountTickets />} />
+                </Route>
                 <Route path="/checkout/success" element={<SuccessMs />} />
                 <Route path="/checkout/:quoteId" element={<Checkout />} />
                 <Route path="/track/:bookingId" element={<Track />} />

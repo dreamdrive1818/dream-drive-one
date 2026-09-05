@@ -10,6 +10,8 @@ export type AuthUser = {
   roles: string[];
   cityId?: string;
   branchId?: string;
+  assignedCityId?: string;
+  assignedBranchId?: string;
 };
 
 const STAFF = new Set([
@@ -45,8 +47,10 @@ export function currentUser(req: Request): AuthUser {
     id,
     email: header(req, "x-email") ?? "",
     roles,
-    cityId: header(req, "x-city-id"),
-    branchId: header(req, "x-branch-id"),
+    cityId: header(req, "x-city-id") || undefined,
+    branchId: header(req, "x-branch-id") || undefined,
+    assignedCityId: header(req, "x-assigned-city-id") || undefined,
+    assignedBranchId: header(req, "x-assigned-branch-id") || undefined,
   };
 }
 

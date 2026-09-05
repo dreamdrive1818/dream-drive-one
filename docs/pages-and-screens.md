@@ -5,7 +5,8 @@
 - `/` Home
 - `/cars` Search / fleet
 - `/cars/[slug]` Detail + availability
-- `/packages` Airport / tour (later)
+- `/packages` Tour packages
+- `/packages/[slug]` Itinerary + book CTA
 - `/blogs`, `/blogs/[slug]`
 - `/contact`
 - `/track/[bookingId]` (also logged-out with id + phone OTP)
@@ -43,6 +44,7 @@
 - `/partners`, `/partners/[id]/ledger`, `/settlements`
 - `/cities`, `/branches`, `/staff`
 - `/offers`, `/cms`, `/blogs`, `/banners`, `/media`
+- `/packages` (tours, city pairs, airports)
 - `/leads`, `/tickets`, `/reviews`
 - `/reports/revenue`, `/reports/gst`
 - `/notifications`

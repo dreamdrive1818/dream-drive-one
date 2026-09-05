@@ -118,6 +118,30 @@ enum InspectionType {
   RETURN
 }
 
+enum InspectionStatus {
+  OPEN
+  CLOSED
+}
+
+enum DamageStatus {
+  OPEN
+  SETTLED
+  WAIVED
+}
+
+enum MaintenanceJobType {
+  PREVENTIVE
+  BREAKDOWN
+}
+
+enum MaintenanceJobStatus {
+  OPEN
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 enum LedgerType {
   TRIP_EARNING
   COMMISSION
@@ -159,7 +183,7 @@ model User {
   phone        String?    @unique
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  updatedAt    DateTime   @default(now()) @updatedAt
 
   roles        UserRole[]
   profile      CustomerProfile?
@@ -194,11 +218,14 @@ model UserRole {
 }
 
 model CustomerProfile {
-  id        String    @id @default(cuid())
-  userId    String    @unique
-  fullName  String
-  kycStatus KycStatus @default(NOT_STARTED)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  fullName       String
+  kycStatus      KycStatus @default(NOT_STARTED)
+  kycApprovedAt  DateTime?
+  kycValidUntil  DateTime?
+  pendingPhone   String?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Address {
@@ -265,6 +292,11 @@ model City {
   carModels CarModel[]
   staff     StaffScope[]
   terminals AirportTerminal[]
+  workshops Workshop[]
+  tourPackages TourPackage[]
+  cityPairsFrom CityPairRate[] @relation("CityPairFrom")
+  cityPairsTo   CityPairRate[] @relation("CityPairTo")
+  agreementTemplates AgreementTemplate[]
 }
 
 model Branch {
@@ -296,6 +328,8 @@ model Vehicle {
   branch         Branch        @relation(fields: [branchId], references: [id])
   partner        Partner?      @relation(fields: [partnerId], references: [id])
   documents      VehicleDocument[]
+  odometerLogs   VehicleOdometerLog[]
+  transfers      VehicleTransfer[]
   blocks         AvailabilityBlock[]
   bookings       Booking[]
   jobs           MaintenanceJob[]
@@ -308,7 +342,39 @@ model VehicleDocument {
   kind       String
   url        String
   expiresAt  DateTime?
+  alertedAt  DateTime?
+  createdAt  DateTime  @default(now())
   vehicle    Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model VehicleTransfer {
+  id           String         @id @default(cuid())
+  vehicleId    String
+  fromBranchId String
+  toBranchId   String
+  status       String         @default("PENDING")
+  fromStatus   VehicleStatus?
+  odometerKm   Int?
+  notes        String?
+  actorId      String?
+  completedAt  DateTime?
+  createdAt    DateTime       @default(now())
+  vehicle      Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, status])
+}
+
+model VehicleOdometerLog {
+  id        String   @id @default(cuid())
+  vehicleId String
+  km        Int
+  source    String
+  notes     String?
+  actorId   String?
+  createdAt DateTime @default(now())
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, createdAt])
 }
 
 model AvailabilityBlock {
@@ -358,46 +424,63 @@ model DriverLeave {
 }
 
 model Workshop {
-  id      String @id @default(cuid())
+  id      String  @id @default(cuid())
   name    String
   address String
+  phone   String?
+  active  Boolean @default(true)
+  cityId  String?
+  city    City?   @relation(fields: [cityId], references: [id])
   jobs    MaintenanceJob[]
 }
 
 model MaintenanceJob {
-  id         String   @id @default(cuid())
-  vehicleId  String
-  workshopId String?
-  startsAt   DateTime
-  endsAt     DateTime
-  costPaise  Int      @default(0)
-  notes      String?
-  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id])
-  workshop   Workshop? @relation(fields: [workshopId], references: [id])
-  parts      MaintenancePart[]
+  id          String               @id @default(cuid())
+  vehicleId   String
+  workshopId  String?
+  type        MaintenanceJobType   @default(PREVENTIVE)
+  status      MaintenanceJobStatus @default(OPEN)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  completedAt DateTime?
+  odometerKm  Int?
+  labourPaise Int                  @default(0)
+  costPaise   Int                  @default(0)
+  notes       String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @default(now()) @updatedAt
+  vehicle     Vehicle              @relation(fields: [vehicleId], references: [id])
+  workshop    Workshop?            @relation(fields: [workshopId], references: [id])
+  parts       MaintenancePart[]
 }
 
 model MaintenancePart {
-  id     String @id @default(cuid())
-  jobId  String
-  name   String
-  qty    Int
-  job    MaintenanceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  id        String @id @default(cuid())
+  jobId     String
+  name      String
+  qty       Int
+  unitPaise Int    @default(0)
+  job       MaintenanceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 }
 
 model Inspection {
-  id         String         @id @default(cuid())
-  bookingId  String
-  vehicleId  String
-  type       InspectionType
-  odometerKm Int
-  fuelLevel  String
-  notes      String?
-  createdAt  DateTime       @default(now())
-  booking    Booking        @relation(fields: [bookingId], references: [id])
-  vehicle    Vehicle        @relation(fields: [vehicleId], references: [id])
-  photos     InspectionPhoto[]
-  damages    DamageCharge[]
+  id           String           @id @default(cuid())
+  bookingId    String
+  vehicleId    String
+  type         InspectionType
+  status       InspectionStatus @default(CLOSED)
+  odometerKm   Int
+  fuelLevel    String
+  fuelUnit     String           @default("EIGHTHS")
+  notes        String?
+  signatureUrl String?
+  closedAt     DateTime?
+  createdAt    DateTime         @default(now())
+  booking      Booking          @relation(fields: [bookingId], references: [id])
+  vehicle      Vehicle          @relation(fields: [vehicleId], references: [id])
+  photos       InspectionPhoto[]
+  items        InspectionItem[]
+  damages      DamageCharge[]
 }
 
 model InspectionPhoto {
@@ -407,20 +490,39 @@ model InspectionPhoto {
   inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
 }
 
-model DamageCharge {
+model InspectionItem {
   id           String     @id @default(cuid())
   inspectionId String
-  description  String
-  amountPaise  Int
+  label        String
+  present      Boolean    @default(true)
+  notes        String?
   inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
 }
 
+model DamageCharge {
+  id           String       @id @default(cuid())
+  inspectionId String
+  description  String
+  amountPaise  Int
+  status       DamageStatus @default(OPEN)
+  extraId      String?
+  inspection   Inspection   @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+}
+
 model AirportTerminal {
-  id     String @id @default(cuid())
-  cityId String
-  name   String
-  code   String
-  city   City   @relation(fields: [cityId], references: [id])
+  id                  String    @id @default(cuid())
+  cityId              String
+  name                String
+  code                String
+  freeWaitMinutes     Int       @default(45)
+  waitPaisePerMin     Int       @default(500)
+  nightSurchargePaise Int       @default(20000)
+  nightStartsHour     Int       @default(22)
+  nightEndsHour       Int       @default(6)
+  active              Boolean   @default(true)
+  city                City      @relation(fields: [cityId], references: [id])
+  bookings            Booking[]
+  @@unique([cityId, code])
 }
 
 // ─── Catalog ─────────────────────────────────────────
@@ -440,8 +542,9 @@ model CarModel {
   city          City     @relation(fields: [cityId], references: [id])
   images        CarImage[]
   vehicles      Vehicle[]
-  pricingRules  PricingRule[]
-  reviews       Review[]
+  pricingRules      PricingRule[]
+  reviews           Review[]
+  subscriptionPlans SubscriptionPlan[]
 }
 
 model CarImage {
@@ -465,39 +568,74 @@ model PricingRule {
   carModel    CarModel   @relation(fields: [carModelId], references: [id], onDelete: Cascade)
 }
 
+model CatalogSettings {
+  id                           String   @id @default("default")
+  bufferHours                  Int      @default(3)
+  maxRentalDays                Int      @default(30)
+  driverAllowancePerNightPaise Int      @default(30000)
+  updatedAt                    DateTime @default(now()) @updatedAt
+}
+
 model CityPairRate {
   id           String @id @default(cuid())
   fromCityId   String
   toCityId     String
   oneWayPaise  Int
+  fromCity     City   @relation("CityPairFrom", fields: [fromCityId], references: [id])
+  toCity       City   @relation("CityPairTo", fields: [toCityId], references: [id])
   @@unique([fromCityId, toCityId])
 }
 
 model TourPackage {
-  id          String @id @default(cuid())
-  slug        String @unique
-  name        String
-  days        Int
-  pricePaise  Int
-  published   Boolean @default(false)
-  daysDetail  TourDay[]
+  id           String     @id @default(cuid())
+  slug         String     @unique
+  name         String
+  days         Int
+  pricePaise   Int
+  depositPaise Int        @default(0)
+  cityId       String?
+  carClass     String?
+  inclusions   String?
+  published    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @default(now()) @updatedAt
+  city         City?      @relation(fields: [cityId], references: [id])
+  daysDetail   TourDay[]
+  bookings     Booking[]
 }
 
 model TourDay {
-  id        String      @id @default(cuid())
-  packageId String
-  dayNumber Int
-  title     String
-  package   TourPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  id          String      @id @default(cuid())
+  packageId   String
+  dayNumber   Int
+  title       String
+  description String?
+  package     TourPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+}
+
+model TripExtra {
+  id           String  @id @default(cuid())
+  code         String  @unique
+  label        String
+  unit         String
+  defaultPaise Int
+  active       Boolean @default(true)
 }
 
 model SubscriptionPlan {
-  id         String @id @default(cuid())
-  carModelId String
-  months     Int
-  pricePaise Int
-  includedKm Int
-  subscriptions Subscription[]
+  id              String   @id @default(cuid())
+  carModelId      String
+  months          Int
+  pricePaise      Int
+  includedKm      Int
+  depositPaise    Int      @default(0)
+  maintenanceIncl Boolean  @default(true)
+  swapAllowed     Boolean  @default(false)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+  carModel        CarModel @relation(fields: [carModelId], references: [id])
+  subscriptions   Subscription[]
 }
 
 // ─── Booking ─────────────────────────────────────────
@@ -535,15 +673,23 @@ model Booking {
   depositPaise    Int           @default(0)
   offerId         String?
   flightNumber    String?
+  terminalId      String?
+  packageId       String?
+  estimatedKm     Int?
+  waitMinutes     Int?
   notes           String?
+  commissionPercentBps Int?
+  commissionFlatPaise  Int?
   createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  updatedAt       DateTime      @default(now()) @updatedAt
 
   user         User      @relation(fields: [userId], references: [id])
   quote        Quote?    @relation(fields: [quoteId], references: [id])
   vehicle      Vehicle?  @relation(fields: [vehicleId], references: [id])
   pickupBranch Branch    @relation("PickupBranch", fields: [pickupBranchId], references: [id])
   dropBranch   Branch    @relation("DropBranch", fields: [dropBranchId], references: [id])
+  terminal     AirportTerminal? @relation(fields: [terminalId], references: [id])
+  tourPackage  TourPackage?     @relation(fields: [packageId], references: [id])
   history      BookingStatusHistory[]
   extras       BookingExtra[]
   payments     Payment[]
@@ -578,11 +724,40 @@ model BookingExtra {
 }
 
 model Subscription {
-  id        String @id @default(cuid())
-  bookingId String @unique
-  planId    String
-  booking   Booking @relation(fields: [bookingId], references: [id])
-  plan      SubscriptionPlan @relation(fields: [planId], references: [id])
+  id            String              @id @default(cuid())
+  bookingId     String              @unique
+  planId        String
+  status        SubscriptionStatus  @default(ACTIVE)
+  swapCount     Int                 @default(0)
+  extraKmPaise  Int                 @default(0)
+  swapDueReason String?
+  pausedAt      DateTime?
+  earlyCloseAt  DateTime?
+  closedReason  String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @default(now()) @updatedAt
+  booking       Booking             @relation(fields: [bookingId], references: [id])
+  plan          SubscriptionPlan    @relation(fields: [planId], references: [id])
+  invoiceSchedule SubscriptionInvoiceSchedule[]
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+  COMPLETED
+}
+
+model SubscriptionInvoiceSchedule {
+  id              String       @id @default(cuid())
+  subscriptionId  String
+  monthNumber     Int
+  dueDate         DateTime
+  amountPaise     Int
+  paid            Boolean      @default(false)
+  invoiceId       String?
+  createdAt       DateTime     @default(now())
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
 
 // ─── Payments ────────────────────────────────────────
@@ -615,6 +790,11 @@ model Invoice {
   number       String   @unique
   amountPaise  Int
   gstPaise     Int      @default(0)
+  cgstPaise    Int      @default(0)
+  sgstPaise    Int      @default(0)
+  igstPaise    Int      @default(0)
+  supplierState String  @default("KA")
+  customerState String  @default("KA")
   pdfUrl       String?
   createdAt    DateTime @default(now())
   booking      Booking  @relation(fields: [bookingId], references: [id])
@@ -663,26 +843,58 @@ model WalletTxn {
   wallet    Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 }
 
+model PayoutReconciliation {
+  id                   String    @id @default(cuid())
+  razorpayPaymentId    String    @unique
+  razorpaySettlementId String?
+  amountPaise          Int
+  feePaise             Int       @default(0)
+  taxPaise             Int       @default(0)
+  status               String    @default("PENDING")
+  notes                String?
+  settledAt            DateTime?
+  createdAt            DateTime  @default(now())
+}
+
 // ─── Documents ───────────────────────────────────────
 
 model KycCase {
-  id        String    @id @default(cuid())
-  userId    String
-  bookingId String?   @unique
-  status    KycStatus @default(SUBMITTED)
-  notes     String?
-  user      User      @relation(fields: [userId], references: [id])
-  booking   Booking?  @relation(fields: [bookingId], references: [id])
-  documents KycDocument[]
-  zoho      ZohoSubmission?
+  id           String    @id @default(cuid())
+  userId       String
+  bookingId    String?   @unique
+  status       KycStatus @default(SUBMITTED)
+  notes        String?
+  reviewedAt   DateTime?
+  reviewedById String?
+  validUntil   DateTime?
+  aadhaarLast4 String?
+  aadhaarHash  String?
+  panLast4     String?
+  panHash      String?
+  dlExpiresOn  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+  user         User      @relation(fields: [userId], references: [id])
+  booking      Booking?  @relation(fields: [bookingId], references: [id])
+  documents    KycDocument[]
+  zoho         ZohoSubmission?
 }
 
 model KycDocument {
-  id        String  @id @default(cuid())
+  id        String    @id @default(cuid())
   kycCaseId String
   kind      String
   url       String
-  kycCase   KycCase @relation(fields: [kycCaseId], references: [id], onDelete: Cascade)
+  publicId  String?
+  status    String    @default("UPLOADED")
+  notes     String?
+  expiresOn DateTime?
+  last4     String?
+  hash      String?
+  mimeType  String?
+  bytes     Int?
+  createdAt DateTime  @default(now())
+  kycCase   KycCase   @relation(fields: [kycCaseId], references: [id], onDelete: Cascade)
 }
 
 model ZohoSubmission {
@@ -695,30 +907,57 @@ model ZohoSubmission {
 }
 
 model AgreementTemplate {
-  id      String @id @default(cuid())
-  name    String
-  cityId  String?
+  id         String      @id @default(cuid())
+  name       String
+  cityId     String?
   rentalType RentalType?
-  html    String
+  html       String
+  active     Boolean     @default(true)
+  city       City?       @relation(fields: [cityId], references: [id])
+  agreements Agreement[]
 }
 
 model Agreement {
-  id         String          @id @default(cuid())
-  bookingId  String
-  templateId String?
-  status     AgreementStatus @default(DRAFT)
-  pdfUrl     String?
-  signedPdfUrl String?
-  booking    Booking         @relation(fields: [bookingId], references: [id])
-  envelope   SignatureEnvelope?
+  id             String           @id @default(cuid())
+  bookingId      String
+  templateId     String?
+  status         AgreementStatus  @default(DRAFT)
+  pdfUrl         String?
+  signedPdfUrl   String?
+  htmlSnapshot   String?
+  voidedAt       DateTime?
+  voidReason     String?
+  waivedById     String?
+  supersededById String?
+  createdAt      DateTime         @default(now())
+  booking        Booking          @relation(fields: [bookingId], references: [id])
+  template       AgreementTemplate? @relation(fields: [templateId], references: [id])
+  envelope       SignatureEnvelope?
+  artifacts      SignedArtifact[]
+  supersededBy   Agreement?       @relation("AgreementReissue", fields: [supersededById], references: [id])
+  predecessors   Agreement[]      @relation("AgreementReissue")
 }
 
 model SignatureEnvelope {
-  id           String     @id @default(cuid())
-  agreementId  String     @unique
-  leegalityId  String?    @unique
-  status       String
-  agreement    Agreement  @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  agreementId   String    @unique
+  leegalityId   String?   @unique
+  status        String
+  inviteEmail   String?
+  signUrl       String?
+  lastWebhookAt DateTime?
+  agreement     Agreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+}
+
+model SignedArtifact {
+  id          String    @id @default(cuid())
+  agreementId String
+  kind        String
+  url         String
+  publicId    String?
+  bytes       Int?
+  createdAt   DateTime  @default(now())
+  agreement   Agreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
 }
 
 // ─── Partners ────────────────────────────────────────
@@ -738,11 +977,13 @@ model Partner {
 }
 
 model PartnerContract {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   partnerId String
   startsOn  DateTime
   endsOn    DateTime?
-  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  notes     String?
+  createdAt DateTime  @default(now())
+  partner   Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 }
 
 model CommissionRule {
@@ -760,30 +1001,44 @@ model LedgerEntry {
   bookingId   String?
   type        LedgerType
   amountPaise Int
+  note        String?
   createdAt   DateTime   @default(now())
   partner     Partner    @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   booking     Booking?   @relation(fields: [bookingId], references: [id])
+  lines       SettlementLine[]
+
+  @@index([partnerId, createdAt])
+  @@index([bookingId, type])
 }
 
 model Settlement {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   partnerId   String
   periodStart DateTime
   periodEnd   DateTime
   amountPaise Int
-  paid        Boolean  @default(false)
+  paid        Boolean   @default(false)
+  held        Boolean   @default(false)
+  holdReason  String?
+  proposedBy  String?
+  paidAt      DateTime?
+  paidBy      String?
   utr         String?
-  partner     Partner  @relation(fields: [partnerId], references: [id])
+  createdAt   DateTime  @default(now())
+  partner     Partner   @relation(fields: [partnerId], references: [id])
   lines       SettlementLine[]
 
   @@unique([partnerId, periodStart, periodEnd])
 }
 
 model SettlementLine {
-  id           String     @id @default(cuid())
-  settlementId String
-  ledgerId     String
-  settlement   Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  settlementId  String
+  ledgerId      String      @unique
+  excluded      Boolean     @default(false)
+  excludeReason String?
+  settlement    Settlement  @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  ledger        LedgerEntry @relation(fields: [ledgerId], references: [id])
 }
 
 // ─── Platform / CMS / CRM / growth ───────────────────
@@ -798,7 +1053,7 @@ model CmsPage {
   sortOrder Int         @default(0)
   published Boolean     @default(false)
   createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  updatedAt DateTime    @default(now()) @updatedAt
   metadata  PageMetadata?
 
   @@index([published, kind])
@@ -817,7 +1072,7 @@ model Banner {
   sortOrder Int             @default(0)
   active    Boolean         @default(true)
   createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  updatedAt DateTime        @default(now()) @updatedAt
 
   @@index([active, placement])
 }
@@ -836,7 +1091,7 @@ model BlogPost {
   metaDescription String?
   categoryId      String?
   createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  updatedAt       DateTime       @default(now()) @updatedAt
   category        BlogCategory?  @relation(fields: [categoryId], references: [id])
   comments        BlogComment[]
 

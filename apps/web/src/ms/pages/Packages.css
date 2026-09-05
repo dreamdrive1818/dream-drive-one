@@ -1,0 +1,112 @@
+.packages-page {
+  padding: 2.4rem 1.6rem 5rem;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(126, 200, 195, 0.18), transparent 36%),
+    var(--light-bg, #f6fbfe);
+  font-family: var(--font-family-main);
+  min-height: calc(100vh - 160px);
+}
+
+.packages-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.packages-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.packages-header h1 {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(2.6rem, 5vw, 3.8rem);
+  color: var(--text-dark, #0c1d2c);
+  margin: 0 0 0.6rem;
+}
+
+.packages-header p {
+  font-size: 1.45rem;
+  color: var(--text-medium, #262626);
+  max-width: 640px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.packages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.4rem;
+}
+
+.packages-card {
+  background: #fff;
+  border: 1px solid rgba(11, 45, 74, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.packages-card h2 {
+  margin: 0.3rem 0 0.4rem;
+  font-size: 1.8rem;
+  color: var(--text-dark, #0c1d2c);
+}
+
+.packages-kicker,
+.packages-city,
+.packages-incl {
+  font-size: 1.3rem;
+  color: #5f7f86;
+  margin: 0 0 0.4rem;
+}
+
+.packages-price {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary-color, #0072ce);
+  margin: 0.4rem 0 0.8rem;
+}
+
+.packages-card ol,
+.packages-itinerary {
+  margin: 0 0 1.2rem;
+  padding-left: 1.2rem;
+  font-size: 1.35rem;
+  color: var(--text-medium, #262626);
+}
+
+.packages-itinerary li {
+  margin-bottom: 0.8rem;
+}
+
+.packages-cta {
+  display: inline-block;
+  background: var(--primary-color, #0072ce);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.7rem 1.2rem;
+  border-radius: 10px;
+}
+
+.packages-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: var(--primary-color, #0072ce);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.packages-err {
+  color: #b42318;
+  background: #fef3f2;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+}
+
+.packages-empty,
+.packages-loading {
+  text-align: center;
+  padding: 2rem;
+  color: #5f7f86;
+}

@@ -1,0 +1,42 @@
+{
+  "product": "Dream Drive",
+  "apiVersion": "v1",
+  "updatedAt": "2026-09-05",
+  "fillBeforeHandover": true,
+  "environments": {
+    "live": {
+      "apiBaseUrl": "https://REPLACE_WITH_LIVE_API_HOST",
+      "socketUrl": "https://REPLACE_WITH_LIVE_SOCKET_HOST",
+      "health": "https://REPLACE_WITH_LIVE_API_HOST/health",
+      "paymentsMock": null,
+      "notes": "API owner: paste the public HTTPS URLs here."
+    },
+    "local": {
+      "apiBaseUrl": "http://localhost:4000",
+      "socketUrl": "http://localhost:4010",
+      "androidEmulatorApi": "http://10.0.2.2:4000"
+    }
+  },
+  "testAccounts": [
+    {
+      "role": "customer",
+      "email": "REPLACE_TEST_CUSTOMER@dreamdrive.test",
+      "login": "OTP to email, or password if created",
+      "notes": "Must have a 10-digit Indian mobile on profile to test guest track"
+    }
+  ],
+  "seedExpectations": {
+    "atLeastOneActiveCity": true,
+    "atLeastOnePublishedCarWithPricing": true,
+    "searchQueryExample": "/v1/public/search?cityId=CITY_ID&from=ISO&to=ISO&rentalType=SELF_DRIVE"
+  },
+  "contacts": {
+    "apiOwner": "REPLACE_NAME / REPLACE_PHONE / REPLACE_EMAIL",
+    "escalation": "REPLACE"
+  },
+  "expoWebOriginsToAllowOnApi": [],
+  "deepLinks": {
+    "booking": "dreamdrive://bookings/:id",
+    "track": "dreamdrive://track/:publicId"
+  }
+}

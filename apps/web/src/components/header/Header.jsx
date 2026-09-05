@@ -73,6 +73,7 @@ useEffect(() => {
     {/* Center Navigation (Desktop Only) */}
     <nav className="nav-links">
       <p onClick={() => handleRoute("/cars")}>Cars</p>
+      <p onClick={() => handleRoute("/packages")}>Tours</p>
        <p onClick={() => handleRoute("/order-tracking")}>Track Your Order</p>
         <p onClick={() => handleRoute("/testimonials")}>Testimonials</p>
         <p onClick={() => handleRoute("/howitworks")}>How It Works</p>
@@ -127,6 +128,7 @@ useEffect(() => {
       <p onClick={() => handleRoute("/howitworks")}>How It Works</p>
       
       <p onClick={() => handleRoute("/cars")}>Cars</p>
+      <p onClick={() => handleRoute("/packages")}>Tours</p>
        <p onClick={() => handleRoute("/order-tracking")}>Track Your Order</p>
       <p onClick={() => handleRoute("/about")}>About Us</p>
       <p onClick={() => handleRoute("/blogs")}>Blogs</p>

@@ -6,6 +6,7 @@ import HowItWorks from "../HowItWorks/HowItWorks";
 import Achievements from "../Achievements/Achievements";
 import Contact from "../contact/Contact";
 import Hero2 from "../hero/Hero2/Hero2";
+import HomeSearchBar from "./HomeSearchBar";
 import Testimonial from "../Testimonial/Testimonial";
 import Blogs from "../blogs/Blogs";
 import "./Home.css";
@@ -32,6 +33,7 @@ const Home = () => {
       </Helmet>
 
       <Hero2 />
+      <HomeSearchBar />
       <FleetCarousel />
       <WhyChoose />
       <HowItWorks />

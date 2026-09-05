@@ -18,6 +18,12 @@ async function main() {
     await prisma.role.upsert({ where: { name }, update: {}, create: { name } });
   }
 
+  await prisma.catalogSettings.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default", bufferHours: 3, maxRentalDays: 30 },
+  });
+
   const pune = await prisma.city.upsert({
     where: { slug: "pune" },
     update: {},
@@ -74,8 +80,13 @@ async function main() {
     await prisma.userRole.create({ data: { userId: user.id, roleId: roleRow.id } });
     if (role !== "CUSTOMER") {
       await prisma.staffScope.deleteMany({ where: { userId: user.id } });
+      const branchScoped = role === "BRANCH_MANAGER" || role === "FLEET_OPS";
       await prisma.staffScope.create({
-        data: { userId: user.id, cityId: cityId ?? pune.id, branchId: puneHq.id },
+        data: {
+          userId: user.id,
+          cityId: cityId ?? pune.id,
+          branchId: branchScoped ? puneHq.id : null,
+        },
       });
     }
     return user;
@@ -84,7 +95,13 @@ async function main() {
   await ensureUser("admin@dreamdrive.test", "Super Admin", "SUPER_ADMIN");
   await ensureUser("fleet@dreamdrive.test", "Fleet Ops", "FLEET_OPS");
   await ensureUser("finance@dreamdrive.test", "Finance", "FINANCE");
-  await ensureUser("customer@dreamdrive.test", "Demo Customer", "CUSTOMER");
+  await ensureUser("branch@dreamdrive.test", "Pune Branch Manager", "BRANCH_MANAGER");
+  await ensureUser("city@dreamdrive.test", "Pune City Manager", "CITY_MANAGER");
+  const customer = await ensureUser("customer@dreamdrive.test", "Demo Customer", "CUSTOMER");
+  await prisma.user.update({
+    where: { id: customer.id },
+    data: { phone: "9876543210" },
+  }).catch(() => undefined);
 
   const cars = [
     { slug: "swift", name: "Maruti Swift", type: "hatchback", seats: 5, fuel: "petrol", transmission: "manual", daily: 180000, deposit: 500000 },
@@ -149,12 +166,55 @@ async function main() {
         },
       });
     }
+    const vehicle = await prisma.vehicle.findUnique({ where: { registration: reg } });
+    if (vehicle) {
+      const docs = [
+        { kind: "RC", expiresAt: new Date("2030-12-31T23:59:59.000Z") },
+        { kind: "INSURANCE", expiresAt: new Date("2027-12-31T23:59:59.000Z") },
+        { kind: "PUC", expiresAt: new Date("2027-06-30T23:59:59.000Z") },
+        { kind: "PERMIT", expiresAt: new Date("2028-12-31T23:59:59.000Z") },
+      ];
+      for (const doc of docs) {
+        const exists = await prisma.vehicleDocument.findFirst({
+          where: { vehicleId: vehicle.id, kind: doc.kind },
+        });
+        if (!exists) {
+          await prisma.vehicleDocument.create({
+            data: {
+              vehicleId: vehicle.id,
+              kind: doc.kind,
+              url: `https://example.invalid/fleet/${reg}-${doc.kind}.pdf`,
+              expiresAt: doc.expiresAt,
+            },
+          });
+        }
+      }
+    }
   }
 
   await prisma.driver.upsert({
     where: { phone: "9876500001" },
     update: {},
     create: { fullName: "Suresh Patil", phone: "9876500001", branchId: puneHq.id },
+  });
+  const suresh = await prisma.driver.findUnique({ where: { phone: "9876500001" } });
+  if (suresh) {
+    const dl = await prisma.driverDocument.findFirst({ where: { driverId: suresh.id, kind: "DL" } });
+    if (!dl) {
+      await prisma.driverDocument.create({
+        data: {
+          driverId: suresh.id,
+          kind: "DL",
+          url: "https://example.invalid/drivers/suresh-dl.pdf",
+          expiresAt: new Date("2028-12-31T23:59:59.000Z"),
+        },
+      });
+    }
+  }
+  await prisma.driver.upsert({
+    where: { phone: "9876500002" },
+    update: {},
+    create: { fullName: "Ramesh Jadhav", phone: "9876500002", branchId: puneHq.id, active: true },
   });
 
   await prisma.offer.upsert({
@@ -433,6 +493,29 @@ async function main() {
       body: "Your Dream-Drive booking {{publicId}} is confirmed.",
     },
   });
+  await prisma.notificationTemplate.upsert({
+    where: { key: "kyc_decision" },
+    update: {},
+    create: {
+      key: "kyc_decision",
+      channel: "email",
+      subject: "KYC {{status}}",
+      body: "Your Dream Drive KYC is {{status}}. {{notes}}",
+    },
+  });
+  await prisma.notificationTemplate.upsert({
+    where: { key: "vehicle_doc_expiry" },
+    update: {
+      subject: "Fleet document expiring: {{registration}} {{kind}}",
+      body: "{{kind}} for {{registration}} ({{model}}) at {{city}} / {{branch}} expires on {{expires}}.",
+    },
+    create: {
+      key: "vehicle_doc_expiry",
+      channel: "email",
+      subject: "Fleet document expiring: {{registration}} {{kind}}",
+      body: "{{kind}} for {{registration}} ({{model}}) at {{city}} / {{branch}} expires on {{expires}}.",
+    },
+  });
 
   await prisma.agreementTemplate.upsert({
     where: { id: "seed-agreement" },
@@ -456,21 +539,99 @@ async function main() {
     create: { fromCityId: pune.id, toCityId: mumbai.id, oneWayPaise: 350000 },
   });
 
+  await prisma.airportTerminal.upsert({
+    where: { cityId_code: { cityId: pune.id, code: "PNQ" } },
+    update: {},
+    create: {
+      cityId: pune.id,
+      name: "Pune Airport",
+      code: "PNQ",
+      freeWaitMinutes: 45,
+      waitPaisePerMin: 500,
+      nightSurchargePaise: 20000,
+      nightStartsHour: 22,
+      nightEndsHour: 6,
+    },
+  });
+  await prisma.airportTerminal.upsert({
+    where: { cityId_code: { cityId: mumbai.id, code: "BOM" } },
+    update: {},
+    create: {
+      cityId: mumbai.id,
+      name: "Mumbai CSIA T2",
+      code: "BOM",
+      freeWaitMinutes: 60,
+      waitPaisePerMin: 800,
+      nightSurchargePaise: 30000,
+      nightStartsHour: 22,
+      nightEndsHour: 6,
+    },
+  });
+
+  const extras = [
+    { code: "EXTRA_KM", label: "Extra kilometre", unit: "km", defaultPaise: 1200 },
+    { code: "EXTRA_HOUR", label: "Extra hour", unit: "hour", defaultPaise: 25000 },
+    { code: "WAIT", label: "Airport wait", unit: "minute", defaultPaise: 500 },
+    { code: "NIGHT", label: "Night surcharge", unit: "trip", defaultPaise: 20000 },
+    { code: "DRIVER_ALLOWANCE", label: "Driver allowance", unit: "night", defaultPaise: 30000 },
+  ];
+  for (const extra of extras) {
+    await prisma.tripExtra.upsert({
+      where: { code: extra.code },
+      update: extra,
+      create: extra,
+    });
+  }
+
   await prisma.tourPackage.upsert({
     where: { slug: "ashtavinayak" },
-    update: {},
+    update: {
+      cityId: pune.id,
+      carClass: "suv",
+      inclusions: "Driver, tolls, parking. Extra km billed on return.",
+      depositPaise: 500000,
+    },
     create: {
       slug: "ashtavinayak",
       name: "Ashtavinayak Darshan",
       days: 2,
       pricePaise: 1200000,
+      depositPaise: 500000,
+      cityId: pune.id,
+      carClass: "suv",
+      inclusions: "Driver, tolls, parking. Extra km billed on return.",
       published: true,
       daysDetail: {
         create: [
-          { dayNumber: 1, title: "Pune to Ozar / Lenyadri" },
-          { dayNumber: 2, title: "Ranjangaon return" },
+          { dayNumber: 1, title: "Pune to Ozar / Lenyadri", description: "Pickup after breakfast, darshan at Ozar and Lenyadri." },
+          { dayNumber: 2, title: "Ranjangaon return", description: "Morning darshan, return to Pune by evening." },
         ],
       },
+    },
+  });
+
+  await prisma.workshop.upsert({
+    where: { id: "seed-pune-workshop" },
+    update: { cityId: pune.id, active: true },
+    create: {
+      id: "seed-pune-workshop",
+      name: "Pune HQ workshop",
+      address: "Service bay, Baner, Pune",
+      phone: "02000000001",
+      cityId: pune.id,
+      active: true,
+    },
+  });
+  await prisma.workshop.upsert({
+    where: { id: "seed-mumbai-workshop" },
+    update: { cityId: mumbai.id, active: true },
+    create: {
+      id: "seed-mumbai-workshop",
+      name: "Andheri workshop",
+      address: "Service bay, Andheri East, Mumbai",
+      phone: "02200000001",
+      cityId: mumbai.id,
+      active: true,
     },
   });
 

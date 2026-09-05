@@ -5,7 +5,7 @@ const { spawnSync } = require("child_process");
 const dotenv = require("dotenv");
 
 dotenv.config({ path: path.resolve(__dirname, ".env") });
-dotenv.config({ path: path.resolve(__dirname, "../../apps/api/.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../apps/api/.env"), override: true });
 
 const cmd = process.argv.slice(2).join(" ");
 const needsLiveDb = /\b(db push|migrate|studio)\b/.test(cmd);

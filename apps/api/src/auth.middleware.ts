@@ -59,6 +59,12 @@ function isStaff(roles: string[]) {
   return roles.some((r) => STAFF.has(r));
 }
 
+function headerValue(req: Request, name: string) {
+  const raw = req.headers[name];
+  if (Array.isArray(raw)) return raw[0] || "";
+  return typeof raw === "string" ? raw : "";
+}
+
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
   constructor(private readonly identity: IdentityService) {}
@@ -91,6 +97,9 @@ export class AuthMiddleware implements NestMiddleware {
       user = null;
     }
 
+    const opsCity = headerValue(req, "x-ops-city-id");
+    const opsBranch = headerValue(req, "x-ops-branch-id");
+
     req.headers["x-user-id"] = "";
     req.headers["x-roles"] = "";
     req.headers["x-email"] = "";
@@ -103,8 +112,11 @@ export class AuthMiddleware implements NestMiddleware {
       req.headers["x-email"] = user.email;
       req.headers["x-firebase-uid"] = user.firebaseUid;
       if (user.phone) req.headers["x-phone"] = user.phone;
-      if (user.cityId) req.headers["x-city-id"] = user.cityId;
-      if (user.branchId) req.headers["x-branch-id"] = user.branchId;
+      if (user.cityId) req.headers["x-assigned-city-id"] = user.cityId;
+      if (user.branchId) req.headers["x-assigned-branch-id"] = user.branchId;
+      const scoped = await this.identity.resolveOpsScope(user, opsCity, opsBranch);
+      if (scoped.cityId) req.headers["x-city-id"] = scoped.cityId;
+      if (scoped.branchId) req.headers["x-branch-id"] = scoped.branchId;
     }
 
     if (!isPublic(path) && !user) {

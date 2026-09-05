@@ -1,15 +1,14 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
-import { HoldSweeperJob } from "./jobs/hold-sweeper.job";
-import { NotifyRetryJob } from "./jobs/notify-retry.job";
+import { HoldSweeperJob, NotifyRetryJob, NoShowSweeperJob, VehicleExpiryJob, SettlementWeeklyJob } from "./jobs/hold-sweeper.job";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ".env" }),
     ScheduleModule.forRoot(),
   ],
-  providers: [HoldSweeperJob, NotifyRetryJob],
+  providers: [HoldSweeperJob, NotifyRetryJob, NoShowSweeperJob, VehicleExpiryJob, SettlementWeeklyJob],
 })
 export class AppModule {}
 

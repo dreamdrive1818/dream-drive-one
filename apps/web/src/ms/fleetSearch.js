@@ -18,6 +18,16 @@ export const SORT_OPTIONS = [
   { value: "", label: "Featured" },
   { value: "price-asc", label: "Price: Low to High" },
   { value: "price-desc", label: "Price: High to Low" },
+  { value: "popularity", label: "Popularity" },
+];
+
+export const TYPE_OPTIONS = [
+  { value: "", label: "Any type" },
+  { value: "hatchback", label: "Hatchback" },
+  { value: "sedan", label: "Sedan" },
+  { value: "suv", label: "SUV" },
+  { value: "mpv", label: "MPV" },
+  { value: "luxury", label: "Luxury" },
 ];
 
 export const SEAT_OPTIONS = ["", "4", "5", "6", "7", "8"];
@@ -41,12 +51,19 @@ const FILTER_KEYS = [
   "from",
   "to",
   "rentalType",
+  "type",
   "seats",
   "fuel",
   "transmission",
   "minPrice",
   "maxPrice",
   "sort",
+  "packageId",
+  "dropBranchId",
+  "terminalId",
+  "flightNumber",
+  "waitMinutes",
+  "estimatedKm",
 ];
 
 export function parseFleetFilters(searchParams) {
@@ -56,12 +73,19 @@ export function parseFleetFilters(searchParams) {
     from: get("from"),
     to: get("to"),
     rentalType: get("rentalType") || "SELF_DRIVE",
+    type: get("type"),
     seats: get("seats"),
     fuel: get("fuel"),
     transmission: get("transmission"),
     minPrice: get("minPrice"),
     maxPrice: get("maxPrice"),
     sort: get("sort"),
+    packageId: get("packageId"),
+    dropBranchId: get("dropBranchId"),
+    terminalId: get("terminalId"),
+    flightNumber: get("flightNumber"),
+    waitMinutes: get("waitMinutes"),
+    estimatedKm: get("estimatedKm"),
   };
 }
 
@@ -83,6 +107,12 @@ export function detailPreserveParams(filters) {
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   if (filters.rentalType) params.set("rentalType", filters.rentalType);
+  if (filters.packageId) params.set("packageId", filters.packageId);
+  if (filters.dropBranchId) params.set("dropBranchId", filters.dropBranchId);
+  if (filters.terminalId) params.set("terminalId", filters.terminalId);
+  if (filters.flightNumber) params.set("flightNumber", filters.flightNumber);
+  if (filters.waitMinutes) params.set("waitMinutes", filters.waitMinutes);
+  if (filters.estimatedKm) params.set("estimatedKm", filters.estimatedKm);
   return params;
 }
 
@@ -106,7 +136,7 @@ export function datetimeLocalToIso(local) {
   return d.toISOString();
 }
 
-export function validateDateRange(fromIso, toIso) {
+export function validateDateRange(fromIso, toIso, maxDays = 30) {
   if (!fromIso || !toIso) return "";
   const from = new Date(fromIso);
   const to = new Date(toIso);
@@ -115,6 +145,15 @@ export function validateDateRange(fromIso, toIso) {
   }
   if (to <= from) {
     return "Return date must be after pickup date.";
+  }
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  if (from < startOfToday) {
+    return "Pickup cannot be in the past.";
+  }
+  const days = Math.ceil((to.getTime() - from.getTime()) / 86_400_000);
+  if (maxDays && days > maxDays) {
+    return `Maximum rental length is ${maxDays} days.`;
   }
   return "";
 }
@@ -125,11 +164,13 @@ export function buildApiSearchParams(filters) {
   if (filters.rentalType) params.set("rentalType", filters.rentalType);
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
+  if (filters.type) params.set("type", filters.type);
   if (filters.seats) params.set("seats", filters.seats);
   if (filters.fuel) params.set("fuel", filters.fuel);
   if (filters.transmission) params.set("transmission", filters.transmission);
   if (filters.minPrice) params.set("minPrice", filters.minPrice);
   if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
+  if (filters.sort) params.set("sort", filters.sort);
   return params;
 }
 
@@ -154,8 +195,32 @@ export function sortCars(cars, sort) {
     list.sort((a, b) => (a.pricePaise ?? 0) - (b.pricePaise ?? 0));
   } else if (sort === "price-desc") {
     list.sort((a, b) => (b.pricePaise ?? 0) - (a.pricePaise ?? 0));
+  } else if (sort === "popularity") {
+    list.sort((a, b) => (b.bookingCount ?? 0) - (a.bookingCount ?? 0));
   }
   return list;
+}
+
+export function monthKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function shiftMonth(key, delta) {
+  const [y, m] = String(key || monthKey()).split("-").map(Number);
+  const d = new Date(y, (m || 1) - 1 + delta, 1);
+  return monthKey(d);
+}
+
+export function isoDate(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function dateToIsoAtHour(dateStr, hour = 10) {
+  if (!dateStr) return "";
+  const d = new Date(`${dateStr}T${String(hour).padStart(2, "0")}:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString();
 }
 
 export function primaryImageUrl(car) {
@@ -178,9 +243,22 @@ export function sortedCarImages(car) {
   return [...images].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 }
 
-export function pricingRuleForType(pricingRules, rentalType) {
+export function pricingRuleForType(pricingRules, rentalType, atIso) {
   if (!Array.isArray(pricingRules) || !rentalType) return null;
-  return pricingRules.find((r) => r.rentalType === rentalType) ?? null;
+  const at = atIso ? new Date(atIso) : null;
+  const typed = pricingRules.filter((r) => r.rentalType === rentalType);
+  const pool = typed.length ? typed : pricingRules;
+  if (!pool.length) return null;
+  if (at && !Number.isNaN(at.getTime())) {
+    const seasonal = pool.filter((r) => {
+      if (!r.startsOn && !r.endsOn) return false;
+      if (r.startsOn && at < new Date(r.startsOn)) return false;
+      if (r.endsOn && at > new Date(r.endsOn)) return false;
+      return true;
+    });
+    if (seasonal.length) return seasonal[0];
+  }
+  return pool.find((r) => !r.startsOn && !r.endsOn) ?? pool[0] ?? null;
 }
 
 /** Detail-page query sync (preserves cityId + booking context). */

@@ -2,10 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
 } from "@nestjs/common";
@@ -110,12 +112,70 @@ export class IdentityController {
     return this.identity.me(currentUser(req).id);
   }
 
+  @Get("v1/me/dashboard")
+  dashboard(@Req() req: Request) {
+    return this.identity.dashboard(currentUser(req).id);
+  }
+
   @Patch("v1/me")
-  patchMe(
+  async patchMe(
     @Req() req: Request,
     @Body() body: { fullName?: string; phone?: string; address?: Record<string, string> }
   ) {
-    return this.identity.patchMe(currentUser(req).id, body);
+    const actor = currentUser(req);
+    const { user, otpCode, pendingPhone } = await this.identity.patchMe(actor.id, body);
+    if (otpCode) {
+      try {
+        await internalFetch(serviceUrls().notification, "/internal/notify", {
+          method: "POST",
+          body: JSON.stringify({
+            template: "otp",
+            to: user.email,
+            data: { code: otpCode, purpose: "phone-change" },
+          }),
+        });
+      } catch {
+        // login still works if mail is not configured
+      }
+    }
+    const expose = process.env.NODE_ENV !== "production";
+    return {
+      ...user,
+      pendingPhone,
+      phoneChangeRequired: Boolean(otpCode),
+      ...(expose && otpCode ? { devCode: otpCode } : {}),
+    };
+  }
+
+  @Post("v1/me/phone/verify")
+  confirmPhone(
+    @Req() req: Request,
+    @Body() body: { code?: string }
+  ) {
+    if (!body?.code) throw new BadRequestException("OTP code required");
+    return this.identity.confirmPhoneChange(currentUser(req).id, body.code);
+  }
+
+  @Post("v1/me/addresses")
+  addAddress(
+    @Req() req: Request,
+    @Body() body: Record<string, string | boolean | undefined>
+  ) {
+    return this.identity.addAddress(currentUser(req).id, body);
+  }
+
+  @Patch("v1/me/addresses/:id")
+  updateAddress(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: Record<string, string | boolean | undefined>
+  ) {
+    return this.identity.updateAddress(currentUser(req).id, id, body);
+  }
+
+  @Delete("v1/me/addresses/:id")
+  deleteAddress(@Req() req: Request, @Param("id") id: string) {
+    return this.identity.deleteAddress(currentUser(req).id, id);
   }
 
   @Post("v1/me/devices")
@@ -135,10 +195,44 @@ export class IdentityController {
   adminUsers(
     @Req() req: Request,
     @Query("q") q?: string,
-    @Query("take") take?: string
+    @Query("take") take?: string,
+    @Query("staff") staff?: string,
+    @Query("role") role?: string
   ) {
     requireRoles(req, "SUPPORT", "SALES", "CITY_MANAGER", "SUPER_ADMIN");
-    return this.identity.listUsers(q, take ? Number(take) : 100);
+    const actor = currentUser(req);
+    return this.identity.listUsers(actor, q, take ? Number(take) : 100, {
+      staff: staff === "1" || staff === "true",
+      role,
+    });
+  }
+
+  @Get("v1/admin/customers/:id")
+  adminCustomer(@Req() req: Request, @Param("id") id: string) {
+    requireRoles(req, "SUPPORT", "SALES", "CITY_MANAGER", "SUPER_ADMIN");
+    return this.identity.adminCustomer(id);
+  }
+
+  @Post("v1/admin/customers/:id/notes")
+  adminNote(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { note?: string }
+  ) {
+    const actor = requireRoles(req, "SUPPORT", "SALES", "SUPER_ADMIN");
+    if (!body?.note) throw new BadRequestException("note required");
+    return this.identity.addCustomerNote(actor.id, id, body.note, clientIp(req));
+  }
+
+  @Patch("v1/admin/customers/:id")
+  adminPatchCustomer(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { fullName?: string }
+  ) {
+    const actor = requireRoles(req, "SUPPORT", "SALES", "SUPER_ADMIN");
+    if (!body?.fullName) throw new BadRequestException("fullName required");
+    return this.identity.overrideName(actor.id, id, body.fullName, clientIp(req));
   }
 
   @Post("v1/admin/users/invite")
@@ -153,7 +247,7 @@ export class IdentityController {
       branchId?: string;
     }
   ) {
-    const actor = requireRoles(req, "SUPER_ADMIN");
+    const actor = requireRoles(req, "SUPER_ADMIN", "CITY_MANAGER");
     if (!body?.email) throw new BadRequestException("email required");
     return this.identity.inviteStaff(
       actor.id,
@@ -176,6 +270,17 @@ export class IdentityController {
   ) {
     const actor = requireRoles(req, "SUPER_ADMIN");
     return this.identity.setRoles(actor.id, id, body.roles ?? [], clientIp(req));
+  }
+
+  @Put("v1/admin/staff/:id/scope")
+  @Patch("v1/admin/users/:id/scope")
+  setScope(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { cityId?: string | null; branchId?: string | null }
+  ) {
+    const actor = requireRoles(req, "SUPER_ADMIN", "CITY_MANAGER");
+    return this.identity.setScope(actor.id, id, body, clientIp(req));
   }
 
   @Post("v1/admin/users/:id/disable")

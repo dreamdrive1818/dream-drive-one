@@ -106,7 +106,10 @@ ZOHO_CLIENT_SECRET=
 ZOHO_REFRESH_TOKEN=
 ZOHO_WEBHOOK_SECRET=
 LEEGALITY_API_KEY=
-LEEGALITY_BASE_URL=https://app.leegality.com/api
+LEEGALITY_BASE_URL=https://app1.leegality.com/api
+LEEGALITY_PROFILE_ID=
+LEEGALITY_PRIVATE_SALT=
+LEEGALITY_IP_ALLOWLIST=
 `,
 
   "apps/web": `# Public website :3000 — talks only to the API

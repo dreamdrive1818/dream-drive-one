@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "../../lib/api";
 
 const ROLE_OPTIONS = [
@@ -17,10 +18,14 @@ export default function Page() {
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState("");
   const [error, setError] = useState("");
+  const [cities, setCities] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [invite, setInvite] = useState({
     email: "",
     fullName: "",
     role: "SUPPORT",
+    cityId: "",
+    branchId: "",
   });
 
   async function load(search = q) {
@@ -35,6 +40,8 @@ export default function Page() {
 
   useEffect(() => {
     load("");
+    api("/v1/admin/cities").then(setCities).catch(() => {});
+    api("/v1/admin/branches").then(setBranches).catch(() => {});
   }, []);
 
   async function sendInvite(e) {
@@ -47,9 +54,11 @@ export default function Page() {
           email: invite.email,
           fullName: invite.fullName,
           roles: [invite.role],
+          cityId: invite.cityId || undefined,
+          branchId: invite.branchId || undefined,
         },
       });
-      setInvite({ email: "", fullName: "", role: "SUPPORT" });
+      setInvite({ email: "", fullName: "", role: "SUPPORT", cityId: "", branchId: "" });
       await load();
     } catch (err) {
       setError(err.message);
@@ -62,6 +71,19 @@ export default function Page() {
       await api(`/v1/admin/users/${id}/roles`, {
         method: "PATCH",
         body: { roles },
+      });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function setScope(id, cityId, branchId) {
+    setError("");
+    try {
+      await api(`/v1/admin/staff/${id}/scope`, {
+        method: "PUT",
+        body: { cityId: cityId || null, branchId: branchId || null },
       });
       await load();
     } catch (err) {
@@ -106,6 +128,30 @@ export default function Page() {
               <option key={r}>{r}</option>
             ))}
           </select>
+          <select
+            value={invite.cityId}
+            onChange={(e) => setInvite({ ...invite, cityId: e.target.value, branchId: "" })}
+          >
+            <option value="">All cities</option>
+            {cities.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={invite.branchId}
+            onChange={(e) => setInvite({ ...invite, branchId: e.target.value })}
+          >
+            <option value="">All branches</option>
+            {branches
+              .filter((b) => !invite.cityId || b.cityId === invite.cityId)
+              .map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+          </select>
           <button type="submit">Invite</button>
         </form>
       </div>
@@ -130,6 +176,7 @@ export default function Page() {
               <th>Email</th>
               <th>Name</th>
               <th>Roles</th>
+              <th>City / branch</th>
               <th>Status</th>
               <th>KYC</th>
               <th></th>
@@ -150,6 +197,38 @@ export default function Page() {
                     ))}
                   </select>
                 </td>
+                <td>
+                  {(u.roles || []).some((r) => r !== "CUSTOMER") ? (
+                    <div className="row">
+                      <select
+                        value={u.cityId || ""}
+                        onChange={(e) => setScope(u.id, e.target.value, u.branchId)}
+                      >
+                        <option value="">All cities</option>
+                        {cities.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={u.branchId || ""}
+                        onChange={(e) => setScope(u.id, u.cityId, e.target.value)}
+                      >
+                        <option value="">All branches</option>
+                        {branches
+                          .filter((b) => !u.cityId || b.cityId === u.cityId)
+                          .map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td>{u.status}</td>
                 <td>{u.kycStatus}</td>
                 <td>
@@ -157,7 +236,8 @@ export default function Page() {
                     <button className="ghost" type="button" onClick={() => disable(u.id)}>
                       Disable
                     </button>
-                  )}
+                  )}{" "}
+                  <Link href={`/customers/${u.id}`}>View</Link>
                 </td>
               </tr>
             ))}
