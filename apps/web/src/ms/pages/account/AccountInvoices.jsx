@@ -45,8 +45,8 @@ export default function AccountInvoices() {
 
   return (
     <>
-      <h1>Invoices</h1>
-      <p className="account-lead">Download receipts for paid trips.</p>
+      <h1>Tax invoices</h1>
+      <p className="account-lead">Download GST tax invoices for paid trips. Amounts include CGST/SGST or IGST.</p>
       {error && <p className="account-msg err">{error}</p>}
       <div className="account-card">
         {rows.length === 0 && <p className="account-empty">No invoices yet.</p>}
@@ -56,7 +56,8 @@ export default function AccountInvoices() {
               <th>Number</th>
               <th>Booking</th>
               <th>Date</th>
-              <th>Amount</th>
+              <th>Tax</th>
+              <th>Total</th>
               <th></th>
             </tr>
           </thead>
@@ -66,6 +67,11 @@ export default function AccountInvoices() {
                 <td>{inv.number}</td>
                 <td>{inv.booking?.publicId}</td>
                 <td>{formatDay(inv.createdAt)}</td>
+                <td>
+                  {inv.igstPaise
+                    ? `IGST ${rupees(inv.igstPaise)}`
+                    : `CGST ${rupees(inv.cgstPaise || 0)} · SGST ${rupees(inv.sgstPaise || 0)}`}
+                </td>
                 <td>
                   {rupees(inv.amountPaise)}
                   {(inv.lines || [])
@@ -83,7 +89,7 @@ export default function AccountInvoices() {
                     disabled={busy === inv.id}
                     onClick={() => onDownload(inv)}
                   >
-                    {busy === inv.id ? "Downloading…" : "PDF"}
+                    {busy === inv.id ? "Downloading…" : "Tax invoice PDF"}
                   </button>
                 </td>
               </tr>

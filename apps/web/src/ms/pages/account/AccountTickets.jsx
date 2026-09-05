@@ -10,7 +10,9 @@ export default function AccountTickets() {
   const [openId, setOpenId] = useState("");
   const [thread, setThread] = useState(null);
   const [form, setForm] = useState({ subject: "", body: "", bookingId: "" });
+  const [file, setFile] = useState(null);
   const [reply, setReply] = useState("");
+  const [replyFile, setReplyFile] = useState(null);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,20 +28,32 @@ export default function AccountTickets() {
 
   useEffect(load, []);
 
+  async function uploadTicketImage(nextFile) {
+    if (!nextFile) return undefined;
+    const body = new FormData();
+    body.append("file", nextFile);
+    body.append("folder", "tickets");
+    const uploaded = await api("/v1/uploads", { method: "POST", body });
+    return uploaded.url || uploaded.secure_url;
+  }
+
   async function createTicket(e) {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
+      const imageUrl = await uploadTicketImage(file);
       await api("/v1/me/tickets", {
         method: "POST",
         body: {
           subject: form.subject,
           body: form.body,
           bookingId: form.bookingId || undefined,
+          imageUrl,
         },
       });
       setForm({ subject: "", body: "", bookingId: "" });
+      setFile(null);
       setInfo("Ticket opened. Support will reply here.");
       load();
     } catch (err) {
@@ -64,12 +78,14 @@ export default function AccountTickets() {
     if (!openId) return;
     setBusy(true);
     try {
+      const imageUrl = await uploadTicketImage(replyFile);
       const data = await api(`/v1/me/tickets/${openId}/messages`, {
         method: "POST",
-        body: { body: reply },
+        body: { body: reply, imageUrl },
       });
       setThread(data);
       setReply("");
+      setReplyFile(null);
       load();
     } catch (err) {
       setError(err.message);
@@ -121,6 +137,10 @@ export default function AccountTickets() {
               required
             />
           </div>
+          <div className="account-field">
+            <label htmlFor="ticket-image">Image (optional)</label>
+            <input id="ticket-image" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          </div>
           <button className="account-btn" type="submit" disabled={busy}>
             Submit ticket
           </button>
@@ -154,6 +174,11 @@ export default function AccountTickets() {
               {(thread.messages || []).map((m) => (
                 <div key={m.id} className="account-bubble">
                   {m.body}
+                  {m.imageUrl ? (
+                    <a href={m.imageUrl} target="_blank" rel="noreferrer">
+                      <img src={m.imageUrl} alt="" style={{ maxWidth: 180, display: "block", marginTop: 8, borderRadius: 8 }} />
+                    </a>
+                  ) : null}
                   <time>{formatWhen(m.createdAt)}</time>
                 </div>
               ))}
@@ -162,7 +187,11 @@ export default function AccountTickets() {
               <form onSubmit={sendReply}>
                 <div className="account-field">
                   <label htmlFor="reply">Reply</label>
-                  <textarea id="reply" value={reply} onChange={(e) => setReply(e.target.value)} required />
+                  <textarea id="reply" value={reply} onChange={(e) => setReply(e.target.value)} required={!replyFile} />
+                </div>
+                <div className="account-field">
+                  <label htmlFor="reply-image">Image (optional)</label>
+                  <input id="reply-image" type="file" accept="image/*" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} />
                 </div>
                 <button className="account-btn" type="submit" disabled={busy}>
                   Send reply

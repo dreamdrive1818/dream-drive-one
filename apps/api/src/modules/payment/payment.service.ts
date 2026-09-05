@@ -10,6 +10,7 @@ import { internalFetch, serviceUrls } from "../../lib/http";
 import { buildInvoicePdf } from "./invoice-pdf";
 import type { AuthUser } from "../../lib/auth";
 import { bookingScopeWhere } from "../../lib/vehicle-rules";
+import { allocateInvoiceNumber } from "../../lib/invoice-series";
 
 /** Dream-Drive operates from Karnataka. */
 const SUPPLIER_STATE = "KA";
@@ -33,7 +34,12 @@ export class PaymentEngine {
 
   // ─── Create order ───────────────────────────────────
 
-  async createOrder(userId: string, bookingId: string, kind: PaymentKind = "TOKEN") {
+  async createOrder(
+    userId: string,
+    bookingId: string,
+    kind: PaymentKind = "TOKEN",
+    walletPaise = 0
+  ) {
     const booking = await prisma.booking.findFirst({
       where: { OR: [{ id: bookingId }, { publicId: bookingId }] },
     });
@@ -45,11 +51,59 @@ export class PaymentEngine {
         ? booking.depositPaise
         : kind === "BALANCE"
           ? await this.remainingBalance(booking)
-          : booking.amountPaise;
+          : kind === "TOKEN"
+            ? await this.remainingToken(booking)
+            : booking.amountPaise;
     if (amountPaise <= 0) throw new BadRequestException("Nothing to pay");
 
+    let due = amountPaise;
+    let appliedWallet = 0;
+    let walletPaymentId: string | undefined;
+
+    if (walletPaise > 0 && (kind === "TOKEN" || kind === "BALANCE")) {
+      appliedWallet = await this.debitWallet(
+        userId,
+        Math.min(Math.floor(walletPaise), due),
+        `${kind} payment for ${booking.publicId}`
+      );
+      if (appliedWallet > 0) {
+        const walletPay = await prisma.payment.create({
+          data: {
+            bookingId: booking.id,
+            kind: "WALLET",
+            status: "SUCCESS",
+            amountPaise: appliedWallet,
+            razorpayOrderId: `wallet_${Date.now()}_${booking.id.slice(-6)}`,
+          },
+        });
+        walletPaymentId = walletPay.id;
+        await this.afterSuccess(walletPay.id, `Wallet ${kind}`);
+        due -= appliedWallet;
+      }
+    }
+
+    if (due <= 0) {
+      if (kind === "TOKEN" || kind === "BALANCE") {
+        await internalFetch(
+          serviceUrls().booking,
+          `/internal/bookings/${booking.id}/payment-captured`,
+          { method: "POST", body: "{}" }
+        ).catch(() => undefined);
+      }
+      return {
+        paymentId: walletPaymentId,
+        orderId: null,
+        amountPaise: 0,
+        walletPaise: appliedWallet,
+        currency: "INR",
+        keyId: this.mockMode() ? "rzp_mock" : process.env.RAZORPAY_KEY_ID,
+        mock: true,
+        paidInFull: true,
+      };
+    }
+
     const payment = await prisma.payment.create({
-      data: { bookingId: booking.id, kind, status: "CREATED", amountPaise },
+      data: { bookingId: booking.id, kind, status: "CREATED", amountPaise: due },
     });
 
     if (this.mockMode()) {
@@ -61,10 +115,12 @@ export class PaymentEngine {
       return {
         paymentId: payment.id,
         orderId,
-        amountPaise,
+        amountPaise: due,
+        walletPaise: appliedWallet,
         currency: "INR",
         keyId: "rzp_mock",
         mock: true,
+        paidInFull: false,
       };
     }
 
@@ -74,7 +130,7 @@ export class PaymentEngine {
         Authorization: `Basic ${this.razorpayAuth()}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ amount: amountPaise, currency: "INR", receipt: payment.id }),
+      body: JSON.stringify({ amount: due, currency: "INR", receipt: payment.id }),
     });
     const order = (await res.json()) as { id?: string; error?: { description?: string } };
     if (!res.ok || !order.id) {
@@ -87,10 +143,12 @@ export class PaymentEngine {
     return {
       paymentId: payment.id,
       orderId: order.id,
-      amountPaise,
+      amountPaise: due,
+      walletPaise: appliedWallet,
       currency: "INR",
       keyId: process.env.RAZORPAY_KEY_ID,
       mock: false,
+      paidInFull: false,
     };
   }
 
@@ -196,6 +254,7 @@ export class PaymentEngine {
       where: { booking: { userId } },
       include: {
         lines: true,
+        series: { select: { gstin: true, prefix: true, fyLabel: true } },
         booking: { select: { id: true, publicId: true, status: true, rentalType: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -207,6 +266,7 @@ export class PaymentEngine {
       where: { id: invoiceId },
       include: {
         lines: true,
+        series: true,
         booking: {
           select: {
             id: true,
@@ -235,6 +295,76 @@ export class PaymentEngine {
       update: {},
       include: { txns: { orderBy: { createdAt: "desc" }, take: 50 } },
     });
+  }
+
+  /** Admin credit (positive) or debit (negative). Balance cannot go negative. */
+  async adjustWallet(
+    actorId: string,
+    userId: string,
+    amountPaise: number,
+    reason: string
+  ) {
+    const amount = Math.trunc(Number(amountPaise));
+    if (!Number.isFinite(amount) || amount === 0) {
+      throw new BadRequestException("amountPaise must be a non-zero integer");
+    }
+    if (!reason?.trim()) throw new BadRequestException("Reason is required");
+    const wallet = await prisma.wallet.upsert({
+      where: { userId },
+      create: { userId, balancePaise: 0 },
+      update: {},
+    });
+    if (wallet.balancePaise + amount < 0) {
+      throw new BadRequestException("Wallet cannot go negative");
+    }
+    const [updated] = await prisma.$transaction([
+      prisma.wallet.update({
+        where: { id: wallet.id },
+        data: { balancePaise: { increment: amount } },
+      }),
+      prisma.walletTxn.create({
+        data: {
+          walletId: wallet.id,
+          amountPaise: amount,
+          reason: reason.trim(),
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          actorId,
+          action: "wallet.adjust",
+          entity: "Wallet",
+          entityId: wallet.id,
+          payload: { userId, amountPaise: amount, reason: reason.trim() },
+        },
+      }),
+    ]);
+    return prisma.wallet.findUnique({
+      where: { id: updated.id },
+      include: { txns: { orderBy: { createdAt: "desc" }, take: 50 } },
+    });
+  }
+
+  private async debitWallet(userId: string, amountPaise: number, reason: string) {
+    const amount = Math.floor(amountPaise);
+    if (amount <= 0) return 0;
+    const wallet = await prisma.wallet.upsert({
+      where: { userId },
+      create: { userId, balancePaise: 0 },
+      update: {},
+    });
+    if (wallet.balancePaise <= 0) return 0;
+    const debit = Math.min(amount, wallet.balancePaise);
+    await prisma.$transaction([
+      prisma.wallet.update({
+        where: { id: wallet.id },
+        data: { balancePaise: { decrement: debit } },
+      }),
+      prisma.walletTxn.create({
+        data: { walletId: wallet.id, amountPaise: -debit, reason },
+      }),
+    ]);
+    return debit;
   }
 
   // ─── Admin: offline ─────────────────────────────────
@@ -443,7 +573,24 @@ export class PaymentEngine {
 
   private async remainingBalance(booking: { id: string; amountPaise: number }) {
     const paid = await prisma.payment.aggregate({
-      where: { bookingId: booking.id, status: "SUCCESS", kind: { in: ["TOKEN", "BALANCE"] } },
+      where: {
+        bookingId: booking.id,
+        status: "SUCCESS",
+        kind: { in: ["TOKEN", "BALANCE", "WALLET"] },
+      },
+      _sum: { amountPaise: true },
+    });
+    return Math.max(0, booking.amountPaise - (paid._sum.amountPaise ?? 0));
+  }
+
+  /** Token due after prior TOKEN + WALLET successes (BALANCE is separate). */
+  private async remainingToken(booking: { id: string; amountPaise: number }) {
+    const paid = await prisma.payment.aggregate({
+      where: {
+        bookingId: booking.id,
+        status: "SUCCESS",
+        kind: { in: ["TOKEN", "WALLET"] },
+      },
       _sum: { amountPaise: true },
     });
     return Math.max(0, booking.amountPaise - (paid._sum.amountPaise ?? 0));
@@ -489,10 +636,7 @@ export class PaymentEngine {
     const sgstPaise = sameState ? gstPaise - cgstPaise : 0;
     const igstPaise = sameState ? 0 : gstPaise;
 
-    const year = new Date().getFullYear();
-    const count = await prisma.invoice.count({
-      where: { number: { startsWith: `INV-${year}-` } },
-    });
+    const allocated = await allocateInvoiceNumber();
 
     const gstLines = sameState
       ? [
@@ -504,7 +648,8 @@ export class PaymentEngine {
     const invoice = await prisma.invoice.create({
       data: {
         bookingId: payment.bookingId,
-        number: `INV-${year}-${String(count + 1).padStart(5, "0")}`,
+        seriesId: allocated.seriesId,
+        number: allocated.number,
         amountPaise: payment.amountPaise,
         gstPaise,
         cgstPaise,
@@ -539,6 +684,23 @@ export class PaymentEngine {
         { method: "POST", body: "{}" }
       ).catch(() => undefined);
     }
+
+    const web = (process.env.WEB_ORIGIN || process.env.WEB_URL || "http://localhost:3000").replace(/\/$/, "");
+    await internalFetch(serviceUrls().notification, "/internal/notify", {
+      method: "POST",
+      body: JSON.stringify({
+        template: "payment_receipt",
+        toUserId: payment.booking.userId,
+        ref: payment.booking.publicId,
+        data: {
+          publicId: payment.booking.publicId,
+          invoiceNumber: invoice.number,
+          amount: `₹${(payment.amountPaise / 100).toLocaleString("en-IN")}`,
+          kind: payment.kind,
+          invoiceUrl: `${web}/account/invoices`,
+        },
+      }),
+    }).catch(() => undefined);
   }
 
   async invoicePdf(userId: string, invoiceId: string, staff = false) {
@@ -555,6 +717,7 @@ export class PaymentEngine {
         igstPaise: invoice.igstPaise,
         supplierState: invoice.supplierState,
         customerState: invoice.customerState,
+        gstin: invoice.series?.gstin,
         lines: invoice.lines,
         booking: invoice.booking,
       }),

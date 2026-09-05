@@ -31,7 +31,9 @@ import Search from "../ms/pages/Search";
 import CarsRedirect from "../ms/pages/CarsRedirect";
 import CarDetail from "../ms/pages/CarDetail";
 import Packages from "../ms/pages/Packages";
+import Subscriptions from "../ms/pages/Subscriptions";
 import Checkout from "../ms/pages/Checkout";
+import Pay from "../ms/pages/Pay";
 import SuccessMs from "../ms/pages/Success";
 import AccountLayout from "../ms/pages/account/AccountLayout";
 import AccountHome from "../ms/pages/account/AccountHome";
@@ -101,6 +103,7 @@ const AppRoute = () => {
                 <Route path="/fleet" element={<Search />} />
                 <Route path="/packages/:slug" element={<Packages />} />
                 <Route path="/packages" element={<Packages />} />
+                <Route path="/subscriptions" element={<Subscriptions />} />
                 <Route path="/cars/:slug" element={<CarDetail />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/account" element={<AccountLayout />}>
@@ -114,8 +117,10 @@ const AppRoute = () => {
                   <Route path="tickets" element={<AccountTickets />} />
                 </Route>
                 <Route path="/checkout/success" element={<SuccessMs />} />
+                <Route path="/checkout/pay" element={<Pay />} />
                 <Route path="/checkout/:quoteId" element={<Checkout />} />
                 <Route path="/track/:bookingId" element={<Track />} />
+                <Route path="/track" element={<Track />} />
                 <Route path="/blogs" element={<AllBlogs />} />
                 <Route path="/testimonials" element={<Testimonial />} />
                 <Route path="/blogs/:slug" element={<Blogspage />} />

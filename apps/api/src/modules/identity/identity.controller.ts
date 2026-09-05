@@ -87,6 +87,7 @@ export class IdentityController {
           template: "otp",
           to: body.email,
           data: { code },
+          ref: "auth-otp",
         }),
       });
     } catch {
@@ -132,6 +133,7 @@ export class IdentityController {
             template: "otp",
             to: user.email,
             data: { code: otpCode, purpose: "phone-change" },
+            ref: "phone-change",
           }),
         });
       } catch {

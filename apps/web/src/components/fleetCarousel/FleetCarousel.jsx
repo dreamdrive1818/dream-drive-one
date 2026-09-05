@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import "./FleetCarousel.css";
 import { useAdminContext } from "../../context/AdminContext";
-import { useOrderContext } from "../../context/OrderContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -26,8 +25,6 @@ const FleetCarousel = () => {
   const { fetchCars } = useAdminContext();
   const { promoBanner, stripBanner } = useLocalContext();
   const offerLabel = promoBanner?.title || stripBanner?.title || "Offers";
-  const { handleOrder } = useOrderContext();
-
   const pricingVisible = true;
 
   const [cars, setCars] = useState([]);
@@ -147,8 +144,9 @@ const FleetCarousel = () => {
   };
 
   const handleRent = (car) => {
-    handleOrder(car);
-    navigate("/order");
+    const slug = car.slug || car.urlSlug;
+    if (slug) navigate(`/cars/${slug}`);
+    else navigate("/fleet");
   };
 
   return (

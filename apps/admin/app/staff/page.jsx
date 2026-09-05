@@ -45,7 +45,6 @@ export default function StaffPage() {
   }
 
   useEffect(() => {
-  useEffect(() => {
     load("");
     api("/v1/me")
       .then((user) => {
@@ -56,7 +55,6 @@ export default function StaffPage() {
       })
       .catch(() => {});
     api("/v1/admin/cities").then(setCities).catch(() => {});
-  }, []);
   }, []);
 
   async function sendInvite(e) {

@@ -71,6 +71,7 @@ enum PaymentKind {
   DEPOSIT
   EXTRA
   PENALTY
+  WALLET
 }
 
 enum PaymentStatus {
@@ -194,11 +195,14 @@ model User {
   bookings     Booking[]
   kycCases     KycCase[]
   leads        Lead[]
+  assignedLeads Lead[] @relation("LeadAssignee")
   tickets      Ticket[]
+  assignedTickets Ticket[] @relation("TicketAssignee")
   reviews      Review[]
   wallet       Wallet?
   loyalty      LoyaltyAccount?
   referralsSent Referral[] @relation("Referrer")
+  referralUsed  Referral?  @relation("Referee")
   blogComments BlogComment[]
 }
 
@@ -297,6 +301,7 @@ model City {
   cityPairsFrom CityPairRate[] @relation("CityPairFrom")
   cityPairsTo   CityPairRate[] @relation("CityPairTo")
   agreementTemplates AgreementTemplate[]
+  offers             Offer[]
 }
 
 model Branch {
@@ -703,6 +708,7 @@ model Booking {
   review       Review?
   tickets      Ticket[]
   ledgerEntries LedgerEntry[]
+  lead         Lead?
 }
 
 model BookingStatusHistory {
@@ -784,21 +790,37 @@ model PaymentAttempt {
   payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 }
 
+model InvoiceSeries {
+  id         String    @id @default("default")
+  prefix     String    @default("DD/INV/")
+  fyLabel    String    @default("FY2627")
+  nextNumber Int       @default(1)
+  gstin      String?
+  active     Boolean   @default(true)
+  updatedBy  String?
+  updatedAt  DateTime  @default(now()) @updatedAt
+  invoices   Invoice[]
+}
+
 model Invoice {
-  id           String   @id @default(cuid())
-  bookingId    String
-  number       String   @unique
-  amountPaise  Int
-  gstPaise     Int      @default(0)
-  cgstPaise    Int      @default(0)
-  sgstPaise    Int      @default(0)
-  igstPaise    Int      @default(0)
-  supplierState String  @default("KA")
-  customerState String  @default("KA")
-  pdfUrl       String?
-  createdAt    DateTime @default(now())
-  booking      Booking  @relation(fields: [bookingId], references: [id])
-  lines        InvoiceLine[]
+  id            String         @id @default(cuid())
+  bookingId     String
+  seriesId      String?
+  number        String         @unique
+  amountPaise   Int
+  gstPaise      Int            @default(0)
+  cgstPaise     Int            @default(0)
+  sgstPaise     Int            @default(0)
+  igstPaise     Int            @default(0)
+  supplierState String         @default("KA")
+  customerState String         @default("KA")
+  pdfUrl        String?
+  createdAt     DateTime       @default(now())
+  booking       Booking        @relation(fields: [bookingId], references: [id])
+  series        InvoiceSeries? @relation(fields: [seriesId], references: [id])
+  lines         InvoiceLine[]
+
+  @@index([createdAt])
 }
 
 model InvoiceLine {
@@ -810,20 +832,22 @@ model InvoiceLine {
 }
 
 model SecurityDeposit {
-  id          String  @id @default(cuid())
-  bookingId   String  @unique
+  id          String    @id @default(cuid())
+  bookingId   String    @unique
   amountPaise Int
-  held        Boolean @default(false)
-  released    Boolean @default(false)
-  booking     Booking @relation(fields: [bookingId], references: [id])
+  held        Boolean   @default(false)
+  released    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  booking     Booking   @relation(fields: [bookingId], references: [id])
 }
 
 model Refund {
-  id              String  @id @default(cuid())
-  paymentId       String
-  amountPaise     Int
+  id               String   @id @default(cuid())
+  paymentId        String
+  amountPaise      Int
   razorpayRefundId String?
-  payment         Payment @relation(fields: [paymentId], references: [id])
+  createdAt        DateTime @default(now())
+  payment          Payment  @relation(fields: [paymentId], references: [id])
 }
 
 model Wallet {
@@ -1156,14 +1180,21 @@ model Testimonial {
 }
 
 model Offer {
-  id         String    @id @default(cuid())
-  code       String    @unique
-  type       OfferType
-  value      Int
-  startsAt   DateTime
-  endsAt     DateTime
+  id             String      @id @default(cuid())
+  code           String      @unique
+  type           OfferType
+  value          Int
+  startsAt       DateTime
+  endsAt         DateTime
   maxRedemptions Int?
-  redemptions OfferRedemption[]
+  cityId         String?
+  rentalType     RentalType?
+  minDays        Int?
+  active         Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @default(now()) @updatedAt
+  city           City?       @relation(fields: [cityId], references: [id])
+  redemptions    OfferRedemption[]
 }
 
 model OfferRedemption {
@@ -1179,60 +1210,105 @@ model LoyaltyAccount {
   userId String @unique
   points Int    @default(0)
   user   User   @relation(fields: [userId], references: [id])
+  txns   LoyaltyTxn[]
+}
+
+model LoyaltyTxn {
+  id        String   @id @default(cuid())
+  accountId String
+  points    Int
+  reason    String
+  bookingId String?
+  createdAt DateTime @default(now())
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 model Referral {
-  id         String @id @default(cuid())
-  referrerId String
-  code       String @unique
-  referrer   User   @relation("Referrer", fields: [referrerId], references: [id])
+  id          String    @id @default(cuid())
+  referrerId  String
+  code        String    @unique
+  refereeId   String?   @unique
+  creditedAt  DateTime?
+  creditPaise Int?
+  createdAt   DateTime  @default(now())
+  referrer    User      @relation("Referrer", fields: [referrerId], references: [id])
+  referee     User?     @relation("Referee", fields: [refereeId], references: [id])
 }
 
 model Review {
-  id         String @id @default(cuid())
+  id         String   @id @default(cuid())
   userId     String
-  bookingId  String @unique
+  bookingId  String   @unique
   carModelId String
   rating     Int
   body       String?
-  published  Boolean @default(false)
-  user       User    @relation(fields: [userId], references: [id])
-  booking    Booking @relation(fields: [bookingId], references: [id])
+  published  Boolean  @default(false)
+  flagged    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+  booking    Booking  @relation(fields: [bookingId], references: [id])
   carModel   CarModel @relation(fields: [carModelId], references: [id])
+
+  @@index([carModelId, published])
 }
 
 model Ticket {
-  id        String       @id @default(cuid())
-  userId    String
-  bookingId String?
-  subject   String
-  status    TicketStatus @default(OPEN)
-  user      User         @relation(fields: [userId], references: [id])
-  booking   Booking?     @relation(fields: [bookingId], references: [id])
-  messages  TicketMessage[]
+  id               String       @id @default(cuid())
+  userId           String
+  bookingId        String?
+  assignedToId     String?
+  subject          String
+  status           TicketStatus @default(OPEN)
+  slaDueAt         DateTime?
+  firstRespondedAt DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  user             User         @relation(fields: [userId], references: [id])
+  assignedTo       User?        @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  booking          Booking?     @relation(fields: [bookingId], references: [id])
+  messages         TicketMessage[]
+
+  @@index([status, slaDueAt])
+  @@index([assignedToId])
 }
 
 model TicketMessage {
   id        String   @id @default(cuid())
   ticketId  String
+  authorId  String?
   body      String
+  imageUrl  String?
   internal  Boolean  @default(false)
   createdAt DateTime @default(now())
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 }
 
 model Lead {
-  id        String     @id @default(cuid())
-  userId    String?
-  name      String
-  email     String?
-  phone     String?
-  source    String
-  status    LeadStatus @default(NEW)
-  city      String?
-  createdAt DateTime   @default(now())
-  user      User?      @relation(fields: [userId], references: [id])
-  activities LeadActivity[]
+  id           String     @id @default(cuid())
+  userId       String?
+  name         String
+  email        String?
+  phone        String?
+  source       String
+  status       LeadStatus @default(NEW)
+  city         String?
+  assignedToId String?
+  remindAt     DateTime?
+  remindedAt   DateTime?
+  bookingId    String?    @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @default(now()) @updatedAt
+  user         User?      @relation(fields: [userId], references: [id])
+  assignedTo   User?      @relation("LeadAssignee", fields: [assignedToId], references: [id])
+  booking      Booking?   @relation(fields: [bookingId], references: [id])
+  activities   LeadActivity[]
+
+  @@index([status, createdAt])
+  @@index([assignedToId])
+  @@index([remindAt])
+  @@index([email])
+  @@index([phone])
+  @@index([source])
 }
 
 model LeadActivity {
@@ -1241,6 +1317,18 @@ model LeadActivity {
   note      String
   createdAt DateTime @default(now())
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model ReportSnapshot {
+  id        String   @id @default(cuid())
+  kind      String
+  asOfIst   String
+  cityKey   String   @default("")
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@unique([kind, asOfIst, cityKey])
+  @@index([asOfIst, kind])
 }
 
 model NotificationTemplate {
@@ -1252,9 +1340,19 @@ model NotificationTemplate {
 }
 
 model NotificationLog {
-  id        String   @id @default(cuid())
-  template  String
-  to        String
-  status    String
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  template    String
+  channel     String    @default("email")
+  to          String
+  subject     String    @default("")
+  body        String    @default("")
+  status      String
+  attempts    Int       @default(0)
+  lastError   String?
+  nextRetryAt DateTime?
+  ref         String?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, nextRetryAt])
+  @@index([template, ref])
 }

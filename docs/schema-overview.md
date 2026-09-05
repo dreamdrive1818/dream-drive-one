@@ -10,10 +10,10 @@ Each microservice is the **only writer** of its tables.
 | fleet | City, Branch, Vehicle, VehicleDocument, AvailabilityBlock, Driver*, Workshop, Maintenance*, Inspection*, AirportTerminal |
 | catalog | CarModel, CarImage, PricingRule, CityPairRate, TourPackage, TourDay, TripExtra, SubscriptionPlan |
 | booking | Quote, Booking, BookingStatusHistory, BookingExtra, Subscription |
-| payment | Payment, PaymentAttempt, Invoice, InvoiceLine, SecurityDeposit, Refund, Wallet, WalletTxn |
+| payment | Payment, PaymentAttempt, Invoice, InvoiceLine, InvoiceSeries, SecurityDeposit, Refund, Wallet, WalletTxn, PayoutReconciliation |
 | document | KycCase, KycDocument, ZohoSubmission, AgreementTemplate, Agreement, SignatureEnvelope |
 | partner | Partner, PartnerContract, CommissionRule, LedgerEntry, Settlement, SettlementLine |
-| platform | Cms*, Banner, Blog*, Media, PageMetadata, Testimonial, Offer*, Loyalty, Referral, Review, Ticket*, Lead* |
+| platform | Cms*, Banner, Blog*, Media, PageMetadata, Testimonial, Offer*, Loyalty, Referral, Review, Ticket*, Lead*, ReportSnapshot |
 | notification | NotificationTemplate, NotificationLog |
 
 Money is stored as **integer paise**. Timestamps UTC; display IST.

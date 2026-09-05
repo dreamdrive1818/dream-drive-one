@@ -66,6 +66,11 @@ export default function AccountAgreements() {
                   <span className={`account-pill ${statusTone(a.status)}`}>{prettyStatus(a.status)}</span>
                 </td>
                 <td>
+                  {a.envelope?.signUrl && a.status !== "SIGNED" && a.status !== "WAIVED" && (
+                    <a className="account-btn" href={a.envelope.signUrl} target="_blank" rel="noreferrer">
+                      Sign
+                    </a>
+                  )}
                   <button
                     className="account-btn ghost"
                     type="button"

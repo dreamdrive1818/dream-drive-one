@@ -74,7 +74,8 @@ useEffect(() => {
     <nav className="nav-links">
       <p onClick={() => handleRoute("/cars")}>Cars</p>
       <p onClick={() => handleRoute("/packages")}>Tours</p>
-       <p onClick={() => handleRoute("/order-tracking")}>Track Your Order</p>
+      <p onClick={() => handleRoute("/subscriptions")}>Subscriptions</p>
+       <p onClick={() => handleRoute("/track")}>Track Your Order</p>
         <p onClick={() => handleRoute("/testimonials")}>Testimonials</p>
         <p onClick={() => handleRoute("/howitworks")}>How It Works</p>
       <p onClick={() => handleRoute("/blogs")}>Blogs</p>
@@ -105,7 +106,7 @@ useEffect(() => {
     aria-label="Chat on WhatsApp"
     className="whatsapp-button"
     onClick={() => {
-      trackWhatsApp(phoneNumber);
+      trackWhatsApp();
     }}
   >
     <FontAwesomeIcon icon={faWhatsapp} className="whatsapp-icon" />
@@ -129,7 +130,8 @@ useEffect(() => {
       
       <p onClick={() => handleRoute("/cars")}>Cars</p>
       <p onClick={() => handleRoute("/packages")}>Tours</p>
-       <p onClick={() => handleRoute("/order-tracking")}>Track Your Order</p>
+      <p onClick={() => handleRoute("/subscriptions")}>Subscriptions</p>
+       <p onClick={() => handleRoute("/track")}>Track Your Order</p>
       <p onClick={() => handleRoute("/about")}>About Us</p>
       <p onClick={() => handleRoute("/blogs")}>Blogs</p>
       <p onClick={() => handleRoute("/faq")}>FAQs</p>

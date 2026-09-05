@@ -53,6 +53,9 @@ export default function AccountLayout() {
                 {label}
               </NavLink>
             ))}
+            <NavLink to="/subscriptions" className={({ isActive }) => (isActive ? "is-active" : "")}>
+              Subscriptions
+            </NavLink>
           </div>
           <button type="button" className="account-nav-link account-nav-signout" onClick={logout}>
             Sign out

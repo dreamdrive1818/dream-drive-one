@@ -334,7 +334,7 @@ export class IdentityService {
 
   async adminCustomer(id: string) {
     const profile = await this.me(id, { allowDisabled: true });
-    const [bookings, kyc, agreements, invoices, tickets, notes] = await Promise.all([
+    const [bookings, kyc, agreements, invoices, tickets, notes, wallet] = await Promise.all([
       prisma.booking.findMany({
         where: { userId: id },
         orderBy: { createdAt: "desc" },
@@ -370,6 +370,12 @@ export class IdentityService {
         take: 50,
         include: { actor: { select: { email: true } } },
       }),
+      prisma.wallet.upsert({
+        where: { userId: id },
+        create: { userId: id, balancePaise: 0 },
+        update: {},
+        include: { txns: { orderBy: { createdAt: "desc" }, take: 20 } },
+      }),
     ]);
     return {
       ...profile,
@@ -378,6 +384,7 @@ export class IdentityService {
       invoices,
       tickets,
       notes,
+      wallet,
     };
   }
 

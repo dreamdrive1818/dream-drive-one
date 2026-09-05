@@ -10,6 +10,9 @@ export default function AccountBookingDetail() {
   const [booking, setBooking] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [reviewBody, setReviewBody] = useState("");
+  const [reviewInfo, setReviewInfo] = useState("");
 
   function load() {
     api(`/v1/bookings/${id}`)
@@ -40,10 +43,39 @@ export default function AccountBookingDetail() {
     }
   }
 
+  async function submitReview(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    setReviewInfo("");
+    try {
+      await api("/v1/reviews", {
+        method: "POST",
+        body: {
+          bookingId: booking.id,
+          carModelId: booking.carModelId,
+          rating: Number(rating),
+          body: reviewBody,
+        },
+      });
+      setReviewInfo("Review submitted. It appears on the car page after staff publish it.");
+      setReviewBody("");
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!booking && !error) return <p className="account-empty">Loading booking…</p>;
   if (error && !booking) return <p className="account-msg err">{error}</p>;
 
-  const canCancel = !["HANDOVER", "ONGOING", "COMPLETED", "CANCELLED"].includes(booking.status);
+  const canCancel = !["HANDOVER", "ONGOING", "COMPLETED", "CANCELLED", "NO_SHOW"].includes(booking.status);
+  const signUrl = (booking.agreements || [])
+    .map((a) => a.signUrl || a.envelope?.signUrl)
+    .find(Boolean);
+  const driverPhone = booking.driverAssignment?.driver?.phone;
 
   return (
     <>
@@ -57,6 +89,7 @@ export default function AccountBookingDetail() {
         {rupees(booking.amountPaise)}
       </p>
       {error && <p className="account-msg err">{error}</p>}
+      {reviewInfo && <p className="account-msg ok">{reviewInfo}</p>}
       {booking.subscription?.swapDueReason === "SERVICE" && (
         <p className="account-msg warn">
           Swap due to service. Your current car is going into the workshop; we will assign a replacement of the same class.
@@ -135,7 +168,37 @@ export default function AccountBookingDetail() {
           </p>
         )}
         <div className="account-row" style={{ marginTop: 12 }}>
-          <Link className="account-btn" to={`/track/${booking.publicId}`}>
+          {booking.status === "AWAITING_PAYMENT" && (
+            <Link className="account-btn" to={`/checkout/pay?booking=${encodeURIComponent(booking.publicId)}`}>
+              Pay now
+            </Link>
+          )}
+          {booking.status === "AWAITING_KYC" && (
+            <Link className="account-btn" to="/account/kyc">
+              Complete KYC
+            </Link>
+          )}
+          {booking.status === "AWAITING_SIGNATURE" && signUrl && (
+            <a className="account-btn" href={signUrl} target="_blank" rel="noreferrer">
+              Sign agreement
+            </a>
+          )}
+          {booking.status === "AWAITING_SIGNATURE" && !signUrl && (
+            <Link className="account-btn" to="/account/agreements">
+              Open agreements
+            </Link>
+          )}
+          {["CONFIRMED", "HANDOVER", "ONGOING"].includes(booking.status) && driverPhone && (
+            <a className="account-btn" href={`tel:${driverPhone}`}>
+              Call driver
+            </a>
+          )}
+          {["CANCELLED", "NO_SHOW"].includes(booking.status) && (
+            <Link className="account-btn" to="/fleet">
+              Book again
+            </Link>
+          )}
+          <Link className="account-btn ghost" to={`/track/${booking.publicId}`}>
             Open tracking
           </Link>
           <Link className="account-btn ghost" to="/account/tickets">
@@ -186,6 +249,43 @@ export default function AccountBookingDetail() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {booking.status === "COMPLETED" && (
+        <div className="account-card" style={{ marginTop: 16 }}>
+          <h2>Rate this trip</h2>
+          {booking.review ? (
+            <p>
+              You rated this trip <strong>{booking.review.rating}/5</strong>
+              {booking.review.published ? " · published" : " · waiting for moderation"}
+            </p>
+          ) : (
+            <form onSubmit={submitReview}>
+              <div className="account-field">
+                <label htmlFor="rating">Rating</label>
+                <select id="rating" value={rating} onChange={(e) => setRating(Number(e.target.value))}>
+                  {[5, 4, 3, 2, 1].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="account-field">
+                <label htmlFor="review-body">Comments</label>
+                <textarea
+                  id="review-body"
+                  value={reviewBody}
+                  onChange={(e) => setReviewBody(e.target.value)}
+                  placeholder="How was the car?"
+                />
+              </div>
+              <button className="account-btn" type="submit" disabled={busy}>
+                Submit review
+              </button>
+            </form>
+          )}
         </div>
       )}
     </>

@@ -22,6 +22,7 @@ export type InvoicePdfInput = {
   igstPaise: number;
   supplierState: string;
   customerState: string;
+  gstin?: string | null;
   lines: { label: string; amountPaise: number }[];
   booking?: {
     publicId?: string;
@@ -36,6 +37,7 @@ export function buildInvoicePdf(inv: InvoicePdfInput): Buffer {
   const rows: [string, string][] = [
     ["Dream Drive — Tax Invoice", ""],
     [`Invoice ${inv.number}`, `Date ${day}`],
+    [`GSTIN ${inv.gstin || "Not marked"}`, ""],
     [`Booking ${inv.booking?.publicId ?? "-"}`, inv.booking?.rentalType ?? ""],
     [`Supplier state ${inv.supplierState}`, `Customer state ${inv.customerState}`],
     ["", ""],

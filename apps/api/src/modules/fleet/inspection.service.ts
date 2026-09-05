@@ -347,6 +347,10 @@ export class InspectionEngine {
       method: "POST",
       body: JSON.stringify({ bookingId }),
     }).catch(() => undefined);
+    await internalFetch(serviceUrls().platform, "/internal/loyalty/booking-completed", {
+      method: "POST",
+      body: JSON.stringify({ bookingId }),
+    }).catch(() => undefined);
     await internalFetch(serviceUrls().payment, "/internal/deposits/release-by-booking", {
       method: "POST",
       body: JSON.stringify({ bookingId }),

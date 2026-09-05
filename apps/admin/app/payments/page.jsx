@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api, getToken } from "../../lib/api";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -455,7 +456,14 @@ function ReconTab() {
     </>
   );
 }
-  const [tab, setTab] = useState("payments");
+
+const TABS = ["payments", "invoices", "deposits", "recon"];
+
+export default function PaymentsPage() {
+  const params = useSearchParams();
+  const requested = String(params.get("tab") || "payments").toLowerCase();
+  const initial = TABS.includes(requested) ? requested : "payments";
+  const [tab, setTab] = useState(initial);
 
   return (
     <div>

@@ -501,6 +501,18 @@ export default function PackagesPage() {
                       >
                         Edit
                       </button>
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => {
+                          if (!window.confirm(`Delete ${a.name}?`)) return;
+                          api(`/v1/admin/airports/${a.id}/delete`, { method: "POST" })
+                            .then(load)
+                            .catch((e) => setError(e.message));
+                        }}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}

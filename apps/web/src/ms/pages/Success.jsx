@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { api } from "../api";
 import "./Success.css";
 
 function IconCheck() {
@@ -245,6 +246,15 @@ export default function Success() {
   const [params] = useSearchParams();
   const booking = params.get("booking");
   const [copied, setCopied] = useState(false);
+  const [row, setRow] = useState(null);
+
+  useEffect(() => {
+    if (!booking) return undefined;
+    api(`/v1/bookings/${booking}`)
+      .then(setRow)
+      .catch(() => setRow(null));
+    return undefined;
+  }, [booking]);
 
   async function copyBookingId() {
     if (!booking) return;
@@ -412,22 +422,62 @@ export default function Success() {
                 </span>
                 <IconChevron />
               </Link>
-              <Link
-                to="/account/kyc"
-                className="success-btn success-btn--secondary"
-              >
-                <span className="success-btn-start">
-                  <IconShield />
-                  Complete KYC
-                </span>
-                <IconChevron />
-              </Link>
+              {(!row || row.status === "AWAITING_KYC") && (
+                <Link
+                  to="/account/kyc"
+                  className="success-btn success-btn--secondary"
+                >
+                  <span className="success-btn-start">
+                    <IconShield />
+                    Complete KYC
+                  </span>
+                  <IconChevron />
+                </Link>
+              )}
+              {row?.status === "AWAITING_PAYMENT" && (
+                <Link
+                  to={`/checkout/pay?booking=${encodeURIComponent(row.publicId || booking)}`}
+                  className="success-btn success-btn--secondary"
+                >
+                  <span className="success-btn-start">
+                    <IconTicket />
+                    Pay now
+                  </span>
+                  <IconChevron />
+                </Link>
+              )}
+              {row?.status === "AWAITING_SIGNATURE" && (
+                <Link
+                  to="/account/agreements"
+                  className="success-btn success-btn--secondary"
+                >
+                  <span className="success-btn-start">
+                    <IconShield />
+                    Sign agreement
+                  </span>
+                  <IconChevron />
+                </Link>
+              )}
+              {row?.status === "COMPLETED" && (
+                <Link
+                  to={`/account/bookings/${row.id}`}
+                  className="success-btn success-btn--secondary"
+                >
+                  <span className="success-btn-start">
+                    <IconCarSide />
+                    Write a review
+                  </span>
+                  <IconChevron />
+                </Link>
+              )}
 
               <p className="success-kyc-hint">
                 <span className="success-kyc-hint-icon" aria-hidden="true">
                   <IconInfo />
                 </span>
-                Required for applicable self-drive bookings.
+                {row?.status
+                  ? `Current status: ${String(row.status).replace(/_/g, " ")}.`
+                  : "Required for applicable self-drive bookings."}
               </p>
 
               <div className="success-secondary-links">

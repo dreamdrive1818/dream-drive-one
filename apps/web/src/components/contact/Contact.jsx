@@ -24,6 +24,7 @@ const Contact = () => {
     last: "",
     email: "",
     phone: "",
+    city: "",
     message: "",
   });
   const [submitting, setSubmitting] = useState(false);
@@ -43,14 +44,23 @@ const Contact = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.email.trim() && !formData.phone.trim()) {
+      toast.error("Email or phone is required");
+      return;
+    }
     setSubmitting(true);
     try {
+      if (!formData.email.trim() && !formData.phone.trim()) {
+        toast.error("Email or phone is required");
+        return;
+      }
       await api.post("/v1/public/contact", {
         first: formData.first,
         last: formData.last,
         name: `${formData.first} ${formData.last}`.trim(),
         email: formData.email,
         phone: formData.phone,
+        city: formData.city,
         message: formData.message,
       });
       toast.success("Message submitted successfully!");
@@ -59,6 +69,7 @@ const Contact = () => {
         last: "",
         email: "",
         phone: "",
+        city: "",
         message: "",
       });
     } catch (err) {
@@ -140,7 +151,7 @@ const Contact = () => {
             target="_blank"
             rel="noopener noreferrer"
             className="contact-wa-card"
-            onClick={() => trackWhatsApp(webinfo?.phonecall)}
+            onClick={() => trackWhatsApp()}
           >
             <span className="contact-wa-icon" aria-hidden="true">
               <FontAwesomeIcon icon={faWhatsapp} />
@@ -192,7 +203,6 @@ const Contact = () => {
                 placeholder="Email Address"
                 value={formData.email}
                 onChange={handleChange}
-                required
                 autoComplete="email"
               />
             </label>
@@ -202,10 +212,22 @@ const Contact = () => {
               <input
                 type="tel"
                 name="phone"
-                placeholder="Phone (optional)"
+                placeholder="Phone (email or phone required)"
                 value={formData.phone}
                 onChange={handleChange}
                 autoComplete="tel"
+              />
+            </label>
+
+            <label className="contact-field">
+              <FontAwesomeIcon icon={faLocationDot} aria-hidden="true" />
+              <input
+                type="text"
+                name="city"
+                placeholder="City"
+                value={formData.city}
+                onChange={handleChange}
+                autoComplete="address-level2"
               />
             </label>
 

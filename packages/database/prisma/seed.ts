@@ -24,6 +24,17 @@ async function main() {
     create: { id: "default", bufferHours: 3, maxRentalDays: 30 },
   });
 
+  await prisma.invoiceSeries.upsert({
+    where: { id: "default" },
+    update: {},
+    create: {
+      id: "default",
+      prefix: "DD/FY2627/",
+      fyLabel: "FY2627",
+      nextNumber: 1,
+    },
+  });
+
   const pune = await prisma.city.upsert({
     where: { slug: "pune" },
     update: {},
@@ -473,49 +484,14 @@ async function main() {
     },
   });
 
-  await prisma.notificationTemplate.upsert({
-    where: { key: "otp" },
-    update: {},
-    create: {
-      key: "otp",
-      channel: "email",
-      subject: "Your Dream-Drive OTP",
-      body: "Your verification code is {{code}}",
-    },
-  });
-  await prisma.notificationTemplate.upsert({
-    where: { key: "booking_confirmed" },
-    update: {},
-    create: {
-      key: "booking_confirmed",
-      channel: "email",
-      subject: "Booking {{publicId}} confirmed",
-      body: "Your Dream-Drive booking {{publicId}} is confirmed.",
-    },
-  });
-  await prisma.notificationTemplate.upsert({
-    where: { key: "kyc_decision" },
-    update: {},
-    create: {
-      key: "kyc_decision",
-      channel: "email",
-      subject: "KYC {{status}}",
-      body: "Your Dream Drive KYC is {{status}}. {{notes}}",
-    },
-  });
-  await prisma.notificationTemplate.upsert({
-    where: { key: "vehicle_doc_expiry" },
-    update: {
-      subject: "Fleet document expiring: {{registration}} {{kind}}",
-      body: "{{kind}} for {{registration}} ({{model}}) at {{city}} / {{branch}} expires on {{expires}}.",
-    },
-    create: {
-      key: "vehicle_doc_expiry",
-      channel: "email",
-      subject: "Fleet document expiring: {{registration}} {{kind}}",
-      body: "{{kind}} for {{registration}} ({{model}}) at {{city}} / {{branch}} expires on {{expires}}.",
-    },
-  });
+  const { NOTIFICATION_TEMPLATES } = await import("./notification-templates");
+  for (const tpl of NOTIFICATION_TEMPLATES) {
+    await prisma.notificationTemplate.upsert({
+      where: { key: tpl.key },
+      update: { channel: tpl.channel, subject: tpl.subject, body: tpl.body },
+      create: tpl,
+    });
+  }
 
   await prisma.agreementTemplate.upsert({
     where: { id: "seed-agreement" },

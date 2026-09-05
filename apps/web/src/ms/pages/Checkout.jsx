@@ -9,23 +9,6 @@ import { RENTAL_TYPE_LABELS, formatInr } from "../fleetSearch";
 import { loadQuoteHandoff, saveQuoteHandoff } from "../quoteStorage";
 import "./Checkout.css";
 
-function loadRazorpay() {
-  if (typeof window === "undefined") return Promise.reject(new Error("window missing"));
-  if (window.Razorpay) return Promise.resolve(window.Razorpay);
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    script.onload = () => resolve(window.Razorpay);
-    script.onerror = () => reject(new Error("Could not load Razorpay"));
-    document.body.appendChild(script);
-  });
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function formatDatePart(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -254,55 +237,6 @@ export default function Checkout() {
       });
   }, [user, quoteId, navigate]);
 
-  async function pollPayment(paymentId) {
-    for (let i = 0; i < 12; i += 1) {
-      const payment = await api(`/v1/payments/${paymentId}`).catch(() => null);
-      if (payment?.status === "SUCCESS") return payment;
-      if (payment?.status === "FAILED") throw new Error("Payment failed");
-      await sleep(1500);
-    }
-    return api(`/v1/payments/${paymentId}`);
-  }
-
-  async function openRazorpay(order, booking) {
-    const Razorpay = await loadRazorpay();
-    return new Promise((resolve, reject) => {
-      const rzp = new Razorpay({
-        key: order.keyId,
-        amount: order.amountPaise,
-        currency: order.currency || "INR",
-        name: "Dream Drive",
-        description: `Token for ${booking.publicId}`,
-        order_id: order.orderId,
-        prefill: {
-          email: user?.email || "",
-          name: user?.fullName || user?.profile?.fullName || "",
-        },
-        handler: async (response) => {
-          try {
-            await api("/v1/payments/verify", {
-              method: "POST",
-              body: {
-                paymentId: order.paymentId,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-              },
-            });
-            resolve(true);
-          } catch (err) {
-            reject(err);
-          }
-        },
-        modal: {
-          ondismiss: () => reject(new Error("Payment cancelled")),
-        },
-      });
-      rzp.on("payment.failed", () => reject(new Error("Payment failed")));
-      rzp.open();
-    });
-  }
-
   async function pay() {
     if (!quote || quote.expired) {
       setError("This quote has expired. Go back and select dates again.");
@@ -315,22 +249,7 @@ export default function Checkout() {
         await api(`/v1/quotes/${quoteId}/apply-offer`, { method: "POST", body: { code } }).catch(() => {});
       }
       const booking = await api("/v1/bookings", { method: "POST", body: { quoteId } });
-      const order = await api("/v1/payments/orders", {
-        method: "POST",
-        body: { bookingId: booking.id, kind: "TOKEN" },
-      });
-      if (order.mock) {
-        await api("/v1/payments/verify", {
-          method: "POST",
-          body: { paymentId: order.paymentId },
-        });
-      } else {
-        await openRazorpay(order, booking);
-      }
-      await pollPayment(order.paymentId).catch(() => null);
-      navigate(
-        `/checkout/success?booking=${booking.publicId}&type=${booking.rentalType}`
-      );
+      navigate(`/checkout/pay?booking=${encodeURIComponent(booking.publicId || booking.id)}`);
     } catch (err) {
       setError(err.message);
     } finally {

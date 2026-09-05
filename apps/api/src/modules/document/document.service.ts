@@ -15,6 +15,7 @@ import { prisma } from "../../lib/prisma";
 import { internalFetch, serviceUrls } from "../../lib/http";
 import type { AuthUser } from "../../lib/auth";
 import { bookingScopeWhere } from "../../lib/vehicle-rules";
+import { upsertPublicLead } from "../../lib/leads";
 import {
   assertDlCoversDropOff,
   identityStamp,
@@ -569,6 +570,16 @@ export class DocumentEngine {
       where: { userId: user.id },
       data: { kycStatus: "SUBMITTED" },
     });
+    await upsertPublicLead({
+      name,
+      email,
+      phone: user.phone || undefined,
+      source: "zoho",
+      userId: user.id,
+      note: booking?.publicId
+        ? `Zoho KYC for booking ${booking.publicId}`
+        : "Zoho form submission",
+    }).catch(() => undefined);
     return {
       ok: true,
       kycId: kyc.id,
@@ -674,6 +685,20 @@ export class DocumentEngine {
         },
       });
     }
+    const web = (process.env.WEB_ORIGIN || process.env.WEB_URL || "http://localhost:3000").replace(/\/$/, "");
+    await internalFetch(serviceUrls().notification, "/internal/notify", {
+      method: "POST",
+      body: JSON.stringify({
+        template: "leegality_invite",
+        to: email,
+        toUserId: ctx.booking.userId,
+        ref: ctx.booking.publicId,
+        data: {
+          publicId: ctx.booking.publicId,
+          signUrl: signUrl || `${web}/account/agreements`,
+        },
+      }),
+    }).catch(() => undefined);
     return { agreementId: id, envelope, mock, inviteEmail: email, liveReady: live };
   }
 
@@ -1243,6 +1268,7 @@ export class DocumentEngine {
         template: "kyc_decision",
         toUserId: userId,
         data: { status, notes: notes ?? "" },
+        ref: status,
       }),
     }).catch(() => undefined);
   }

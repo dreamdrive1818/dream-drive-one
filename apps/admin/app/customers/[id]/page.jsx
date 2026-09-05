@@ -11,6 +11,9 @@ export default function CustomerDetailPage() {
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [name, setName] = useState("");
+  const [walletAmount, setWalletAmount] = useState("");
+  const [walletReason, setWalletReason] = useState("");
+  const [wallet, setWallet] = useState(null);
   const [busy, setBusy] = useState(false);
 
   async function load() {
@@ -19,6 +22,7 @@ export default function CustomerDetailPage() {
       const row = await api(`/v1/admin/customers/${id}`);
       setData(row);
       setName(row.fullName || "");
+      if (row?.wallet) setWallet(row.wallet);
     } catch (e) {
       setError(e.message);
     }
@@ -63,6 +67,30 @@ export default function CustomerDetailPage() {
       await load();
     } catch (e) {
       setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function adjustWallet(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const rupees = Number(walletAmount);
+      if (!Number.isFinite(rupees) || rupees === 0) throw new Error("Enter a non-zero amount in ₹");
+      const row = await api(`/v1/admin/wallets/${id}/adjust`, {
+        method: "POST",
+        body: {
+          amountPaise: Math.round(rupees * 100),
+          reason: walletReason || "Admin adjustment",
+        },
+      });
+      setWallet(row);
+      setWalletAmount("");
+      setWalletReason("");
+    } catch (err) {
+      setError(err.message);
     } finally {
       setBusy(false);
     }
@@ -155,6 +183,32 @@ export default function CustomerDetailPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3>Wallet adjust (Finance)</h3>
+        <p className="muted">
+          Balance: ₹{((wallet?.balancePaise ?? data?.wallet?.balancePaise ?? 0) / 100).toLocaleString("en-IN")}
+        </p>
+        <form className="row" onSubmit={adjustWallet}>
+          <input
+            type="number"
+            step="0.01"
+            placeholder="₹ amount (+ credit / − debit)"
+            value={walletAmount}
+            onChange={(e) => setWalletAmount(e.target.value)}
+            required
+          />
+          <input
+            placeholder="Reason"
+            value={walletReason}
+            onChange={(e) => setWalletReason(e.target.value)}
+            required
+          />
+          <button type="submit" disabled={busy}>
+            Apply
+          </button>
+        </form>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

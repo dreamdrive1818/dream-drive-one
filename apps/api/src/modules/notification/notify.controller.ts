@@ -11,7 +11,14 @@ export class NotifyController {
   send(
     @Req() req: Request,
     @Body()
-    body: { template: string; to?: string; toUserId?: string; data?: Record<string, string> }
+    body: {
+      template: string;
+      to?: string;
+      toUserId?: string;
+      data?: Record<string, string>;
+      ref?: string;
+      channel?: string;
+    }
   ) {
     assertInternal(req);
     return this.notify.send(body);
@@ -23,10 +30,24 @@ export class NotifyController {
     return this.notify.retryFailed();
   }
 
+  @Post("internal/notify/reminders")
+  async reminders(@Req() req: Request) {
+    assertInternal(req);
+    const trips = await this.notify.sendTripReminders();
+    const leads = await this.notify.sendLeadReminders();
+    return { trips, leads };
+  }
+
   @Get("v1/admin/notifications")
   logs(@Req() req: Request) {
     requireRoles(req, "SUPER_ADMIN", "SUPPORT");
     return this.notify.logs();
+  }
+
+  @Post("v1/admin/notifications/:id/resend")
+  resend(@Req() req: Request, @Param("id") id: string) {
+    requireRoles(req, "SUPER_ADMIN");
+    return this.notify.resend(id);
   }
 
   @Get("v1/admin/notification-templates")

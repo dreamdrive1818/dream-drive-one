@@ -64,6 +64,26 @@ export class NotifyRetryJob {
 }
 
 @Injectable()
+export class TripReminderJob {
+  private readonly logger = new Logger(TripReminderJob.name);
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async handle() {
+    try {
+      const res = await fetch(`${API}/internal/notify/reminders`, {
+        method: "POST",
+        headers: { "x-internal-token": token, "content-type": "application/json" },
+        body: "{}",
+      });
+      const json = await res.json().catch(() => ({}));
+      this.logger.debug(`trip-reminder ${res.status} ${JSON.stringify(json)}`);
+    } catch (err) {
+      this.logger.warn(`trip-reminder failed: ${(err as Error).message}`);
+    }
+  }
+}
+
+@Injectable()
 export class VehicleExpiryJob {
   private readonly logger = new Logger(VehicleExpiryJob.name);
 
@@ -79,6 +99,26 @@ export class VehicleExpiryJob {
       this.logger.log(`vehicle-expiry ${res.status} ${JSON.stringify(json)}`);
     } catch (err) {
       this.logger.warn(`vehicle-expiry failed: ${(err as Error).message}`);
+    }
+  }
+}
+
+@Injectable()
+export class ReportSnapshotJob {
+  private readonly logger = new Logger(ReportSnapshotJob.name);
+
+  @Cron("30 0 * * *", { timeZone: "Asia/Kolkata" })
+  async handle() {
+    try {
+      const res = await fetch(`${API}/internal/reports/snapshot`, {
+        method: "POST",
+        headers: { "x-internal-token": token, "content-type": "application/json" },
+        body: "{}",
+      });
+      const json = await res.json().catch(() => ({}));
+      this.logger.log(`report-snapshot ${res.status} ${JSON.stringify(json)}`);
+    } catch (err) {
+      this.logger.warn(`report-snapshot failed: ${(err as Error).message}`);
     }
   }
 }

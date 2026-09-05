@@ -15,7 +15,7 @@ const WhatsAppPopup = () => {
         rel="noopener noreferrer"
         className="whatsapp-button"
         aria-label="Chat on WhatsApp"
-        onClick={() => trackWhatsApp(phoneNumber)}
+        onClick={() => trackWhatsApp()}
       >
         <img
           src="https://res.cloudinary.com/dcrfks1tq/image/upload/v1750415914/1022px-WhatsApp.svg_c4u0ss.png"

@@ -396,6 +396,46 @@
   color: #b42318;
 }
 
+.car-detail-reviews {
+  margin-top: 2.4rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid rgba(11, 45, 74, 0.08);
+}
+
+.car-detail-reviews h2 {
+  font-size: 1.8rem;
+  margin: 0 0 0.6rem;
+}
+
+.car-detail-review-avg {
+  font-size: 1.3rem;
+  color: #355;
+  margin: 0 0 1rem;
+}
+
+.car-detail-review-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.car-detail-review {
+  background: #fff;
+  border: 1px solid rgba(11, 45, 74, 0.08);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+
+.car-detail-review strong {
+  display: block;
+  font-size: 1.25rem;
+}
+
+.car-detail-review p {
+  margin: 0.4rem 0 0;
+  font-size: 1.3rem;
+  color: #355;
+}
+
 @media (max-width: 900px) {
   .car-detail-layout {
     grid-template-columns: 1fr;

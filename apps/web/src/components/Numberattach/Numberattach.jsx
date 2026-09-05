@@ -9,7 +9,7 @@ const Numberattach = () => {
 
   return (
     <div className="number-float">
-      <a href={`tel:${webinfo.phonecall}`} onClick={() => trackCall(webinfo.phonecall)}>
+      <a href={`tel:${webinfo.phonecall}`} onClick={() => trackCall()}>
         <FaPhoneAlt className="icon" /> Call Now {webinfo.phone}
       </a>
     </div>

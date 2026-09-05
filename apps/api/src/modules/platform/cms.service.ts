@@ -10,6 +10,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { uploadToCloudinary } from "../../lib/cloudinary";
+import { upsertPublicLead } from "../../lib/leads";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MEDIA_MAX_BYTES = 8 * 1024 * 1024;
@@ -491,8 +492,7 @@ export class CmsService {
     const email = str(body.email)?.toLowerCase();
     const phone = str(body.phone);
     if (!name) throw new BadRequestException("name required");
-    if (!email && !phone) throw new BadRequestException("email or phone required");
-    return this.upsertLead({
+    return upsertPublicLead({
       name,
       email,
       phone,
@@ -510,58 +510,14 @@ export class CmsService {
     city?: string;
     message?: string;
   }) {
-    const name = str(body.name) || "Website enquiry";
-    const email = str(body.email)?.toLowerCase();
-    const phone = str(body.phone);
-    if (!email && !phone) throw new BadRequestException("email or phone required");
-    return this.upsertLead({
-      name,
-      email,
-      phone,
+    return upsertPublicLead({
+      name: str(body.name) || "Website enquiry",
+      email: str(body.email)?.toLowerCase(),
+      phone: str(body.phone),
       city: str(body.city),
       source: str(body.source) || "web",
       note: str(body.message),
     });
-  }
-
-  private async upsertLead(input: {
-    name: string;
-    email?: string;
-    phone?: string;
-    city?: string;
-    source: string;
-    note?: string;
-  }) {
-    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const existing = await prisma.lead.findFirst({
-      where: {
-        createdAt: { gte: since },
-        OR: [
-          input.email ? { email: input.email } : undefined,
-          input.phone ? { phone: input.phone } : undefined,
-        ].filter(Boolean) as Prisma.LeadWhereInput[],
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    if (existing) {
-      if (input.note) {
-        await prisma.leadActivity.create({
-          data: { leadId: existing.id, note: input.note },
-        });
-      }
-      return { id: existing.id, duplicate: true, status: existing.status };
-    }
-    const lead = await prisma.lead.create({
-      data: {
-        name: input.name,
-        email: input.email,
-        phone: input.phone,
-        city: input.city,
-        source: input.source,
-        activities: input.note ? { create: { note: input.note } } : undefined,
-      },
-    });
-    return { id: lead.id, duplicate: false, status: lead.status };
   }
 
   listPages() {

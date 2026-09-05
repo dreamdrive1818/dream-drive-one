@@ -47,6 +47,10 @@ function targetFor(path: string): string {
   )
     return u.document;
   if (path.startsWith("/v1/me/tickets")) return u.platform;
+  if (/^\/v1\/public\/cars\/[^/]+\/reviews/.test(path)) return u.platform;
+  if (path.startsWith("/v1/reviews") || path.startsWith("/v1/admin/reviews") || path.startsWith("/v1/me/reviews")) {
+    return u.platform;
+  }
   if (
     path.startsWith("/v1/auth") ||
     path.startsWith("/v1/me") ||

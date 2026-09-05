@@ -11,6 +11,7 @@ const AUTH_FOLDERS = new Set([
   "dreamdrive/media",
   "dreamdrive/testimonials",
   "dreamdrive/fleet",
+  "dreamdrive/tickets",
 ]);
 
 const PUBLIC_FOLDERS = new Set(["dreamdrive/testimonials"]);
@@ -23,6 +24,7 @@ const FOLDER_ALIASES: Record<string, string> = {
   cms: "dreamdrive/cms",
   media: "dreamdrive/media",
   testimonials: "dreamdrive/testimonials",
+  tickets: "dreamdrive/tickets",
 };
 
 export function uploadRoot() {

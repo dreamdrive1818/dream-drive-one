@@ -101,6 +101,7 @@ POST /v1/webhooks/razorpay
 GET  /v1/me/invoices
 GET  /v1/me/invoices/:id
 GET  /v1/me/wallet
+POST /v1/admin/wallets/:userId/adjust
 POST /v1/admin/payments/offline
 POST /v1/admin/payments/:id/refund
 POST /v1/admin/deposits/:id/capture
@@ -187,7 +188,11 @@ POST /internal/settlements/generate-weekly
 
 ```
 POST /internal/notify
+POST /internal/notify/retry
+POST /internal/notify/reminders
 GET  /v1/admin/notifications
+POST /v1/admin/notifications/:id/resend
+GET  /v1/admin/notification-templates
 PUT  /v1/admin/notification-templates/:key
 ```
 
@@ -200,13 +205,42 @@ GET  /v1/public/blogs
 POST /v1/public/contact
 POST /v1/public/leads
 CRUD /v1/admin/cms/*
-CRUD /v1/admin/offers
+GET  /v1/admin/offers
+GET  /v1/admin/offers/:id
+POST /v1/admin/offers
+PATCH /v1/admin/offers/:id
+GET  /v1/me/loyalty
+GET|POST /v1/me/referrals
+POST /v1/me/referrals/claim
 GET  /v1/me/tickets
 POST /v1/me/tickets
+GET  /v1/me/tickets/:id
+PATCH /v1/me/tickets/:id
 POST /v1/me/tickets/:id/messages
 CRUD /v1/admin/tickets
-GET  /v1/admin/dashboard
-GET  /v1/admin/reports/*
 POST /v1/reviews
+GET  /v1/me/reviews
+GET  /v1/public/cars/:id/reviews
+GET  /v1/admin/reviews
+PATCH /v1/admin/reviews/:id
+GET  /v1/admin/dashboard
+GET  /v1/admin/reports/revenue
+GET  /v1/admin/reports/bookings
+GET  /v1/admin/reports/deposits
+GET  /v1/admin/reports/partners
+GET  /v1/admin/reports/gst
+GET  /v1/admin/reports/mismatch
+GET  /v1/admin/reports/:kind/export
+GET  /v1/admin/finance/invoice-series
+PUT  /v1/admin/finance/invoice-series
+POST /v1/reviews
+GET  /v1/me/reviews
+GET  /v1/public/cars/:id/reviews
+GET  /v1/admin/reviews
+PATCH /v1/admin/reviews/:id
 GET  /v1/admin/leads
+GET  /v1/admin/leads/:id
+PATCH /v1/admin/leads/:id
+POST /v1/admin/leads/:id/notes
+POST /v1/admin/leads/:id/convert
 ```

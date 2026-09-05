@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, getToken } from "../api";
 import { useAuth } from "../AuthContext";
 import { subscribeBookingStatus } from "../bookingSocket";
@@ -21,6 +21,7 @@ const STEPS = [
 ];
 
 export default function Track() {
+  const navigate = useNavigate();
   const { bookingId } = useParams();
   const { user, ready } = useAuth();
   const [booking, setBooking] = useState(null);
@@ -30,8 +31,10 @@ export default function Track() {
   const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [guestUnlocked, setGuestUnlocked] = useState(false);
+  const [publicIdInput, setPublicIdInput] = useState(bookingId || "");
 
   async function loadAsUser() {
+    if (!bookingId) return;
     const row = await api(`/v1/bookings/${bookingId}`);
     setBooking(row);
     setError("");
@@ -39,6 +42,7 @@ export default function Track() {
 
   useEffect(() => {
     if (!ready) return undefined;
+    if (!bookingId) return undefined;
     if (user || getToken()) {
       loadAsUser().catch((e) => {
         if (e.status === 401 || e.status === 403) {
@@ -102,6 +106,39 @@ export default function Track() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!bookingId) {
+    return (
+      <section className="checkout-page">
+        <div className="checkout-inner">
+          <h1>Track booking</h1>
+          <p className="checkout-lead">Enter the booking ID from your confirmation (for example DD-XXXX).</p>
+          {error && <p className="checkout-err">{error}</p>}
+          <form
+            className="checkout-card"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const id = publicIdInput.trim();
+              if (!id) {
+                setError("Enter a booking ID.");
+                return;
+              }
+              navigate(`/track/${encodeURIComponent(id)}`);
+            }}
+          >
+            <div className="checkout-field">
+              <label>Booking ID</label>
+              <input value={publicIdInput} onChange={(e) => setPublicIdInput(e.target.value)} placeholder="DD-123456" />
+            </div>
+            <button className="checkout-btn" type="submit">Continue</button>
+            <p className="checkout-muted" style={{ marginTop: 12 }}>
+              Signed in? <Link to="/account/bookings">Open bookings</Link>
+            </p>
+          </form>
+        </div>
+      </section>
+    );
   }
 
   if (!booking && ready && !user && !guestUnlocked) {

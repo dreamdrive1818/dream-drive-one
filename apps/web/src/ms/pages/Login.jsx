@@ -21,7 +21,7 @@ export default function Login() {
     loginWithEmailPassword,
     loginDev,
     sendOtp,
-    verifyOtp,
+    loginOtp,
     register,
     loginGoogle,
   } = useAuth();
@@ -120,15 +120,9 @@ export default function Login() {
     setLoading(true);
     isSubmitLogin.current = true;
     try {
-      const result = await verifyOtp(email, otpCode);
-      if (result.sessionStarted) {
-        completeLogin();
-        return;
-      }
-      isSubmitLogin.current = false;
-      setInfo(
-        "Your email was verified successfully. Full session login requires backend token support and is not available yet in production. Please sign in with your password, or use local development mode for OTP-based sessions."
-      );
+      await loginOtp(email, otpCode);
+      completeLogin();
+      return;
     } catch (err) {
       isSubmitLogin.current = false;
       setError(err.message || "Invalid or expired verification code.");

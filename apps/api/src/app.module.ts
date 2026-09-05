@@ -25,6 +25,8 @@ import { NotifyController } from "./modules/notification/notify.controller";
 import { NotifyEngine } from "./modules/notification/notify.service";
 import { PlatformController } from "./modules/platform/platform.controller";
 import { PlatformEngine } from "./modules/platform/platform.service";
+import { FinanceController } from "./modules/platform/finance.controller";
+import { FinanceEngine } from "./modules/platform/finance.service";
 import { CmsController } from "./modules/platform/cms.controller";
 import { CmsService } from "./modules/platform/cms.service";
 
@@ -49,6 +51,7 @@ import { CmsService } from "./modules/platform/cms.service";
     PartnerController,
     NotifyController,
     PlatformController,
+    FinanceController,
     CmsController,
   ],
   providers: [
@@ -64,6 +67,7 @@ import { CmsService } from "./modules/platform/cms.service";
     PartnerEngine,
     NotifyEngine,
     PlatformEngine,
+    FinanceEngine,
     CmsService,
   ],
 })

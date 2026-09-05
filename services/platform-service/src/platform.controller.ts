@@ -5,11 +5,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
 } from "@nestjs/common";
 import type { Request } from "express";
 import { PlatformEngine } from "./platform.service";
-import { currentUser, requireRoles, requireStaff } from "./lib/auth";
+import { currentUser, isStaff, requireRoles, requireStaff } from "./lib/auth";
 
 @Controller()
 export class PlatformController {
@@ -104,43 +105,151 @@ export class PlatformController {
     return this.platform.createOffer(body);
   }
 
+  @Get("v1/public/cars/:id/reviews")
+  publicCarReviews(@Param("id") id: string) {
+    return this.platform.publicCarReviews(id);
+  }
+
   @Get("v1/admin/tickets")
-  tickets(@Req() req: Request) {
-    requireStaff(req);
-    return this.platform.tickets();
+  tickets(
+    @Req() req: Request,
+    @Query("status") status?: string,
+    @Query("assignedToId") assignedToId?: string,
+    @Query("overdue") overdue?: string
+  ) {
+    requireRoles(req, "SUPPORT", "SALES", "SUPER_ADMIN");
+    return this.platform.tickets({ status, assignedToId, overdue });
+  }
+
+  @Get("v1/admin/tickets/:id")
+  adminTicket(@Req() req: Request, @Param("id") id: string) {
+    requireRoles(req, "SUPPORT", "SALES", "SUPER_ADMIN");
+    return this.platform.adminTicket(id);
+  }
+
+  @Patch("v1/admin/tickets/:id")
+  patchTicket(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body()
+    body: {
+      status?: "OPEN" | "PENDING" | "RESOLVED" | "CLOSED";
+      assignedToId?: string | null;
+      slaDueAt?: string | null;
+      bookingId?: string | null;
+    }
+  ) {
+    requireRoles(req, "SUPPORT", "SUPER_ADMIN");
+    return this.platform.patchTicket(id, body ?? {});
+  }
+
+  @Post("v1/admin/tickets/:id/messages")
+  adminReply(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { body?: string; internal?: boolean; imageUrl?: string }
+  ) {
+    const actor = requireRoles(req, "SUPPORT", "SALES", "SUPER_ADMIN");
+    const canInternal = actor.roles.includes("SUPPORT") || actor.roles.includes("SUPER_ADMIN");
+    return this.platform.replyTicket(
+      actor.id,
+      id,
+      body.body ?? "",
+      true,
+      canInternal && Boolean(body.internal),
+      body.imageUrl
+    );
+  }
+
+  @Get("v1/me/tickets")
+  myTickets(@Req() req: Request) {
+    return this.platform.myTickets(currentUser(req).id);
+  }
+
+  @Get("v1/me/tickets/:id")
+  myTicket(@Req() req: Request, @Param("id") id: string) {
+    return this.platform.myTicket(currentUser(req).id, id);
+  }
+
+  @Post("v1/me/tickets")
+  createMyTicket(
+    @Req() req: Request,
+    @Body() body: { subject: string; body: string; bookingId?: string; imageUrl?: string }
+  ) {
+    return this.platform.createTicket(currentUser(req).id, body);
+  }
+
+  @Patch("v1/me/tickets/:id")
+  closeMyTicket(@Req() req: Request, @Param("id") id: string, @Body() body: { status?: string }) {
+    if (body?.status && body.status !== "CLOSED") {
+      return this.platform.myTicket(currentUser(req).id, id);
+    }
+    return this.platform.closeMyTicket(currentUser(req).id, id);
+  }
+
+  @Post("v1/me/tickets/:id/messages")
+  replyMyTicket(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { body?: string; imageUrl?: string }
+  ) {
+    const user = currentUser(req);
+    return this.platform.replyTicket(user.id, id, body.body ?? "", isStaff(user), false, body.imageUrl);
   }
 
   @Post("v1/tickets")
   createTicket(
     @Req() req: Request,
-    @Body() body: { subject: string; body: string; bookingId?: string }
+    @Body() body: { subject: string; body: string; bookingId?: string; imageUrl?: string }
   ) {
     return this.platform.createTicket(currentUser(req).id, body);
+  }
+
+  @Get("v1/me/reviews")
+  myReviews(@Req() req: Request) {
+    return this.platform.myReviews(currentUser(req).id);
   }
 
   @Post("v1/reviews")
   review(
     @Req() req: Request,
-    @Body() body: { bookingId: string; carModelId: string; rating: number; body?: string }
+    @Body() body: { bookingId: string; carModelId?: string; rating: number; body?: string }
   ) {
     return this.platform.createReview(currentUser(req).id, body);
   }
 
   @Get("v1/admin/reviews")
   adminReviews(@Req() req: Request) {
-    requireStaff(req);
+    requireRoles(req, "SUPPORT", "SALES", "SUPER_ADMIN");
     return this.platform.reviews();
   }
 
+  @Patch("v1/admin/reviews/:id")
+  moderateReview(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { published?: boolean }
+  ) {
+    requireRoles(req, "SUPER_ADMIN");
+    return this.platform.moderateReview(id, Boolean(body?.published));
+  }
+
   @Get("v1/admin/leads")
-  leads(@Req() req: Request) {
-    requireRoles(req, "SALES", "SUPPORT", "SUPER_ADMIN");
-    return this.platform.leads();
+  leads(
+    @Req() req: Request,
+    @Query("status") status?: string,
+    @Query("source") source?: string,
+    @Query("assignedToId") assignedToId?: string,
+    @Query("reminderDue") reminderDue?: string,
+    @Query("q") q?: string
+  ) {
+    requireRoles(req, "SALES", "SUPPORT", "CITY_MANAGER", "SUPER_ADMIN");
+    return this.platform.leads({ status, source, assignedToId, reminderDue, q });
   }
 
   @Post("v1/admin/leads/:id/notes")
   leadNote(@Req() req: Request, @Param("id") id: string, @Body() body: { note: string }) {
-    requireRoles(req, "SALES", "SUPPORT", "SUPER_ADMIN");
+    requireRoles(req, "SALES", "SUPPORT", "CITY_MANAGER", "SUPER_ADMIN");
     return this.platform.addLeadNote(id, body.note);
   }
 
@@ -148,10 +257,10 @@ export class PlatformController {
   leadStatus(
     @Req() req: Request,
     @Param("id") id: string,
-    @Body() body: { status: "NEW" | "CONTACTED" | "QUALIFIED" | "BOOKED" | "LOST" }
+    @Body() body: { status?: "NEW" | "CONTACTED" | "QUALIFIED" | "BOOKED" | "LOST"; assignedToId?: string | null; remindAt?: string | null; city?: string | null }
   ) {
-    requireRoles(req, "SALES", "SUPER_ADMIN");
-    return this.platform.setLeadStatus(id, body.status);
+    requireRoles(req, "SALES", "SUPPORT", "CITY_MANAGER", "SUPER_ADMIN");
+    return this.platform.setLeadStatus(id, body);
   }
 
   @Get("v1/admin/dashboard")

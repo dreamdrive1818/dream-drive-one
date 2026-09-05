@@ -77,4 +77,7 @@ No partner portal routes.
 | KYC / agreements | SUPPORT, SALES, SUPER_ADMIN |
 | Payments / settlements / reports | FINANCE, SUPER_ADMIN |
 | CMS / offers | SALES, SUPER_ADMIN |
+| Tickets / reviews | SUPPORT, SALES (publish: SUPER_ADMIN) |
+| Leads | SALES, SUPPORT, CITY_MANAGER, SUPER_ADMIN |
+| Notifications | SUPPORT (log), SUPER_ADMIN (templates + resend) |
 | Staff / cities | SUPER_ADMIN, CITY_MANAGER |

@@ -53,6 +53,7 @@ export default function CarDetail() {
   const [cities, setCities] = useState([]);
   const [airports, setAirports] = useState([]);
   const [packages, setPackages] = useState([]);
+  const [reviews, setReviews] = useState(null);
 
   const context = useMemo(
     () => parseFleetFilters(searchParams),
@@ -88,11 +89,21 @@ export default function CarDetail() {
     setCarLoading(true);
     setCarError("");
     setCar(null);
+    setReviews(null);
     setActiveImage(0);
 
     api(`/v1/public/cars/${slug}`)
       .then((data) => {
         if (!cancelled) setCar(data);
+        if (data?.id || data?.slug) {
+          api(`/v1/public/cars/${data.slug || data.id}/reviews`)
+            .then((rev) => {
+              if (!cancelled) setReviews(rev);
+            })
+            .catch(() => {
+              if (!cancelled) setReviews({ count: 0, average: 0, reviews: [] });
+            });
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -678,6 +689,29 @@ export default function CarDetail() {
             </form>
           </div>
         </div>
+
+        {reviews && (
+          <section className="car-detail-reviews" aria-label="Customer reviews">
+            <h2>Customer reviews</h2>
+            {reviews.count > 0 ? (
+              <p className="car-detail-review-avg">
+                {reviews.average} / 5 · {reviews.count} review{reviews.count === 1 ? "" : "s"}
+              </p>
+            ) : (
+              <p className="car-detail-hint">No published reviews yet.</p>
+            )}
+            <div className="car-detail-review-list">
+              {(reviews.reviews || []).map((r) => (
+                <article key={r.id} className="car-detail-review">
+                  <strong>
+                    {r.rating}/5 · {r.author}
+                  </strong>
+                  {r.body ? <p>{r.body}</p> : null}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

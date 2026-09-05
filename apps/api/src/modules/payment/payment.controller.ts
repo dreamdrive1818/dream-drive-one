@@ -23,13 +23,14 @@ export class PaymentController {
   @Post("v1/payments/orders")
   order(
     @Req() req: Request,
-    @Body() body: { bookingId?: string; kind?: PaymentKind }
+    @Body() body: { bookingId?: string; kind?: PaymentKind; walletPaise?: number }
   ) {
     if (!body?.bookingId) return { error: "bookingId required" };
     return this.payments.createOrder(
       currentUser(req).id,
       body.bookingId,
-      body.kind ?? "TOKEN"
+      body.kind ?? "TOKEN",
+      body.walletPaise ?? 0
     );
   }
 
@@ -94,6 +95,21 @@ export class PaymentController {
   @Get("v1/me/wallet")
   wallet(@Req() req: Request) {
     return this.payments.wallet(currentUser(req).id);
+  }
+
+  @Post("v1/admin/wallets/:userId/adjust")
+  adjustWallet(
+    @Req() req: Request,
+    @Param("userId") userId: string,
+    @Body() body: { amountPaise?: number; reason?: string }
+  ) {
+    const actor = requireRoles(req, "FINANCE", "SUPER_ADMIN");
+    return this.payments.adjustWallet(
+      actor.id,
+      userId,
+      body.amountPaise ?? 0,
+      body.reason ?? ""
+    );
   }
 
   // ─── Admin ──────────────────────────────────────────

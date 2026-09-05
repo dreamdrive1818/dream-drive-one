@@ -173,7 +173,19 @@ export class BookingEngine {
     const payload = (quote.payload ?? {}) as QuotePayload;
     const extrasPaise = this.sumExtras(payload.extras);
     const gross = payload.grossPaise ?? Math.max(0, quote.amountPaise - extrasPaise);
-    const offer = await this.validOffer(code, userId);
+    let cityId: string | null = null;
+    if (payload.pickupBranchId) {
+      const branch = await prisma.branch.findUnique({
+        where: { id: payload.pickupBranchId },
+        select: { cityId: true },
+      });
+      cityId = branch?.cityId ?? null;
+    }
+    const offer = await this.validOffer(code, userId, {
+      cityId,
+      rentalType: quote.rentalType,
+      days: payload.days ?? daysBetween(quote.startsAt, quote.endsAt),
+    });
     const discounted = this.discount(gross, offer);
     const amountPaise = discounted + extrasPaise;
     const updated = await prisma.quote.update({
@@ -298,11 +310,12 @@ export class BookingEngine {
         payments: true,
         extras: true,
         kycCase: { select: { id: true, status: true } },
-        agreements: { select: { id: true, status: true, signedPdfUrl: true, pdfUrl: true } },
+        agreements: { include: { envelope: true } },
         pickupBranch: { select: { id: true, name: true, cityId: true } },
         dropBranch: { select: { id: true, name: true, cityId: true } },
         driverAssignment: { include: { driver: { select: { id: true, fullName: true, phone: true } } } },
         subscription: { select: { id: true, status: true, swapCount: true, swapDueReason: true } },
+        review: { select: { id: true, rating: true, published: true } },
       },
     }).then(async (rows) => {
       const ids = [...new Set(rows.map((b) => b.carModelId))];
@@ -336,12 +349,14 @@ export class BookingEngine {
 
     const policy = this.cancelPolicy(booking.rentalType, booking.startsAt);
     const refundPaise = await this.refundPaid(booking.id, policy.refundPct);
-    await this.setStatus(
-      booking.id,
-      "CANCELLED",
-      reason ?? (staff ? "admin cancel" : "customer cancel")
-    );
+    const cancelReason = reason ?? (staff ? "admin cancel" : "customer cancel");
+    await this.setStatus(booking.id, "CANCELLED", cancelReason);
     await this.releaseVehicle(booking.id);
+    await this.notifyCancelled(booking.userId, booking.publicId, {
+      refundPct: String(policy.refundPct),
+      refundAmount: formatInr(refundPaise),
+      reason: cancelReason,
+    });
     const fresh = await this.get(booking.id);
     return {
       ...fresh,
@@ -832,6 +847,7 @@ export class BookingEngine {
       body: JSON.stringify({
         template: "otp",
         toUserId: booking.userId,
+        ref: booking.publicId,
         data: { code, purpose: "booking-track", publicId: booking.publicId },
       }),
     }).catch(() => undefined);
@@ -1438,7 +1454,11 @@ export class BookingEngine {
 
     let offerId: string | undefined;
     if (input.offerCode) {
-      const offer = await this.validOffer(input.offerCode, input.userId);
+      const offer = await this.validOffer(input.offerCode, input.userId, {
+        cityId: model.cityId,
+        rentalType: input.rentalType,
+        days,
+      });
       amountPaise = this.discount(grossPaise, offer) + (extrasPaise - waitPaise - nightPaise - driverAllowancePaise);
       offerId = offer.id;
     }
@@ -1511,13 +1531,17 @@ export class BookingEngine {
     return Math.max(floor, raw);
   }
 
-  private async validOffer(code: string, userId?: string) {
+  private async validOffer(
+    code: string,
+    userId?: string,
+    ctx?: { cityId?: string | null; rentalType?: string; days?: number }
+  ) {
     const offer = await prisma.offer.findUnique({
       where: { code: code.trim().toUpperCase() },
       include: { redemptions: true },
     });
     const now = new Date();
-    if (!offer || offer.startsAt > now || offer.endsAt < now) {
+    if (!offer || !offer.active || offer.startsAt > now || offer.endsAt < now) {
       throw new BadRequestException("Offer not valid");
     }
     if (offer.maxRedemptions && offer.redemptions.length >= offer.maxRedemptions) {
@@ -1525,6 +1549,15 @@ export class BookingEngine {
     }
     if (userId && offer.redemptions.some((r) => r.userId === userId)) {
       throw new BadRequestException("Offer already used");
+    }
+    if (offer.cityId && ctx?.cityId && offer.cityId !== ctx.cityId) {
+      throw new BadRequestException("Offer not valid in this city");
+    }
+    if (offer.rentalType && ctx?.rentalType && offer.rentalType !== ctx.rentalType) {
+      throw new BadRequestException("Offer not valid for this product");
+    }
+    if (offer.minDays && (ctx?.days ?? 0) < offer.minDays) {
+      throw new BadRequestException(`Offer requires at least ${offer.minDays} days`);
     }
     return offer;
   }
@@ -1552,6 +1585,12 @@ export class BookingEngine {
       data: { bookingId: id, from: booking.status, to, reason },
     });
     await this.emitRealtime(id, booking.publicId, to, reason);
+    if (to === "COMPLETED") {
+      await internalFetch(serviceUrls().platform, "/internal/loyalty/booking-completed", {
+        method: "POST",
+        body: JSON.stringify({ bookingId: id }),
+      }).catch(() => undefined);
+    }
     return booking;
   }
 
@@ -1577,14 +1616,62 @@ export class BookingEngine {
   }
 
   private async notifyConfirmed(userId: string, publicId: string) {
+    const payload = await this.bookingMailData(publicId);
     await internalFetch(serviceUrls().notification, "/internal/notify", {
       method: "POST",
       body: JSON.stringify({
         template: "booking_confirmed",
         toUserId: userId,
-        data: { publicId },
+        ref: publicId,
+        data: payload,
       }),
     }).catch(() => undefined);
+  }
+
+  private async notifyCancelled(
+    userId: string,
+    publicId: string,
+    extra: { refundPct: string; refundAmount: string; reason: string }
+  ) {
+    await internalFetch(serviceUrls().notification, "/internal/notify", {
+      method: "POST",
+      body: JSON.stringify({
+        template: "booking_cancelled",
+        toUserId: userId,
+        ref: publicId,
+        data: { publicId, ...extra },
+      }),
+    }).catch(() => undefined);
+  }
+
+  private async bookingMailData(publicId: string) {
+    const booking = await prisma.booking.findUnique({
+      where: { publicId },
+      include: {
+        user: { include: { profile: true } },
+        pickupBranch: { include: { city: true } },
+      },
+    });
+    const car = booking
+      ? await prisma.carModel.findUnique({ where: { id: booking.carModelId } })
+      : null;
+    const web = siteUrl();
+    return {
+      publicId,
+      customerName: booking?.user?.profile?.fullName || "",
+      carName: car?.name || "",
+      carType: car?.type || "",
+      seats: String(car?.seats ?? ""),
+      fuel: car?.fuel || "",
+      transmission: car?.transmission || "",
+      rentalType: (booking?.rentalType || "").replaceAll("_", " "),
+      startsAt: booking ? formatIst(booking.startsAt) : "",
+      endsAt: booking ? formatIst(booking.endsAt) : "",
+      city: booking?.pickupBranch?.city?.name || "",
+      branch: booking?.pickupBranch?.name || "",
+      amount: formatInr(booking?.amountPaise ?? 0),
+      trackUrl: `${web}/track/${publicId}`,
+    };
   }
 
   private cancelPolicy(rentalType: RentalType, startsAt: Date) {
@@ -1712,7 +1799,7 @@ export class BookingEngine {
       extras: true,
       payments: { include: { refunds: true } },
       kycCase: true,
-      agreements: true,
+      agreements: { include: { envelope: true } },
       driverAssignment: { include: { driver: { select: { id: true, fullName: true, phone: true } } } },
       inspections: { include: { photos: true, items: true, damages: true }, orderBy: { createdAt: "asc" as const } },
       pickupBranch: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
@@ -1721,6 +1808,7 @@ export class BookingEngine {
       tourPackage: { select: { id: true, name: true, slug: true, days: true, carClass: true } },
       vehicle: { select: { id: true, registration: true, status: true } },
       subscription: { select: { id: true, status: true, swapCount: true, swapDueReason: true } },
+      review: { select: { id: true, rating: true, body: true, published: true, flagged: true } },
       user: { select: { id: true, email: true, phone: true, profile: { select: { fullName: true } } } },
     };
   }
@@ -1754,4 +1842,16 @@ export class BookingEngine {
     }
     return phone;
   }
+}
+
+function siteUrl() {
+  return (process.env.WEB_ORIGIN || process.env.WEB_URL || "http://localhost:3000").replace(/\/$/, "");
+}
+
+function formatIst(date: Date) {
+  return date.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+}
+
+function formatInr(paise: number) {
+  return `₹${(paise / 100).toLocaleString("en-IN")}`;
 }
