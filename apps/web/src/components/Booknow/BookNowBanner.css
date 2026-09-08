@@ -1,68 +1,118 @@
-.book-parallax-banner {
+.book-banner {
   position: relative;
-  background: url('https://images.unsplash.com/photo-1502877338535-766e1452684a?q=80&w=2072&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') no-repeat center center;
-  background-size: cover;
-  background-attachment: fixed; /* Parallax Effect */
-  padding: 100px 20px;
-  text-align: center;
-  color: var(--text-light);
+  isolation: isolate;
   overflow: hidden;
+  min-height: min(52vh, 48rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7rem 2.4rem;
+  font-family: var(--font-family-main);
+  color: #fff;
 }
 
-.book-parallax-banner::after {
-  content: "";
+.book-banner-bg {
   position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.6); /* Overlay */
-  z-index: 1;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(
+      105deg,
+      rgba(7, 28, 36, 0.78) 0%,
+      rgba(10, 61, 74, 0.55) 42%,
+      rgba(10, 61, 74, 0.28) 100%
+    ),
+    url("https://images.unsplash.com/photo-1502877338535-766e1452684a?q=80&w=2072&auto=format&fit=crop")
+      center / cover no-repeat;
 }
 
-.book-parallax-content {
+.book-banner-inner {
   position: relative;
-  z-index: 2;
-  max-width: 700px;
-  margin: auto;
+  z-index: 1;
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  max-width: 64rem;
+  text-align: left;
 }
 
-.book-parallax-content h2 {
-  font-size: 3rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
+.book-banner-kicker {
+  margin: 0 0 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9fd8d4;
 }
 
-.book-parallax-content p {
-  font-size: 1.3rem;
-  margin-bottom: 2rem;
+.book-banner-title {
+  margin: 0 0 1.4rem;
+  font-family: var(--font-family-display);
+  font-size: clamp(3.6rem, 5.5vw, 5.6rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #fff;
 }
 
-.book-parallax-button {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 14px 32px;
-  font-size: 1.1rem;
-  border: none;
-  border-radius: 6px;
+.book-banner-lead {
+  margin: 0 0 2.8rem;
+  max-width: 42rem;
+  font-size: 1.7rem;
+  line-height: 1.55;
+  font-weight: 450;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.book-banner-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 5.2rem;
+  padding: 0 2.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: #0e7c86;
+  color: #fff;
+  font-family: inherit;
+  font-size: 1.55rem;
+  font-weight: 650;
   cursor: pointer;
-  transition: background 0.3s ease;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
-.book-parallax-button:hover {
-  background-color: var(--accent-color);
+.book-banner-cta:hover {
+  background: #0c6b74;
+  transform: translateY(-2px);
 }
 
-/* Responsive Enhancements */
-@media (max-width: 768px) {
-  .book-parallax-content h2 {
-    font-size: 2rem;
+@media (max-width: 900px) {
+  .book-banner {
+    min-height: auto;
+    padding: 5.5rem 1.6rem;
+    text-align: center;
   }
 
-  .book-parallax-content p {
-    font-size: 1rem;
+  .book-banner-inner {
+    text-align: center;
   }
 
-  .book-parallax-button {
-    padding: 12px 28px;
-    font-size: 1rem;
+  .book-banner-lead {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .book-banner-cta {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-banner-cta {
+    transition: none;
+  }
+
+  .book-banner-cta:hover {
+    transform: none;
   }
 }

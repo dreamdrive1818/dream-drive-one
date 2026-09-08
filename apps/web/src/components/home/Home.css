@@ -1,3 +1,19 @@
-.home{
-position: relative;
+.home {
+  position: relative;
+  background:
+    radial-gradient(ellipse at top, rgba(14, 124, 134, 0.05), transparent 42%),
+    var(--light-bg);
+}
+
+.home > section + section,
+.home > .fleet-container,
+.home > .why-choose,
+.home > .how-it-works,
+.home > .achievements,
+.home > .blogs,
+.home > .home-guides,
+.home > .contact,
+.home > .dd-contact,
+.home > .testimonial {
+  scroll-margin-top: 8rem;
 }

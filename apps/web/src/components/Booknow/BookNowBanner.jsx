@@ -1,19 +1,30 @@
 import React from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import "./BookNowBanner.css";
 import { useLocalContext } from "../../context/LocalContext";
-import AnimateOnScroll from "../../assets/Animation/AnimateOnScroll";
 
 const BookNowBanner = () => {
-
-  const {handleNavigation} = useLocalContext();
+  const { handleNavigation } = useLocalContext();
 
   return (
-    <section className="book-parallax-banner">
-      <AnimateOnScroll className="book-parallax-content delay-2">
-        <h2>Start Your Journey Today</h2>
-        <p>Drive into the horizon with luxury and reliability at your fingertips.</p>
-        <button onClick={handleNavigation} className="book-parallax-button">Book Now</button>
-      </AnimateOnScroll>
+    <section className="book-banner" aria-label="Book a car">
+      <div className="book-banner-bg" aria-hidden="true" />
+      <div className="book-banner-inner">
+        <p className="book-banner-kicker">Ready when you are</p>
+        <h2 className="book-banner-title">Start your journey today.</h2>
+        <p className="book-banner-lead">
+          Self-drive cars in Ranchi — transparent rates, quick pickup, zero fuss.
+        </p>
+        <button
+          type="button"
+          className="book-banner-cta"
+          onClick={handleNavigation}
+        >
+          Book now
+          <FontAwesomeIcon icon={faArrowRight} />
+        </button>
+      </div>
     </section>
   );
 };

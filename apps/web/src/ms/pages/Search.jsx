@@ -3,7 +3,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCarSide } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCarSide,
+  faArrowRight,
+  faUserFriends,
+  faGasPump,
+  faCogs,
+} from "@fortawesome/free-solid-svg-icons";
 import { ClipLoader } from "react-spinners";
 import { api } from "../api";
 import {
@@ -192,48 +198,81 @@ export default function Search() {
     <div className="fleet-search-page">
       <div className="fleet-search-inner">
         <header className="fleet-search-header">
+          <p className="fleet-search-eyebrow">Fleet</p>
           <h1>Find your car</h1>
-          <p>
-            Search self-drive and chauffeur options by city, dates, and budget.
-            Prices shown are starting daily rates for your selected rental type.
+          <p className="fleet-search-lead">
+            City, dates, and budget — prices are starting daily rates.
           </p>
         </header>
 
         <form className="fleet-search-filters" onSubmit={handleSubmit} noValidate>
-          <div className="fleet-search-filters-grid">
-            <div className="fleet-search-field">
-              <label htmlFor="fleet-city">City</label>
-              <select
-                id="fleet-city"
-                value={filters.cityId}
-                onChange={(e) => setFilters({ cityId: e.target.value })}
-                disabled={citiesLoading}
-              >
-                {!filters.cityId && <option value="">Select city</option>}
-                {cities.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.state ? `, ${c.state}` : ""}
-                  </option>
-                ))}
-              </select>
+          <div className="fleet-search-primary">
+            <div className="fleet-search-fields">
+              <div className="fleet-search-field">
+                <label htmlFor="fleet-city">City</label>
+                <select
+                  id="fleet-city"
+                  value={filters.cityId}
+                  onChange={(e) => setFilters({ cityId: e.target.value })}
+                  disabled={citiesLoading}
+                >
+                  {!filters.cityId && <option value="">Select city</option>}
+                  {cities.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.state ? `, ${c.state}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="fleet-search-field">
+                <label htmlFor="fleet-rental">Rental</label>
+                <select
+                  id="fleet-rental"
+                  value={filters.rentalType}
+                  onChange={(e) => setFilters({ rentalType: e.target.value })}
+                >
+                  {RENTAL_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="fleet-search-field">
+                <label htmlFor="fleet-from">Pickup</label>
+                <input
+                  id="fleet-from"
+                  type="datetime-local"
+                  value={isoToDatetimeLocal(filters.from)}
+                  onChange={(e) => handleFromLocalChange(e.target.value)}
+                />
+              </div>
+
+              <div className="fleet-search-field">
+                <label htmlFor="fleet-to">Return</label>
+                <input
+                  id="fleet-to"
+                  type="datetime-local"
+                  value={isoToDatetimeLocal(filters.to)}
+                  onChange={(e) => handleToLocalChange(e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="fleet-search-field">
-              <label htmlFor="fleet-rental">Rental type</label>
-              <select
-                id="fleet-rental"
-                value={filters.rentalType}
-                onChange={(e) => setFilters({ rentalType: e.target.value })}
-              >
-                {RENTAL_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <button
+              type="submit"
+              className="fleet-search-submit"
+              disabled={loading || !filters.cityId || Boolean(dateError)}
+            >
+              {loading ? "Searching…" : "Search"}
+              {!loading && <FontAwesomeIcon icon={faArrowRight} />}
+            </button>
+          </div>
 
+          <div className="fleet-search-more">
             <div className="fleet-search-field">
               <label htmlFor="fleet-type">Car type</label>
               <select
@@ -250,26 +289,6 @@ export default function Search() {
             </div>
 
             <div className="fleet-search-field">
-              <label htmlFor="fleet-from">Pickup</label>
-              <input
-                id="fleet-from"
-                type="datetime-local"
-                value={isoToDatetimeLocal(filters.from)}
-                onChange={(e) => handleFromLocalChange(e.target.value)}
-              />
-            </div>
-
-            <div className="fleet-search-field">
-              <label htmlFor="fleet-to">Return</label>
-              <input
-                id="fleet-to"
-                type="datetime-local"
-                value={isoToDatetimeLocal(filters.to)}
-                onChange={(e) => handleToLocalChange(e.target.value)}
-              />
-            </div>
-
-            <div className="fleet-search-field">
               <label htmlFor="fleet-seats">Seats</label>
               <select
                 id="fleet-seats"
@@ -279,7 +298,7 @@ export default function Search() {
                 <option value="">Any</option>
                 {SEAT_OPTIONS.filter(Boolean).map((n) => (
                   <option key={n} value={n}>
-                    {n} seats
+                    {n}
                   </option>
                 ))}
               </select>
@@ -301,7 +320,7 @@ export default function Search() {
             </div>
 
             <div className="fleet-search-field">
-              <label htmlFor="fleet-transmission">Transmission</label>
+              <label htmlFor="fleet-transmission">Gear</label>
               <select
                 id="fleet-transmission"
                 value={filters.transmission}
@@ -316,30 +335,39 @@ export default function Search() {
             </div>
 
             <div className="fleet-search-field">
-              <label htmlFor="fleet-min-price">Min price (₹/day)</label>
+              <label htmlFor="fleet-min-price">Min ₹</label>
               <input
                 id="fleet-min-price"
                 type="number"
                 min="0"
                 step="100"
-                placeholder="e.g. 1500"
+                placeholder="1500"
                 value={minPriceRupees}
                 onChange={(e) => handleMinPriceChange(e.target.value)}
               />
             </div>
 
             <div className="fleet-search-field">
-              <label htmlFor="fleet-max-price">Max price (₹/day)</label>
+              <label htmlFor="fleet-max-price">Max ₹</label>
               <input
                 id="fleet-max-price"
                 type="number"
                 min="0"
                 step="100"
-                placeholder="e.g. 5000"
+                placeholder="5000"
                 value={maxPriceRupees}
                 onChange={(e) => handleMaxPriceChange(e.target.value)}
               />
             </div>
+
+            <button
+              type="button"
+              className="fleet-search-clear"
+              onClick={handleClear}
+              disabled={loading}
+            >
+              Clear
+            </button>
           </div>
 
           {dateError && (
@@ -347,24 +375,6 @@ export default function Search() {
               {dateError}
             </p>
           )}
-
-          <div className="fleet-search-actions">
-            <button
-              type="submit"
-              className="fleet-search-submit"
-              disabled={loading || !filters.cityId || Boolean(dateError)}
-            >
-              {loading ? "Searching…" : "Search cars"}
-            </button>
-            <button
-              type="button"
-              className="fleet-search-clear"
-              onClick={handleClear}
-              disabled={loading}
-            >
-              Clear filters
-            </button>
-          </div>
         </form>
 
         <div className="fleet-search-toolbar">
@@ -406,13 +416,23 @@ export default function Search() {
 
         {loading && (
           <div className="fleet-search-spinner" aria-live="polite">
-            <ClipLoader color="var(--primary-color, #0072ce)" size={36} />
+            <ClipLoader color="#0e7c86" size={36} />
           </div>
         )}
 
         {!loading && !error && searched && sortedCars.length === 0 && (
           <div className="fleet-search-state">
-            <p>No cars match your filters. Try different dates or clear some filters.</p>
+            <p>No cars match your filters.</p>
+            <p className="fleet-search-state-hint">
+              Try different dates or clear some filters.
+            </p>
+            <button
+              type="button"
+              className="fleet-search-retry"
+              onClick={handleClear}
+            >
+              Clear filters
+            </button>
           </div>
         )}
 
@@ -451,16 +471,43 @@ export default function Search() {
                     ) : null}
                   </div>
                   <div className="fleet-search-card-body">
-                    <h3>{car.name}</h3>
-                    <p className="fleet-search-specs">
-                      {car.seats} seats · {car.fuel} · {car.transmission}
-                      {car.city?.name ? ` · ${car.city.name}` : ""}
-                    </p>
-                    <p className="fleet-search-rental">{rentalLabel}</p>
-                    <p className="fleet-search-price">
-                      {formatInr(car.pricePaise)}{" "}
-                      <span>/ day from</span>
-                    </p>
+                    <div className="fleet-search-card-heading">
+                      <h3>{car.name}</h3>
+                      <p>{rentalLabel}</p>
+                    </div>
+                    <ul className="fleet-search-specs">
+                      <li>
+                        <FontAwesomeIcon icon={faUserFriends} />
+                        {car.seats || "—"}
+                      </li>
+                      <li>
+                        <FontAwesomeIcon icon={faGasPump} />
+                        {car.fuel || "—"}
+                      </li>
+                      <li>
+                        <FontAwesomeIcon icon={faCogs} />
+                        {car.transmission || "—"}
+                      </li>
+                    </ul>
+                    <div className="fleet-search-card-footer">
+                      <div>
+                        <p className="fleet-search-price-label">From</p>
+                        <p className="fleet-search-price">
+                          {formatInr(car.pricePaise)}
+                          <span>/ day</span>
+                        </p>
+                      </div>
+                      {available ? (
+                        <span className="fleet-search-rent">
+                          View
+                          <FontAwesomeIcon icon={faArrowRight} />
+                        </span>
+                      ) : (
+                        <span className="fleet-search-rent fleet-search-rent--disabled">
+                          Unavailable
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </>
               );

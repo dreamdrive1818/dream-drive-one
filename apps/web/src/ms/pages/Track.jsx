@@ -2,11 +2,21 @@
 
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowRight,
+  faCalendarDays,
+  faCarSide,
+  faLocationDot,
+  faUser,
+  faIndianRupeeSign,
+} from "@fortawesome/free-solid-svg-icons";
+import { ClipLoader } from "react-spinners";
 import { api, getToken } from "../api";
 import { useAuth } from "../AuthContext";
 import { subscribeBookingStatus } from "../bookingSocket";
 import { formatInr, RENTAL_TYPE_LABELS } from "../fleetSearch";
-import "./Checkout.css";
+import "./Track.css";
 
 const STEPS = [
   "HOLD",
@@ -19,6 +29,10 @@ const STEPS = [
   "RETURN_PENDING",
   "COMPLETED",
 ];
+
+function labelStatus(status) {
+  return String(status || "").replace(/_/g, " ");
+}
 
 export default function Track() {
   const navigate = useNavigate();
@@ -110,13 +124,20 @@ export default function Track() {
 
   if (!bookingId) {
     return (
-      <section className="checkout-page">
-        <div className="checkout-inner">
-          <h1>Track booking</h1>
-          <p className="checkout-lead">Enter the booking ID from your confirmation (for example DD-XXXX).</p>
-          {error && <p className="checkout-err">{error}</p>}
+      <section className="track-page" aria-label="Track booking">
+        <div className="track-inner track-inner--narrow">
+          <header className="track-header">
+            <p className="track-eyebrow">Track order</p>
+            <h1>Track your booking</h1>
+            <p className="track-lead">
+              Enter the booking ID from your confirmation (for example DD-XXXX).
+            </p>
+          </header>
+
+          {error ? <p className="track-err">{error}</p> : null}
+
           <form
-            className="checkout-card"
+            className="track-panel"
             onSubmit={(e) => {
               e.preventDefault();
               const id = publicIdInput.trim();
@@ -127,12 +148,20 @@ export default function Track() {
               navigate(`/track/${encodeURIComponent(id)}`);
             }}
           >
-            <div className="checkout-field">
-              <label>Booking ID</label>
-              <input value={publicIdInput} onChange={(e) => setPublicIdInput(e.target.value)} placeholder="DD-123456" />
-            </div>
-            <button className="checkout-btn" type="submit">Continue</button>
-            <p className="checkout-muted" style={{ marginTop: 12 }}>
+            <label className="track-field">
+              <span>Booking ID</span>
+              <input
+                value={publicIdInput}
+                onChange={(e) => setPublicIdInput(e.target.value)}
+                placeholder="DD-123456"
+                autoComplete="off"
+              />
+            </label>
+            <button className="track-cta" type="submit">
+              Continue
+              <FontAwesomeIcon icon={faArrowRight} />
+            </button>
+            <p className="track-note">
               Signed in? <Link to="/account/bookings">Open bookings</Link>
             </p>
           </form>
@@ -143,29 +172,50 @@ export default function Track() {
 
   if (!booking && ready && !user && !guestUnlocked) {
     return (
-      <section className="checkout-page">
-        <div className="checkout-inner">
-          <h1>Track booking</h1>
-          <p className="checkout-lead">
-            Enter the mobile number on the booking to view <strong>{bookingId}</strong>.
-          </p>
-          {error && <p className="checkout-err">{error}</p>}
-          <form className="checkout-card" onSubmit={otpSent ? verifyOtp : sendOtp}>
-            <div className="checkout-field">
-              <label>Mobile number</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
-            </div>
-            {otpSent && (
-              <div className="checkout-field">
-                <label>OTP</label>
-                <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" />
-              </div>
-            )}
-            <button className="checkout-btn" type="submit" disabled={busy}>
-              {otpSent ? "Verify & view" : "Send OTP"}
+      <section className="track-page" aria-label="Verify booking access">
+        <div className="track-inner track-inner--narrow">
+          <header className="track-header">
+            <p className="track-eyebrow">Track order</p>
+            <h1>Verify to view</h1>
+            <p className="track-lead">
+              Enter the mobile number on booking <strong>{bookingId}</strong> to
+              continue.
+            </p>
+          </header>
+
+          {error ? <p className="track-err">{error}</p> : null}
+
+          <form
+            className="track-panel"
+            onSubmit={otpSent ? verifyOtp : sendOtp}
+          >
+            <label className="track-field">
+              <span>Mobile number</span>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                inputMode="tel"
+                autoComplete="tel"
+              />
+            </label>
+            {otpSent ? (
+              <label className="track-field">
+                <span>OTP</span>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                />
+              </label>
+            ) : null}
+            <button className="track-cta" type="submit" disabled={busy}>
+              {busy ? "Please wait…" : otpSent ? "Verify & view" : "Send OTP"}
+              <FontAwesomeIcon icon={faArrowRight} />
             </button>
-            <p className="checkout-muted" style={{ marginTop: 12 }}>
-              Already have an account? <Link to={`/login?redirect=/track/${bookingId}`}>Sign in</Link>
+            <p className="track-note">
+              Already have an account?{" "}
+              <Link to={`/login?redirect=/track/${bookingId}`}>Sign in</Link>
             </p>
           </form>
         </div>
@@ -174,86 +224,157 @@ export default function Track() {
   }
 
   if (error && !booking) {
-    return <p className="checkout-page" style={{ padding: 24 }}>{error}</p>;
+    return (
+      <section className="track-page">
+        <div className="track-inner track-inner--narrow">
+          <p className="track-err">{error}</p>
+          <Link className="track-back" to="/track">
+            ← Try another booking ID
+          </Link>
+        </div>
+      </section>
+    );
   }
+
   if (!booking) {
-    return <p className="checkout-page" style={{ padding: 24 }}>Loading…</p>;
+    return (
+      <section className="track-page">
+        <div className="track-loading">
+          <ClipLoader color="#0e7c86" size={40} />
+        </div>
+      </section>
+    );
   }
 
   const driver = booking.driverAssignment?.driver;
   const statusIndex = STEPS.indexOf(booking.status);
+  const visibleSteps = STEPS.filter((step) => {
+    if (
+      booking.rentalType !== "SELF_DRIVE" &&
+      (step === "AWAITING_KYC" || step === "AWAITING_SIGNATURE")
+    ) {
+      return false;
+    }
+    return true;
+  });
 
   return (
-    <section className="checkout-page">
-      <div className="checkout-inner">
-        <h1>Tracking {booking.publicId}</h1>
-        <p className="checkout-lead">
-          {RENTAL_TYPE_LABELS[booking.rentalType] || booking.rentalType} ·{" "}
-          <strong>{booking.status.replace(/_/g, " ")}</strong>
-        </p>
-        {error && <p className="checkout-err">{error}</p>}
+    <section className="track-page" aria-label="Booking status">
+      <div className="track-inner">
+        <header className="track-header track-header--left">
+          <p className="track-eyebrow">Tracking</p>
+          <h1>{booking.publicId}</h1>
+          <p className="track-lead">
+            {RENTAL_TYPE_LABELS[booking.rentalType] || booking.rentalType}
+          </p>
+          <span className="track-status">{labelStatus(booking.status)}</span>
+        </header>
 
-        <div className="checkout-card">
-          <div className="checkout-row">
-            <span>When</span>
-            <span>
-              {new Date(booking.startsAt).toLocaleString("en-IN")} →{" "}
-              {new Date(booking.endsAt).toLocaleString("en-IN")}
-            </span>
-          </div>
-          <div className="checkout-row">
-            <span>Amount</span>
-            <span>{formatInr(booking.amountPaise)}</span>
-          </div>
-          {booking.pickupBranch?.name && (
-            <div className="checkout-row">
-              <span>Pickup</span>
-              <span>{booking.pickupBranch.name}</span>
-            </div>
-          )}
-          {driver && (
-            <div className="checkout-row">
-              <span>Driver</span>
-              <span>{driver.fullName}{driver.phone ? ` · ${driver.phone}` : ""}</span>
-            </div>
-          )}
-          {booking.vehicle?.registration && (
-            <div className="checkout-row">
-              <span>Vehicle</span>
-              <span>{booking.vehicle.registration}</span>
-            </div>
-          )}
-        </div>
+        {error ? <p className="track-err">{error}</p> : null}
 
-        <div className="checkout-card">
-          <h3 style={{ marginTop: 0 }}>Timeline</h3>
-          <ol style={{ paddingLeft: 18, fontSize: "1.35rem", lineHeight: 1.7 }}>
-            {STEPS.filter((step) => {
-              if (booking.rentalType !== "SELF_DRIVE" && (step === "AWAITING_KYC" || step === "AWAITING_SIGNATURE")) {
-                return false;
-              }
-              return true;
-            }).map((step) => {
-              const done = statusIndex >= STEPS.indexOf(step) || booking.status === step;
-              const hist = (booking.history || []).find((h) => h.to === step);
-              return (
-                <li key={step} style={{ opacity: done ? 1 : 0.45 }}>
-                  {step.replace(/_/g, " ")}
-                  {hist?.reason ? ` — ${hist.reason}` : ""}
+        <div className="track-layout">
+          <div className="track-summary">
+            <h2>Booking details</h2>
+            <ul className="track-facts">
+              <li>
+                <FontAwesomeIcon icon={faCalendarDays} />
+                <div>
+                  <strong>When</strong>
+                  <span>
+                    {new Date(booking.startsAt).toLocaleString("en-IN")} →{" "}
+                    {new Date(booking.endsAt).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </li>
+              <li>
+                <FontAwesomeIcon icon={faIndianRupeeSign} />
+                <div>
+                  <strong>Amount</strong>
+                  <span>{formatInr(booking.amountPaise)}</span>
+                </div>
+              </li>
+              {booking.pickupBranch?.name ? (
+                <li>
+                  <FontAwesomeIcon icon={faLocationDot} />
+                  <div>
+                    <strong>Pickup</strong>
+                    <span>{booking.pickupBranch.name}</span>
+                  </div>
                 </li>
-              );
-            })}
-            {["CANCELLED", "NO_SHOW"].includes(booking.status) && (
-              <li>{booking.status.replace(/_/g, " ")}</li>
-            )}
-          </ol>
-        </div>
+              ) : null}
+              {driver ? (
+                <li>
+                  <FontAwesomeIcon icon={faUser} />
+                  <div>
+                    <strong>Driver</strong>
+                    <span>
+                      {driver.fullName}
+                      {driver.phone ? ` · ${driver.phone}` : ""}
+                    </span>
+                  </div>
+                </li>
+              ) : null}
+              {booking.vehicle?.registration ? (
+                <li>
+                  <FontAwesomeIcon icon={faCarSide} />
+                  <div>
+                    <strong>Vehicle</strong>
+                    <span>{booking.vehicle.registration}</span>
+                  </div>
+                </li>
+              ) : null}
+            </ul>
 
-        {user && (
-          <Link className="checkout-btn ghost" to={`/account/bookings/${booking.id}`}>
-            Booking details
-          </Link>
-        )}
+            {user ? (
+              <Link
+                className="track-cta track-cta--ghost"
+                to={`/account/bookings/${booking.id}`}
+              >
+                Booking details
+                <FontAwesomeIcon icon={faArrowRight} />
+              </Link>
+            ) : null}
+          </div>
+
+          <div className="track-timeline">
+            <h2>Timeline</h2>
+            <ol className="track-steps">
+              {visibleSteps.map((step) => {
+                const stepIdx = STEPS.indexOf(step);
+                const done =
+                  statusIndex >= stepIdx || booking.status === step;
+                const current = booking.status === step;
+                const hist = (booking.history || []).find((h) => h.to === step);
+                return (
+                  <li
+                    key={step}
+                    className={[
+                      "track-step",
+                      done ? "is-done" : "",
+                      current ? "is-current" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <span className="track-step-dot" aria-hidden="true" />
+                    <div>
+                      <strong>{labelStatus(step)}</strong>
+                      {hist?.reason ? <p>{hist.reason}</p> : null}
+                    </div>
+                  </li>
+                );
+              })}
+              {["CANCELLED", "NO_SHOW"].includes(booking.status) ? (
+                <li className="track-step is-done is-current">
+                  <span className="track-step-dot" aria-hidden="true" />
+                  <div>
+                    <strong>{labelStatus(booking.status)}</strong>
+                  </div>
+                </li>
+              ) : null}
+            </ol>
+          </div>
+        </div>
       </div>
     </section>
   );

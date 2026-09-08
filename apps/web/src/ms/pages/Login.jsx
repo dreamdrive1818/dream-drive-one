@@ -213,304 +213,311 @@ export default function Login() {
     setResendSeconds(0);
   }
 
+  const title =
+    mode === "register"
+      ? "Create account"
+      : mode === "otp"
+        ? "Email sign-in"
+        : "Welcome back";
+  const lead =
+    mode === "register"
+      ? "Set up an account to book cars and track your trips."
+      : mode === "otp"
+        ? "We’ll email you a one-time code — no password needed."
+        : "Sign in to manage bookings, checkout, and account details.";
+
   if (!ready) {
     return (
       <div className="customer-login-page">
-        <div className="customer-login-card">
-          <p className="customer-login-subtitle">Loading…</p>
-        </div>
+        <div className="customer-login-loading">Loading…</div>
       </div>
     );
   }
 
   return (
     <div className="customer-login-page">
-      <div className="customer-login-card">
-        <img
-          src="https://res.cloudinary.com/dcf3mojai/image/upload/v1745574199/dream_drive-removebg-preview_x7duqr.png"
-          alt="Dream Drive"
-          className="customer-login-logo"
-        />
-        <h1>Sign in</h1>
-        <p className="customer-login-subtitle">
-          Access your bookings, checkout, and account details.
-        </p>
+      <div className="customer-login-shell">
+        <header className="customer-login-header">
+          <p className="customer-login-eyebrow">Dream Drive</p>
+          <h1>{title}</h1>
+          <p className="customer-login-subtitle">{lead}</p>
+        </header>
 
-        <div className="customer-login-tabs" role="tablist" aria-label="Sign-in method">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "password"}
-            className={`customer-login-tab${mode === "password" ? " is-active" : ""}`}
-            onClick={switchToPassword}
-            disabled={loading}
-          >
-            Password
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "otp"}
-            className={`customer-login-tab${mode === "otp" ? " is-active" : ""}`}
-            onClick={switchToOtp}
-            disabled={loading}
-          >
-            Email OTP
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "register"}
-            className={`customer-login-tab${mode === "register" ? " is-active" : ""}`}
-            onClick={switchToRegister}
-            disabled={loading}
-          >
-            Create account
-          </button>
-        </div>
+        <div className="customer-login-card">
+          <div className="customer-login-tabs" role="tablist" aria-label="Sign-in method">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "password"}
+              className={`customer-login-tab${mode === "password" ? " is-active" : ""}`}
+              onClick={switchToPassword}
+              disabled={loading}
+            >
+              Password
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "otp"}
+              className={`customer-login-tab${mode === "otp" ? " is-active" : ""}`}
+              onClick={switchToOtp}
+              disabled={loading}
+            >
+              Email OTP
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "register"}
+              className={`customer-login-tab${mode === "register" ? " is-active" : ""}`}
+              onClick={switchToRegister}
+              disabled={loading}
+            >
+              Create account
+            </button>
+          </div>
 
-        {error && (
-          <p className="customer-login-error" role="alert">
-            {error}
-          </p>
-        )}
-        {info && (
-          <p className="customer-login-info" role="status">
-            {info}
-          </p>
-        )}
+          {error && (
+            <p className="customer-login-error" role="alert">
+              {error}
+            </p>
+          )}
+          {info && (
+            <p className="customer-login-info" role="status">
+              {info}
+            </p>
+          )}
 
-        {mode === "password" ? (
-          <form onSubmit={handlePasswordSubmit} noValidate>
-            <div className="customer-login-field">
-              <label htmlFor="login-email">Email</label>
-              <input
-                id="login-email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div className="customer-login-field">
-              <label htmlFor="login-password">Password</label>
-              <div className="customer-login-input-wrap">
+          {mode === "password" ? (
+            <form onSubmit={handlePasswordSubmit} noValidate>
+              <div className="customer-login-field">
+                <label htmlFor="login-email">Email</label>
                 <input
-                  id="login-password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
+                  id="login-email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
                   required
                   disabled={loading}
                 />
-                <button
-                  type="button"
-                  className="customer-login-password-toggle"
-                  onClick={() => setShowPassword((v) => !v)}
-                  disabled={loading}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              className="customer-login-submit"
-              disabled={loading || !email.trim() || !password}
-            >
-              {loading ? "Signing in…" : "Sign in"}
-            </button>
-          </form>
-        ) : mode === "register" ? (
-          <form onSubmit={handleRegisterSubmit} noValidate>
-            <div className="customer-login-field">
-              <label htmlFor="register-name">Full name</label>
-              <input
-                id="register-name"
-                type="text"
-                autoComplete="name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Your name"
-                required
-                disabled={loading}
-              />
-            </div>
-            <div className="customer-login-field">
-              <label htmlFor="register-email">Email</label>
-              <input
-                id="register-email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                disabled={loading}
-              />
-            </div>
-            <div className="customer-login-field">
-              <label htmlFor="register-password">Password</label>
-              <input
-                id="register-password"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-                required
-                minLength={8}
-                disabled={loading}
-              />
-            </div>
-            <button
-              type="submit"
-              className="customer-login-submit"
-              disabled={loading || !email.trim() || !password || !fullName.trim()}
-            >
-              {loading ? "Creating account…" : "Create account"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={otpSent ? handleOtpVerify : handleOtpSend} noValidate>
-            <div className="customer-login-field">
-              <label htmlFor="otp-email">Email</label>
-              <input
-                id="otp-email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                disabled={loading || otpSent}
-              />
-            </div>
-
-            {otpSent ? (
-              <>
-                <p className="customer-login-otp-hint">
-                  Enter the 6-digit code sent to <strong>{email}</strong>.
-                </p>
-                <div className="customer-login-field">
-                  <label htmlFor="otp-code">Verification code</label>
+              <div className="customer-login-field">
+                <label htmlFor="login-password">Password</label>
+                <div className="customer-login-input-wrap">
                   <input
-                    id="otp-code"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                    placeholder="123456"
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Your password"
                     required
                     disabled={loading}
                   />
-                </div>
-
-                <button
-                  type="submit"
-                  className="customer-login-submit"
-                  disabled={loading || otpCode.length < 4}
-                >
-                  {loading ? "Verifying…" : "Verify & continue"}
-                </button>
-
-                <button
-                  type="button"
-                  className="customer-login-link-btn"
-                  onClick={handleOtpSend}
-                  disabled={loading || resendSeconds > 0}
-                >
-                  {resendSeconds > 0
-                    ? `Resend code in ${resendSeconds}s`
-                    : "Resend verification code"}
-                </button>
-
-                <button
-                  type="button"
-                  className="customer-login-link-btn"
-                  onClick={switchToPassword}
-                  disabled={loading}
-                >
-                  Sign in with password instead
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="submit"
-                  className="customer-login-submit"
-                  disabled={loading || !email.trim()}
-                >
-                  {loading ? "Sending…" : "Send verification code"}
-                </button>
-
-                <button
-                  type="button"
-                  className="customer-login-link-btn"
-                  onClick={switchToPassword}
-                  disabled={loading}
-                >
-                  Sign in with password instead
-                </button>
-              </>
-            )}
-          </form>
-        )}
-
-        {GOOGLE_CLIENT_ID ? (
-          <button
-            type="button"
-            className="customer-login-link-btn"
-            onClick={handleGoogle}
-            disabled={loading}
-            style={{ marginTop: 16 }}
-          >
-            Continue with Google
-          </button>
-        ) : null}
-
-        {showDevLogin && (
-          <details className="customer-login-dev" open>
-            <summary>Developer sign-in (localhost only)</summary>
-            <div className="customer-login-dev-body">
-              <p className="customer-login-dev-note">
-                Uses a dev bearer token when the gateway has{" "}
-                <code>DEV_AUTH_BYPASS</code> enabled. After OTP verify in local
-                dev, the same dev token flow is used automatically.
-              </p>
-              <form onSubmit={handleDevSubmit}>
-                <div className="customer-login-field">
-                  <label htmlFor="dev-email">Dev email</label>
-                  <input
-                    id="dev-email"
-                    type="email"
-                    value={devEmail}
-                    onChange={(e) => setDevEmail(e.target.value)}
+                  <button
+                    type="button"
+                    className="customer-login-password-toggle"
+                    onClick={() => setShowPassword((v) => !v)}
                     disabled={loading}
-                  />
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
                 </div>
-                <button
-                  type="submit"
-                  className="customer-login-submit"
-                  disabled={loading || !devEmail.trim()}
-                  style={{ background: "var(--dark-bg, #0b2d4a)" }}
-                >
-                  {loading ? "Signing in…" : "Continue with dev token"}
-                </button>
-              </form>
-            </div>
-          </details>
-        )}
+              </div>
+
+              <button
+                type="submit"
+                className="customer-login-submit"
+                disabled={loading || !email.trim() || !password}
+              >
+                {loading ? "Signing in…" : "Sign in"}
+              </button>
+            </form>
+          ) : mode === "register" ? (
+            <form onSubmit={handleRegisterSubmit} noValidate>
+              <div className="customer-login-field">
+                <label htmlFor="register-name">Full name</label>
+                <input
+                  id="register-name"
+                  type="text"
+                  autoComplete="name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Your name"
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="customer-login-field">
+                <label htmlFor="register-email">Email</label>
+                <input
+                  id="register-email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="customer-login-field">
+                <label htmlFor="register-password">Password</label>
+                <input
+                  id="register-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  required
+                  minLength={8}
+                  disabled={loading}
+                />
+              </div>
+              <button
+                type="submit"
+                className="customer-login-submit"
+                disabled={loading || !email.trim() || !password || !fullName.trim()}
+              >
+                {loading ? "Creating account…" : "Create account"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={otpSent ? handleOtpVerify : handleOtpSend} noValidate>
+              <div className="customer-login-field">
+                <label htmlFor="otp-email">Email</label>
+                <input
+                  id="otp-email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  disabled={loading || otpSent}
+                />
+              </div>
+
+              {otpSent ? (
+                <>
+                  <p className="customer-login-otp-hint">
+                    Enter the 6-digit code sent to <strong>{email}</strong>.
+                  </p>
+                  <div className="customer-login-field">
+                    <label htmlFor="otp-code">Verification code</label>
+                    <input
+                      id="otp-code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="123456"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="customer-login-submit"
+                    disabled={loading || otpCode.length < 4}
+                  >
+                    {loading ? "Verifying…" : "Verify & continue"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="customer-login-link-btn"
+                    onClick={handleOtpSend}
+                    disabled={loading || resendSeconds > 0}
+                  >
+                    {resendSeconds > 0
+                      ? `Resend code in ${resendSeconds}s`
+                      : "Resend verification code"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="customer-login-link-btn"
+                    onClick={switchToPassword}
+                    disabled={loading}
+                  >
+                    Sign in with password instead
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="submit"
+                    className="customer-login-submit"
+                    disabled={loading || !email.trim()}
+                  >
+                    {loading ? "Sending…" : "Send verification code"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="customer-login-link-btn"
+                    onClick={switchToPassword}
+                    disabled={loading}
+                  >
+                    Sign in with password instead
+                  </button>
+                </>
+              )}
+            </form>
+          )}
+
+          {GOOGLE_CLIENT_ID ? (
+            <button
+              type="button"
+              className="customer-login-google"
+              onClick={handleGoogle}
+              disabled={loading}
+            >
+              Continue with Google
+            </button>
+          ) : null}
+
+          {showDevLogin && (
+            <details className="customer-login-dev" open>
+              <summary>Developer sign-in (localhost only)</summary>
+              <div className="customer-login-dev-body">
+                <p className="customer-login-dev-note">
+                  Uses a dev bearer token when the gateway has{" "}
+                  <code>DEV_AUTH_BYPASS</code> enabled. After OTP verify in local
+                  dev, the same dev token flow is used automatically.
+                </p>
+                <form onSubmit={handleDevSubmit}>
+                  <div className="customer-login-field">
+                    <label htmlFor="dev-email">Dev email</label>
+                    <input
+                      id="dev-email"
+                      type="email"
+                      value={devEmail}
+                      onChange={(e) => setDevEmail(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="customer-login-submit"
+                    disabled={loading || !devEmail.trim()}
+                  >
+                    {loading ? "Signing in…" : "Continue with dev token"}
+                  </button>
+                </form>
+              </div>
+            </details>
+          )}
+        </div>
       </div>
     </div>
   );

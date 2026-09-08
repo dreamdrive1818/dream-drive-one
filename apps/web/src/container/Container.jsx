@@ -10,6 +10,7 @@ import HowItWorks from "../components/HowItWorks/HowItWorks";
 import Contact from "../components/contact/Contact";
 import DreamCarBanner from "../components/DreamCarBanner/DreamCarBanner";
 import CmsPage from "../components/CmsPage/CmsPage";
+import Faq from "../components/Faq/Faq";
 import About from "../components/About/About";
 import Order from "../components/Order/Order";
 import AdminLayout from "./AdminLayout";
@@ -132,7 +133,7 @@ const AppRoute = () => {
                 <Route path="/success" element={<Success />} />
                 <Route path="/howitworks" element={<HowItWorks />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/faq" element={<CmsPage slug="faq" />} />
+                <Route path="/faq" element={<Faq />} />
                 <Route path="/legal/:slug" element={<CmsPage />} />
                 <Route path="/privacy" element={<CmsPage slug="privacy" />} />
                 <Route path="/termsandconditions" element={<CmsPage slug="terms" />} />

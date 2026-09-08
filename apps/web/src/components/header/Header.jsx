@@ -2,17 +2,21 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Header.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faUser,
-  faShoppingCart,
-  faSearch,
-  faBars,
-  faTimes,
-} from "@fortawesome/free-solid-svg-icons";
+import { faBars, faTimes } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import { useAuth } from "../../ms/AuthContext";
 import { trackWhatsApp } from "../../utils/trackLead";
+
+const NAV_LINKS = [
+  { label: "Cars", route: "/cars" },
+  { label: "Tours", route: "/packages" },
+  { label: "Subscriptions", route: "/subscriptions" },
+  { label: "Track order", route: "/track" },
+  { label: "How it works", route: "/howitworks" },
+  { label: "Blogs", route: "/blogs" },
+  { label: "FAQs", route: "/faq" },
+];
 
 const Header = () => {
   const navigate = useNavigate();
@@ -21,22 +25,30 @@ const Header = () => {
   const signedIn = Boolean(auth?.user);
   const authLabel = !authReady ? "…" : signedIn ? "Account" : "Sign in";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const cartItemCount = 2; 
   const [isScrolled, setIsScrolled] = useState(false);
-  const { handleNavigation, webinfo} = useLocalContext();
-
+  const { webinfo } = useLocalContext();
   const phoneNumber = webinfo.phonecall;
 
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 12);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
-useEffect(() => {
-  const handleScroll = () => {
-    setIsScrolled(window.scrollY > 10);
-  };
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 980) setIsMobileMenuOpen(false);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-  window.addEventListener("scroll", handleScroll);
-  return () => window.removeEventListener("scroll", handleScroll);
-}, []);
-
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileMenuOpen]);
 
   const handleRoute = (route) => {
     navigate(route);
@@ -48,103 +60,120 @@ useEffect(() => {
     handleRoute(signedIn ? "/account" : "/login");
   };
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 768) setIsMobileMenuOpen(false);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   return (
-    <header className={`matoa-header ${isScrolled ? "scrolled" : ""}`}>
-  <div className="header-inner">
-    {/* Logo */}
-    <div className="logo" onClick={() => navigate("/")}>
-      {/* <h2>DRIVOXE.</h2> */}
-      <img src={`${webinfo.logo}`} alt="" />
-    </div>
+    <header className={`dd-header ${isScrolled ? "dd-header--scrolled" : ""}`}>
+      <div className="dd-header-inner">
+        <button
+          type="button"
+          className="dd-header-logo"
+          onClick={() => navigate("/")}
+          aria-label="Dream Drive home"
+        >
+          <img src={`${webinfo.logo}`} alt="Dream Drive" />
+        </button>
 
-    {/* Hamburger (Mobile Only) */}
-    <div className="hamburger" onClick={() => setIsMobileMenuOpen(true)}>
-      <FontAwesomeIcon icon={faBars} />
-    </div>
+        <nav className="dd-header-nav" aria-label="Primary">
+          {NAV_LINKS.map((link) => (
+            <button
+              key={link.route}
+              type="button"
+              className="dd-header-link"
+              onClick={() => handleRoute(link.route)}
+            >
+              {link.label}
+            </button>
+          ))}
+        </nav>
 
-    {/* Center Navigation (Desktop Only) */}
-    <nav className="nav-links">
-      <p onClick={() => handleRoute("/cars")}>Cars</p>
-      <p onClick={() => handleRoute("/packages")}>Tours</p>
-      <p onClick={() => handleRoute("/subscriptions")}>Subscriptions</p>
-       <p onClick={() => handleRoute("/track")}>Track Your Order</p>
-        <p onClick={() => handleRoute("/testimonials")}>Testimonials</p>
-        <p onClick={() => handleRoute("/howitworks")}>How It Works</p>
-      <p onClick={() => handleRoute("/blogs")}>Blogs</p>
-      <p onClick={() => handleRoute("/faq")}>FAQs</p>
-    </nav>
+        <div className="dd-header-actions">
+          <button
+            type="button"
+            className="dd-header-text"
+            onClick={() => handleRoute("/contact")}
+          >
+            Contact
+          </button>
+          <button
+            type="button"
+            className="dd-header-text"
+            onClick={goAuth}
+            disabled={!authReady}
+            aria-busy={!authReady}
+          >
+            {authLabel}
+          </button>
+          <a
+            href={`https://wa.me/${phoneNumber}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Chat on WhatsApp"
+            className="dd-header-wa"
+            onClick={() => trackWhatsApp()}
+          >
+            <FontAwesomeIcon icon={faWhatsapp} />
+            <span>WhatsApp</span>
+          </a>
+        </div>
 
-    {/* Right Actions */}
-    <div className="header-actions">
-      <button className="contact-btn" onClick={() => handleRoute("/contact")}>
-        Contact
-      </button>
-      <span>|</span>
-      <button
-        className="contact-btn"
-        type="button"
-        onClick={goAuth}
-        disabled={!authReady}
-        aria-busy={!authReady}
-      >
-        {authLabel}
-      </button>
-      <span>|</span>
-     <button className="signup-btn">
-  <a
-    href={`https://wa.me/${phoneNumber}`}
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label="Chat on WhatsApp"
-    className="whatsapp-button"
-    onClick={() => {
-      trackWhatsApp();
-    }}
-  >
-    <FontAwesomeIcon icon={faWhatsapp} className="whatsapp-icon" />
-    <span>Chat on WhatsApp</span>
-  </a>
-</button>
-
-    </div>
-  </div>
-
-  {/* Mobile Menu */}
- {/* Mobile Menu */}
-{isMobileMenuOpen && (
-  <div className="mobile-nav-modern-overlay">
-    <div className="mobile-nav-modern-container">
-      <button className="mobile-modern-close" onClick={() => setIsMobileMenuOpen(false)}>
-        &times;
-      </button>
-      <div className="mobile-modern-links">
-      <p onClick={() => handleRoute("/howitworks")}>How It Works</p>
-      
-      <p onClick={() => handleRoute("/cars")}>Cars</p>
-      <p onClick={() => handleRoute("/packages")}>Tours</p>
-      <p onClick={() => handleRoute("/subscriptions")}>Subscriptions</p>
-       <p onClick={() => handleRoute("/track")}>Track Your Order</p>
-      <p onClick={() => handleRoute("/about")}>About Us</p>
-      <p onClick={() => handleRoute("/blogs")}>Blogs</p>
-      <p onClick={() => handleRoute("/faq")}>FAQs</p>
-      <p onClick={() => handleRoute("/contact")}>Contact</p>
-        <p onClick={goAuth}>
-          {authLabel}
-        </p>
+        <button
+          type="button"
+          className="dd-header-menu"
+          onClick={() => setIsMobileMenuOpen(true)}
+          aria-label="Open menu"
+        >
+          <FontAwesomeIcon icon={faBars} />
+        </button>
       </div>
-    </div>
-  </div>
-)}
 
-</header>
+      {isMobileMenuOpen ? (
+        <div className="dd-header-drawer" role="dialog" aria-modal="true">
+          <div className="dd-header-drawer-top">
+            <img src={`${webinfo.logo}`} alt="" className="dd-header-drawer-logo" />
+            <button
+              type="button"
+              className="dd-header-close"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+          </div>
+          <nav className="dd-header-drawer-nav" aria-label="Mobile">
+            {NAV_LINKS.map((link) => (
+              <button
+                key={link.route}
+                type="button"
+                onClick={() => handleRoute(link.route)}
+              >
+                {link.label}
+              </button>
+            ))}
+            <button type="button" onClick={() => handleRoute("/about")}>
+              About
+            </button>
+            <button type="button" onClick={() => handleRoute("/contact")}>
+              Contact
+            </button>
+            <button type="button" onClick={goAuth} disabled={!authReady}>
+              {authLabel}
+            </button>
+          </nav>
+          <a
+            href={`https://wa.me/${phoneNumber}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="dd-header-wa dd-header-wa--drawer"
+            onClick={() => {
+              trackWhatsApp();
+              setIsMobileMenuOpen(false);
+            }}
+          >
+            <FontAwesomeIcon icon={faWhatsapp} />
+            Chat on WhatsApp
+          </a>
+        </div>
+      ) : null}
+    </header>
   );
 };
 

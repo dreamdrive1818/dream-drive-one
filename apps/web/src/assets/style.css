@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Sora:wght@400;500;600;700&display=swap");
+
 *{
     margin: 0;
     padding: 0;
@@ -9,21 +11,21 @@ html{
 }
 /* fallback (light theme default) */
 :root {
-  --primary-color: #0072ce;
-  --secondary-color: #d5e9f8;
-  --accent-color: #63b400;
-  --ternary-color: #a0db8e;
+  --primary-color: #0e7c86;
+  --secondary-color: #d8efed;
+  --accent-color: #e8a54b;
+  --ternary-color: #7ec8c3;
 
   --white-bg: white;
-  --light-bg: #f6fbfe;
-  --medium-bg: #dbeeff;
+  --light-bg: #f3f7f6;
+  --medium-bg: #e4efed;
     --medium-dark-bg: #03233d12;
-  --dark-bg: #0b2d4a;
-  --dark-light-bg: #142a3b;
+  --dark-bg: #07131a;
+  --dark-light-bg: #12212b;
 
-  --text-dark: #0c1d2c;
+  --text-dark: #0b1720;
   --text-light: #ffffff;
-   --text-medium: #262626;
+   --text-medium: #3a4a54;
 
   --verticle-line:#d3d3d3;
   --step-circle:#595959c0;
@@ -31,7 +33,8 @@ html{
   
   --text-opacity:1;
 
-  --font-family-main: 'Segoe UI', sans-serif;
+  --font-family-main: "Sora", "Segoe UI", sans-serif;
+  --font-family-display: "Fraunces", Georgia, serif;
   --shadow-soft: 0 4px 10px rgba(0, 0, 0, 0.08);
 }
 
@@ -74,18 +77,18 @@ body{
 
 
 .h3head{
-    font-family: 'Playfair Display', serif;
-    font-weight: 500;
+    font-family: var(--font-family-display);
+    font-weight: 600;
 }
 
 .para{
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-family-main);
 }
 
 .discover-btn{
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-family-main);
     font-size: 1.25rem;
-    font-weight: 200;
+    font-weight: 500;
     color: #000;
     z-index: 10;
     text-decoration: none;

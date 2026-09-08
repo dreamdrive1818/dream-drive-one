@@ -1,99 +1,226 @@
 .contact-popup {
   position: fixed;
-  right: 20px;
-  bottom: -400px; /* hidden off-screen initially */
-  width: 280px;
-  background: white;
-  border: 1px solid #ddd;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-  border-radius: 12px;
-  padding: 16px;
-  transition: bottom 0.6s ease;
+  right: 2rem;
+  bottom: -48rem;
+  width: min(30rem, calc(100vw - 3.2rem));
+  padding: 1.5rem 1.5rem 1.4rem;
+  background: #fff;
+  border: 1px solid rgba(14, 124, 134, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(10, 40, 55, 0.14);
+  font-family: var(--font-family-main);
+  color: #0b1720;
+  transition: bottom 0.55s ease, opacity 0.35s ease;
   z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .contact-popup.show {
-  bottom: 120px;
+  bottom: 11rem;
+  opacity: 1;
+  pointer-events: auto;
 }
 
-.contact-popup .close-btn {
+.contact-popup-close {
   position: absolute;
-  top: 8px;
-  right: 10px;
-  border: none;
-  background: transparent;
-  font-size: 20px;
+  top: 0.9rem;
+  right: 0.9rem;
+  width: 2.8rem;
+  height: 2.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(14, 124, 134, 0.08);
+  color: #0a3d4a;
+  font-size: 1.35rem;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.contact-popup h4 {
-  margin: 0 0 8px 0;
-  font-size: 1.4rem;
+.contact-popup-close:hover {
+  background: rgba(14, 124, 134, 0.16);
+  color: #062830;
 }
 
-.contact-popup p {
+.contact-popup-header {
+  padding-right: 2.8rem;
+  margin-bottom: 1.1rem;
+}
+
+.contact-popup-eyebrow {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0e7c86;
+}
+
+.contact-popup-header h4 {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-family-display);
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: #0a141c;
+}
+
+.contact-popup-lead {
+  margin: 0;
   font-size: 1.25rem;
-  margin-bottom: 12px;
+  line-height: 1.4;
+  color: #5f737c;
+  font-weight: 500;
 }
 
-.contact-popup .whatsapp-button {
-  display: block;
-  background: #25D366;
-  color: white;
+.contact-popup-whatsapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.9rem 1.2rem;
+  border-radius: 999px;
+  background: #128c7e;
+  color: #fff;
   text-align: center;
-  border-radius: 6px;
-  padding: 8px;
   text-decoration: none;
-  margin-bottom: 12px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
 
-.contact-popup .popup-form {
+.contact-popup-whatsapp:hover {
+  background: #0e7267;
+}
+
+.contact-popup-whatsapp:active {
+  transform: translateY(1px);
+}
+
+.contact-popup-whatsapp svg {
+  font-size: 1.5rem;
+}
+
+.contact-popup-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 1rem 0;
+  color: #8a9aa3;
+  font-size: 1.1rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.contact-popup-divider::before,
+.contact-popup-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(14, 124, 134, 0.16);
+}
+
+.contact-popup-form {
   display: flex;
   flex-direction: column;
+  gap: 0.65rem;
 }
 
-.contact-popup .popup-form input,
-.contact-popup .popup-form textarea {
-  margin-bottom: 8px;
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 1.25rem;
+.contact-popup-form input,
+.contact-popup-form textarea {
+  width: 100%;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid rgba(14, 124, 134, 0.22);
+  border-radius: 10px;
+  background: #fff;
+  color: #0b1f2a;
+  font-family: inherit;
+  font-size: 1.3rem;
+  line-height: 1.35;
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.contact-popup .popup-form button {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1.28rem;
+.contact-popup-form textarea {
+  min-height: 5.6rem;
+  max-height: 9rem;
 }
 
-.contact-popup .popup-form button:hover {
-  background: #0056b3;
+.contact-popup-form input::placeholder,
+.contact-popup-form textarea::placeholder {
+  color: #8a9aa3;
+  font-family: inherit;
 }
 
-.reopen-btn {
-  position: fixed;
-  bottom: 95px;
-  right: 20px;
-  background: #25d366;
+.contact-popup-form input:focus,
+.contact-popup-form textarea:focus {
+  outline: none;
+  border-color: #0e7c86;
+  box-shadow: 0 0 0 3px rgba(14, 124, 134, 0.14);
+}
+
+.contact-popup-form button[type="submit"] {
+  margin-top: 0.15rem;
+  width: 100%;
+  padding: 0.95rem 1.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: #0e7c86;
   color: #fff;
-  border: none;
-  padding: 12px;
-  border-radius: 50%;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  font-family: inherit;
+  font-size: 1.35rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.contact-popup-form button[type="submit"]:hover {
+  background: #0a5f66;
+}
+
+.contact-popup-form button[type="submit"]:active {
+  transform: translateY(1px);
+}
+
+.contact-popup-reopen {
+  position: fixed;
+  bottom: 9.5rem;
+  right: 2rem;
+  width: 5.6rem;
+  height: 5.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: #0e7c86;
+  color: #fff;
+  font-size: 2.2rem;
+  box-shadow: 0 10px 24px rgba(14, 124, 134, 0.35);
   cursor: pointer;
   z-index: 9999;
-  transition: transform 0.3s ease;
-  animation: bounce 2s infinite;
+  animation: contact-popup-bounce 2s infinite;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
+.contact-popup-reopen:hover {
+  background: #0a5f66;
+  animation: none;
+  transform: translateY(-2px);
+}
 
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {
+@keyframes contact-popup-bounce {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
     transform: translateY(0);
   }
   40% {
@@ -104,8 +231,20 @@
   }
 }
 
+@media (max-width: 480px) {
+  .contact-popup {
+    right: 1.6rem;
+    left: 1.6rem;
+    width: auto;
+    padding: 2rem 1.6rem 1.8rem;
+  }
 
-.reopen-btn:hover {
-  background: #0056b3;
-  transform: translateY(-3px);
+  .contact-popup.show {
+    bottom: 9rem;
+  }
+
+  .contact-popup-reopen {
+    right: 1.6rem;
+    bottom: 8.5rem;
+  }
 }

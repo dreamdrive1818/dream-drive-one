@@ -1,26 +1,30 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
 import "./Testimonial.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStar as solidStar,
-  faQuoteLeft,
   faTimes,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as regularStar } from "@fortawesome/free-regular-svg-icons";
 import { useTestimonialContext } from "../../context/TestimonialContext";
 import { uploadToCloudinary } from "../../utils/cloudinaryUpload";
 
+const toDate = (value) =>
+  new Date(value?.seconds ? value.seconds * 1000 : value || 0);
+
 const Testimonial = () => {
   const location = useLocation();
+  const isPage = location.pathname === "/testimonials";
   const { testimonials, submitTestimonial } = useTestimonialContext();
-const sortedTestimonials = [...testimonials].sort((a, b) => {
-  const dateA = new Date(a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt);
-  const dateB = new Date(b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt);
-  return dateA - dateB;
-});
 
+  const sortedTestimonials = useMemo(
+    () =>
+      [...testimonials].sort((a, b) => toDate(b.createdAt) - toDate(a.createdAt)),
+    [testimonials]
+  );
+
+  const list = isPage ? sortedTestimonials : sortedTestimonials.slice(0, 3);
 
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -35,23 +39,14 @@ const sortedTestimonials = [...testimonials].sort((a, b) => {
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (name === "imageFile") {
-      setFormData((prev) => ({
-        ...prev,
-        imageFile: files[0],
-      }));
+      setFormData((prev) => ({ ...prev, imageFile: files[0] }));
     } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
   const handleRating = (value) => {
-    setFormData((prev) => ({
-      ...prev,
-      rating: value,
-    }));
+    setFormData((prev) => ({ ...prev, rating: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -88,12 +83,7 @@ const sortedTestimonials = [...testimonials].sort((a, b) => {
         image: imageUrl,
       });
 
-      setFormData({
-        name: "",
-        message: "",
-        rating: 0,
-        imageFile: null,
-      });
+      setFormData({ name: "", message: "", rating: 0, imageFile: null });
       setShowModal(false);
       setUploading(false);
       setUploadProgress(0);
@@ -106,51 +96,17 @@ const sortedTestimonials = [...testimonials].sort((a, b) => {
 
   return (
     <section
-      className={`testimonial-section ${
-        location.pathname === "/testimonials" ? "full-height" : ""
-      }`}
+      className={`testimonial-section ${isPage ? "full-height" : ""}`}
+      aria-label="Testimonials"
     >
-      <div className="testimonial-container">
-        <p className="testimonial-eyebrow">Testimonials</p>
-        <h2>
-          What our customers <span>say</span>
-        </h2>
-        <p className="testimonial-lead">
-          Real rides. Real feedback from people who booked with Dream Drive.
-        </p>
-        <motion.div
-          className="testimonial-grid"
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: {},
-            show: {
-              transition: {
-                staggerChildren: 0.2,
-              },
-            },
-          }}
-        >
-          {sortedTestimonials.length > 0 ? (
-            sortedTestimonials.map((item) => (
-              <motion.div
-                key={item.id}
-                className="testimonial-card"
-                variants={{
-                  hidden: { opacity: 0, y: 30 },
-                  show: { opacity: 1, y: 0 },
-                }}
-              >
-                <div className="testimonial-quote">
-                  <FontAwesomeIcon icon={faQuoteLeft} />
-                </div>
-                <img
-                  src={item.image || "/default-avatar.png"}
-                  alt={item.name}
-                  className="testimonial-avatar"
-                />
-                <p className="testimonial-text">"{item.message}"</p>
-                <div className="testimonial-stars">
+      <div className="testimonial-shell">
+        <h2 className="testimonial-title">Testimonials</h2>
+
+        {list.length > 0 ? (
+          <ul className="testimonial-list">
+            {list.map((item) => (
+              <li key={item.id} className="testimonial-item">
+                <div className="testimonial-stars" aria-label={`${item.rating} of 5`}>
                   {Array.from({ length: 5 }).map((_, i) => (
                     <FontAwesomeIcon
                       key={i}
@@ -159,63 +115,55 @@ const sortedTestimonials = [...testimonials].sort((a, b) => {
                     />
                   ))}
                 </div>
-                <h4 className="testimonial-author">- {item.name}</h4>
-              </motion.div>
-            ))
-          ) : (
-            <div className="testimonial-empty">
-              <FontAwesomeIcon icon={faQuoteLeft} className="testimonial-empty-icon" />
-              <p>No approved testimonials yet.</p>
-              <span>Be among the first to share your Dream Drive experience.</span>
-            </div>
-          )}
-        </motion.div>
+                <p className="testimonial-message">“{item.message}”</p>
+                <p className="testimonial-name">{item.name}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="testimonial-empty">No testimonials yet.</p>
+        )}
+
+        {isPage ? (
+          <button
+            type="button"
+            className="testimonial-cta"
+            onClick={() => setShowModal(true)}
+          >
+            Leave a testimonial
+          </button>
+        ) : null}
       </div>
 
-      {location.pathname === "/testimonials" && (
-        <button
-          className="fixed-testimonial-btn"
-          onClick={() => setShowModal(true)}
-        >
-          Leave a Testimonial
-        </button>
-      )}
-
-      {location.pathname === "/testimonials" && showModal && (
-        <motion.div
-          className="modal-overlay"
-          onClick={() => setShowModal(false)}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <motion.div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <button className="modal-close" onClick={() => setShowModal(false)}>
+      {isPage && showModal ? (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={() => setShowModal(false)}
+              aria-label="Close"
+            >
               <FontAwesomeIcon icon={faTimes} />
             </button>
-            <h3>Leave a Testimonial</h3>
+            <h3>Leave a testimonial</h3>
             <form onSubmit={handleSubmit}>
               <input
                 type="text"
                 name="name"
-                placeholder="Your Name"
+                placeholder="Your name"
                 value={formData.name}
                 onChange={handleChange}
                 required
               />
               <textarea
                 name="message"
-                placeholder="Your Message"
+                placeholder="Your message"
                 rows="4"
                 value={formData.message}
                 onChange={handleChange}
                 required
-              ></textarea>
+              />
               <input
                 type="file"
                 name="imageFile"
@@ -224,29 +172,35 @@ const sortedTestimonials = [...testimonials].sort((a, b) => {
               />
               <div className="rating-input">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <FontAwesomeIcon
+                  <button
                     key={i}
-                    icon={i < formData.rating ? solidStar : regularStar}
-                    className="star"
+                    type="button"
+                    className="rating-star-btn"
                     onClick={() => handleRating(i + 1)}
-                  />
+                    aria-label={`${i + 1} stars`}
+                  >
+                    <FontAwesomeIcon
+                      icon={i < formData.rating ? solidStar : regularStar}
+                      className="star"
+                    />
+                  </button>
                 ))}
               </div>
-              {uploading && (
+              {uploading ? (
                 <div className="progress-bar">
                   <div
                     className="progress-bar-inner"
                     style={{ width: `${uploadProgress}%` }}
-                  ></div>
+                  />
                 </div>
-              )}
+              ) : null}
               <button type="submit" disabled={uploading}>
-                {uploading ? `Uploading ${uploadProgress}%...` : "Submit"}
+                {uploading ? `Uploading ${uploadProgress}%…` : "Submit"}
               </button>
             </form>
-          </motion.div>
-        </motion.div>
-      )}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 };

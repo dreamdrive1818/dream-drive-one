@@ -6,14 +6,41 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCarSide,
   faUserFriends,
-  faSuitcaseRolling,
   faGasPump,
   faCogs,
+  faStar,
+  faLeaf,
+  faHeart,
+  faArrowRight,
+  faChevronLeft,
+  faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
+import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
 import { ClipLoader } from "react-spinners";
 import HowItWorks from "../HowItWorks/HowItWorks";
 import { motion } from "framer-motion";
-import { useLocalContext } from "../../context/LocalContext";
+
+const FILTERS = ["All", "Hatchback", "Sedan", "SUV", "MUV", "Luxury"];
+
+const CARD_BADGES = [
+  { label: "Popular", icon: faStar, tone: "popular" },
+  { label: "Spacious", icon: faUserFriends, tone: "spacious" },
+  { label: "Budget Friendly", icon: faLeaf, tone: "budget" },
+];
+
+const CAR_CUTOUTS = [
+  "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750168799/tata-nexon-right-front-three-quarter2-removebg-preview_lad5vy_gfkhzv.png",
+  "https://res.cloudinary.com/df10iqj1i/image/upload/v1766399135/24df9713-f67d-4f45-9da9-7ac8d7e124e8.png",
+  "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750169101/test_QkNB2Ri_axzqkj.png",
+];
+
+function resolveCarImage(car, index = 0) {
+  const name = car?.name || "";
+  if (/nexon/i.test(name)) return CAR_CUTOUTS[0];
+  if (/innova|crysta/i.test(name)) return CAR_CUTOUTS[1];
+  if (/swift|baleno|i20|wagon|alto|dzire/i.test(name)) return CAR_CUTOUTS[2];
+  return CAR_CUTOUTS[index % CAR_CUTOUTS.length];
+}
 
 const isDiscountedCar = (car) => {
   const sale = Number(car?.salePrice);
@@ -21,42 +48,63 @@ const isDiscountedCar = (car) => {
   return Number.isFinite(sale) && Number.isFinite(price) && sale > price;
 };
 
+const transmissionLabel = (mt) => {
+  if (!mt) return "—";
+  if (String(mt).toUpperCase() === "YES") return "Manual";
+  if (String(mt).toUpperCase() === "NO") return "Automatic";
+  return mt;
+};
+
+const seatsLabel = (seats) => {
+  if (!seats) return "—";
+  const raw = String(seats);
+  if (/seater/i.test(raw)) return raw;
+  return `${raw} Seater`;
+};
+
 const FleetCarousel = () => {
   const { fetchCars } = useAdminContext();
-  const { promoBanner, stripBanner } = useLocalContext();
-  const offerLabel = promoBanner?.title || stripBanner?.title || "Offers";
   const pricingVisible = true;
 
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
-  const [hoveredIndex, setHoveredIndex] = useState(null);
   const [isHovering, setIsHovering] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isTablet, setIsTablet] = useState(
+    window.innerWidth > 768 && window.innerWidth <= 1100
+  );
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [wishlist, setWishlist] = useState(() => new Set());
 
-  const itemsPerPage = isMobile ? 1 : 3;
+  const itemsPerPage = isMobile ? 1 : isTablet ? 2 : 3;
   const navigate = useNavigate();
   const location = useLocation();
   const isCarsPage = location.pathname === "/cars";
   const intervalRef = useRef(null);
   const touchStartX = useRef(null);
 
-  const formatPrice = (value, { withDecimals = false } = {}) => {
+  const formatPrice = (value) => {
     if (!pricingVisible) return "—";
     if (value === null || value === undefined || value === "") return "—";
-
     const num = Number(value);
     if (Number.isNaN(num)) return "—";
-
-    return withDecimals ? `₹${num.toFixed(2)}` : `₹${num}`;
+    return `₹${num.toLocaleString("en-IN")}`;
   };
 
-  const dealCount = useMemo(
-    () => cars.filter(isDiscountedCar).length,
-    [cars]
-  );
+  const filteredCars = useMemo(() => {
+    if (activeFilter === "All") return cars;
+    return cars.filter((car) => {
+      const type = String(car.details?.type || "").toLowerCase();
+      return type.includes(activeFilter.toLowerCase());
+    });
+  }, [cars, activeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(cars.length / itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil(filteredCars.length / itemsPerPage));
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [activeFilter]);
 
   useEffect(() => {
     setCurrentPage((prev) => Math.min(prev, totalPages - 1));
@@ -90,7 +138,11 @@ const FleetCarousel = () => {
   }, [fetchCars]);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    const handleResize = () => {
+      const w = window.innerWidth;
+      setIsMobile(w <= 768);
+      setIsTablet(w > 768 && w <= 1100);
+    };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -98,7 +150,7 @@ const FleetCarousel = () => {
   const startAutoSlide = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
-      if (!isHovering && totalPages > 0) {
+      if (!isHovering && totalPages > 1) {
         setCurrentPage((prev) => (prev + 1) % totalPages);
       }
     }, 6000);
@@ -111,14 +163,14 @@ const FleetCarousel = () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
       };
     }
-  }, [totalPages, isHovering]);
+  }, [totalPages, isHovering, filteredCars.length]);
 
   const paginatedCars = useMemo(() => {
-    return cars.slice(
+    return filteredCars.slice(
       currentPage * itemsPerPage,
       currentPage * itemsPerPage + itemsPerPage
     );
-  }, [cars, currentPage, itemsPerPage]);
+  }, [filteredCars, currentPage, itemsPerPage]);
 
   const goToPrevPage = () => {
     setCurrentPage((prev) => (prev === 0 ? totalPages - 1 : prev - 1));
@@ -149,291 +201,209 @@ const FleetCarousel = () => {
     else navigate("/fleet");
   };
 
+  const toggleWish = (id) => {
+    setWishlist((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <>
-      <motion.div
+      <motion.section
         className="fleet-container"
-        style={{ paddingTop: isCarsPage ? "2rem" : "8rem" }}
-        initial={{ opacity: 0, y: 50 }}
+        style={{ paddingTop: isCarsPage ? "4rem" : undefined }}
+        initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
+        transition={{ duration: 0.7, ease: "easeOut" }}
+        aria-label="Our fleet"
       >
+        <div className="fleet-bg" aria-hidden="true" />
+
         <div className="fleet-div">
-          <div className="fleet-header">
-            {promoBanner || stripBanner ? (
-              <span className="monsoon-section-tag">{offerLabel}</span>
-            ) : null}
-            <h4>THE CARS</h4>
-            <h2>Our Impressive Fleet</h2>
-            <p className="fleet-subtitle">
-              {promoBanner?.body ||
-                stripBanner?.body ||
-                "Self-drive and chauffeur cars for city trips, weekends, and longer drives."}
-            </p>
-            {dealCount > 0 ? (
-              <div className="fleet-deal-legend">
-                <span className="fleet-deal-legend__swatch" />
-                <span>
-                  Highlighted cards are live deals ({dealCount}{" "}
-                  available)
-                </span>
-              </div>
-            ) : null}
+          <div className="fleet-heading-row">
+            <div className="fleet-header">
+              <span className="fleet-offer-badge">
+                <FontAwesomeIcon icon={faCarSide} />
+                Monsoon Deals Are Live
+              </span>
+
+              <h2 className="fleet-title">
+                Our Impressive <span>Fleet</span>
+              </h2>
+
+              <p className="fleet-subtitle">
+                Save on selected self-drive cars this season.
+              </p>
+            </div>
+          </div>
+
+          <div className="fleet-filters" role="tablist" aria-label="Car type filters">
+            {FILTERS.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                role="tab"
+                aria-selected={activeFilter === filter}
+                className={`fleet-filter ${
+                  activeFilter === filter ? "fleet-filter--active" : ""
+                }`}
+                onClick={() => setActiveFilter(filter)}
+              >
+                {filter}
+              </button>
+            ))}
           </div>
 
           {loading ? (
             <div className="fleet-spinner">
-              <ClipLoader size={75} color="#0e7c86" />
+              <ClipLoader size={64} color="#0a5658" />
             </div>
           ) : (
             <>
-              {isMobile && totalPages > 1 && (
-                <div className="fleet-mobile-pager">
-                  <button
-                    type="button"
-                    className="carousel-arrow left"
-                    aria-label="Previous cars"
-                    onClick={goToPrevPage}
-                  >
-                    &#8249;
-                  </button>
-                  <span className="carousel-page-label" aria-live="polite">
-                    {currentPage + 1} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    className="carousel-arrow right"
-                    aria-label="Next cars"
-                    onClick={goToNextPage}
-                  >
-                    &#8250;
-                  </button>
-                </div>
-              )}
-
               <div
                 className="fleet-carousel-wrapper"
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
               >
-                {!isMobile && totalPages > 1 && (
-                  <button
-                    type="button"
-                    className="carousel-arrow left"
-                    aria-label="Previous cars"
-                    onClick={goToPrevPage}
-                  >
-                    &#8249;
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="fleet-arrow fleet-arrow--left"
+                  aria-label="Previous cars"
+                  onClick={goToPrevPage}
+                  disabled={totalPages <= 1}
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} />
+                </button>
 
                 <div className="fleet-cards">
                   {paginatedCars.length === 0 ? (
                     <p className="fleet-empty">No cars available right now.</p>
                   ) : null}
+
                   {paginatedCars.map((car, index) => {
                     const absoluteIndex = currentPage * itemsPerPage + index;
                     const isAvailable = car.available === "Available";
-                    const hasDiscount = pricingVisible && isDiscountedCar(car);
-                    const saleNum = Number(car?.salePrice);
-                    const priceNum = Number(car?.price);
-                    const discountPercent = hasDiscount
-                      ? Math.round(((saleNum - priceNum) / saleNum) * 100)
-                      : 0;
-                    const savings = hasDiscount ? saleNum - priceNum : 0;
+                    const badge = CARD_BADGES[absoluteIndex % CARD_BADGES.length];
+                    const wished = wishlist.has(car.id);
 
                     return (
-                      <motion.div
+                      <motion.article
                         key={car.id}
-                        className={[
-                          "fleet-card",
-                          hasDiscount ? "fleet-card--deal" : "fleet-card--regular",
-                          !isAvailable ? "fleet-card-unavailable" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        onMouseEnter={() => {
-                          setHoveredIndex(absoluteIndex);
-                          setIsHovering(true);
-                        }}
-                        onMouseLeave={() => {
-                          setHoveredIndex(null);
-                          setIsHovering(false);
-                        }}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.2, duration: 0.6 }}
+                        className={`fleet-card ${
+                          !isAvailable ? "fleet-card--unavailable" : ""
+                        }`}
+                        initial={{ opacity: 0, y: 18 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.08, duration: 0.45 }}
                       >
-                        {hasDiscount ? (
-                          <div className="fleet-deal-ribbon" aria-hidden="true">
-                            {offerLabel}
-                          </div>
-                        ) : null}
+                        <div className="fleet-card-media">
+                          <img
+                            src={resolveCarImage(car, absoluteIndex)}
+                            alt={car.name}
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = CAR_CUTOUTS[0];
+                            }}
+                          />
 
-                        <div className="fleet-card-top">
-                          {hasDiscount ? (
-                            <span className="fleet-discount-badge">
-                              {discountPercent}% OFF
-                            </span>
-                          ) : null}
-                          <div
-                            className={`fleet-card-media ${
-                              hasDiscount ? "fleet-card-media--deal" : ""
-                            }`}
+                          <span
+                            className={`fleet-card-badge fleet-card-badge--${badge.tone}`}
                           >
-                            {car.images?.[0] ? (
-                              <img src={car.images[0]} alt={car.name} />
-                            ) : (
-                              <div className="fleet-card-placeholder">
-                                Image coming soon
-                              </div>
-                            )}
-                          </div>
+                            <FontAwesomeIcon icon={badge.icon} />
+                            {badge.label}
+                          </span>
+
+                          <button
+                            type="button"
+                            className={`fleet-wish ${wished ? "fleet-wish--on" : ""}`}
+                            aria-label={
+                              wished ? "Remove from wishlist" : "Add to wishlist"
+                            }
+                            onClick={() => toggleWish(car.id)}
+                          >
+                            <FontAwesomeIcon
+                              icon={wished ? faHeart : faHeartRegular}
+                            />
+                          </button>
                         </div>
 
-                        <div className="fleet-card-bot">
-                          <div className="fleet-card-bot-name">
-                            {hasDiscount ? (
-                              <span className="fleet-deal-chip">Sale live</span>
-                            ) : null}
+                        <div className="fleet-card-body">
+                          <div className="fleet-card-heading">
                             <h3>{car.name}</h3>
-                            {car.details?.type ? (
-                              <p className="fleet-card-type">{car.details.type}</p>
-                            ) : null}
+                            <p>{car.details?.type || "Car"}</p>
                           </div>
 
-                          <div className="fleet-card-bot-section">
+                          <ul className="fleet-card-specs">
+                            <li>
+                              <FontAwesomeIcon icon={faUserFriends} />
+                              <span>{seatsLabel(car.details?.seats)}</span>
+                            </li>
+                            <li>
+                              <FontAwesomeIcon icon={faCogs} />
+                              <span>{transmissionLabel(car.details?.mt)}</span>
+                            </li>
+                            <li>
+                              <FontAwesomeIcon icon={faGasPump} />
+                              <span>{car.details?.fuel || "—"}</span>
+                            </li>
+                          </ul>
+
+                          <div className="fleet-card-footer">
                             <div className="fleet-price-block">
-                              <p className="fleet-price-label">
-                                {hasDiscount ? "Deal price" : "Starting at"}
+                              <p className="fleet-price-label">Starting at</p>
+                              <p className="fleet-price-value">
+                                {formatPrice(
+                                  pricingVisible ? car.price : null
+                                )}
+                                <span>/day</span>
                               </p>
-                              <span className="fleet-price-row">
-                                {hasDiscount ? (
-                                  <span className="fleet-sale-price">
-                                    {formatPrice(car.salePrice)}
-                                  </span>
-                                ) : null}
-                                <span
-                                  className={`fleet-discount-price ${
-                                    hasDiscount ? "fleet-discount-price--deal" : ""
-                                  }`}
-                                >
-                                  {formatPrice(car?.price)}
-                                </span>
-                              </span>
-                              {hasDiscount ? (
-                                <span className="fleet-save-note">
-                                  You save ₹{savings}
-                                </span>
-                              ) : null}
                             </div>
 
                             {isAvailable ? (
                               <button
-                                className={
-                                  hasDiscount ? "fleet-btn--deal" : undefined
-                                }
+                                type="button"
+                                className="fleet-rent-btn"
                                 onClick={() => handleRent(car)}
                               >
-                                {hasDiscount ? "Grab Deal" : "Rent"}
+                                Rent Now
+                                <FontAwesomeIcon icon={faArrowRight} />
                               </button>
                             ) : (
-                              <button className="not-available-btn" disabled>
+                              <button
+                                type="button"
+                                className="fleet-rent-btn fleet-rent-btn--disabled"
+                                disabled
+                              >
                                 Not Available
                               </button>
                             )}
                           </div>
                         </div>
-
-                        <div
-                          className={`car-hover-info ${
-                            hoveredIndex === absoluteIndex
-                              ? "car-hover-info-show"
-                              : ""
-                          }`}
-                        >
-                          <div className="hover-top">
-                            <div>
-                              <strong>{formatPrice(car?.twelveHrWeekday)}</strong>
-                              <p>12 Hr (Weekday)</p>
-                            </div>
-                            <div>
-                              <strong>
-                                {formatPrice(car?.twentyFourHrWeekday)}
-                              </strong>
-                              <p>24 Hr (Weekday)</p>
-                            </div>
-                            <div>
-                              <strong>
-                                {pricingVisible
-                                  ? car?.details?.extraHr || "—"
-                                  : "—"}
-                              </strong>
-                              <p>Extra Hr</p>
-                            </div>
-                          </div>
-
-                          <div className="hover-bottom">
-                            <div>
-                              <FontAwesomeIcon icon={faCarSide} />
-                              <p>{car.details?.type || "—"}</p>
-                            </div>
-                            <div>
-                              <FontAwesomeIcon icon={faUserFriends} />
-                              <p>{car.details?.seats || "—"}</p>
-                            </div>
-                            <div>
-                              <FontAwesomeIcon icon={faSuitcaseRolling} />
-                              <p>{car.details?.luggage || "—"}</p>
-                            </div>
-                            <div>
-                              <FontAwesomeIcon icon={faGasPump} />
-                              <p>{car.details?.fuel || "—"}</p>
-                            </div>
-                            <div>
-                              <FontAwesomeIcon icon={faCogs} />
-                              <p>{car.details?.mt || "—"}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
+                      </motion.article>
                     );
                   })}
                 </div>
 
-                {!isMobile && totalPages > 1 && (
-                  <button
-                    type="button"
-                    className="carousel-arrow right"
-                    aria-label="Next cars"
-                    onClick={goToNextPage}
-                  >
-                    &#8250;
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="fleet-arrow fleet-arrow--right"
+                  aria-label="Next cars"
+                  onClick={goToNextPage}
+                  disabled={totalPages <= 1}
+                >
+                  <FontAwesomeIcon icon={faChevronRight} />
+                </button>
               </div>
-
-              {!isMobile && totalPages > 1 && (
-                <div className="carousel-dots">
-                  {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      className={i === currentPage ? "active" : ""}
-                      onClick={() => {
-                        setCurrentPage(i);
-                        startAutoSlide();
-                      }}
-                    >
-                      {String(i + 1).padStart(2, "0")}
-                    </button>
-                  ))}
-                </div>
-              )}
             </>
           )}
         </div>
-      </motion.div>
+      </motion.section>
 
       {location.pathname === "/cars" && <HowItWorks />}
     </>
