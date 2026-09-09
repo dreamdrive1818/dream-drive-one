@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { ClipLoader } from "react-spinners";
 import api from "../../api/http";
 import { usePageSeoSuppression } from "../../utils/usePageSeoSuppression";
@@ -31,38 +33,72 @@ export default function CmsPage({ slug: slugProp }) {
 
   if (error) {
     return (
-      <div className="terms-wrapper">
-        <div className="terms-header">
-          <h1>Page unavailable</h1>
-          <p className="company-subtitle">{error}</p>
+      <section className="legal-page">
+        <div className="legal-inner">
+          <header className="legal-header">
+            <p className="legal-eyebrow">Legal</p>
+            <h1>Page unavailable</h1>
+            <p className="legal-lead">{error}</p>
+          </header>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (!page) {
     return (
-      <div className="loader-wrapper">
-        <ClipLoader color="#b78a4d" size={72} />
+      <div className="legal-loader">
+        <ClipLoader color="#0e7c86" size={40} />
       </div>
     );
   }
 
+  const title = page.title || "Terms & conditions";
+  const lead =
+    page.excerpt ||
+    "Please read these terms carefully before booking with Dream Drive.";
+
   return (
-    <div className="terms-wrapper">
+    <section className="legal-page">
       <Helmet>
-        <title>{page.seoTitle || page.title}</title>
-        <meta name="description" content={page.seoDescription || page.excerpt || ""} />
-        {page.seoKeywords ? <meta name="keywords" content={page.seoKeywords} /> : null}
-        {page.seoOgImage ? <meta property="og:image" content={page.seoOgImage} /> : null}
-        <meta property="og:title" content={page.seoTitle || page.title} />
-        <meta property="og:description" content={page.seoDescription || page.excerpt || ""} />
+        <title>{page.seoTitle || title}</title>
+        <meta
+          name="description"
+          content={page.seoDescription || page.excerpt || ""}
+        />
+        {page.seoKeywords ? (
+          <meta name="keywords" content={page.seoKeywords} />
+        ) : null}
+        {page.seoOgImage ? (
+          <meta property="og:image" content={page.seoOgImage} />
+        ) : null}
+        <meta property="og:title" content={page.seoTitle || title} />
+        <meta
+          property="og:description"
+          content={page.seoDescription || page.excerpt || ""}
+        />
       </Helmet>
-      <div className="terms-header">
-        <h1>{page.title}</h1>
-        <p className="company-subtitle">Dream Drive</p>
+
+      <div className="legal-inner">
+        <header className="legal-header">
+          <p className="legal-eyebrow">Legal</p>
+          <h1>{title}</h1>
+          <p className="legal-lead">{lead}</p>
+        </header>
+
+        <article
+          className="legal-content"
+          dangerouslySetInnerHTML={{ __html: page.body }}
+        />
+
+        <div className="legal-cta">
+          <p>Questions about these terms?</p>
+          <Link to="/contact">
+            Contact us
+            <FontAwesomeIcon icon={faArrowRight} />
+          </Link>
+        </div>
       </div>
-      <div className="terms-content" dangerouslySetInnerHTML={{ __html: page.body }} />
-    </div>
+    </section>
   );
 }

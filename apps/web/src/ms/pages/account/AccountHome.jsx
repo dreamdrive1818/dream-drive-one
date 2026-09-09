@@ -113,10 +113,13 @@ export default function AccountHome() {
 
   return (
     <>
-      <h1>Hi {user?.fullName || "there"}</h1>
-      <p className="account-lead">
-        Manage your profile, trips, KYC, invoices, and support from one place.
-      </p>
+      <header className="account-header">
+        <p className="account-eyebrow">Account</p>
+        <h1>Hi {user?.fullName || "there"}</h1>
+        <p className="account-lead">
+          Profile, trips, KYC, invoices, and support — all in one place.
+        </p>
+      </header>
       {error && <p className="account-msg err">{error}</p>}
       {info && <p className="account-msg ok">{info}</p>}
       {(data?.subscriptions || []).some((s) => s.swapDueReason === "SERVICE") && (
@@ -146,7 +149,7 @@ export default function AccountHome() {
         </div>
       </div>
 
-      <div className="account-card" style={{ marginBottom: 16 }}>
+      <div className="account-card">
         <h2>Profile</h2>
         {user?.nameLocked && (
           <p className="account-hint">
@@ -194,7 +197,7 @@ export default function AccountHome() {
         )}
       </div>
 
-      <div className="account-card" style={{ marginBottom: 16 }}>
+      <div className="account-card">
         <h2>Addresses</h2>
         {(user?.addresses || []).length === 0 && <p className="account-empty">No saved addresses yet.</p>}
         <ul className="account-list">
@@ -249,7 +252,7 @@ export default function AccountHome() {
               />
             </div>
           </div>
-          <button className="account-btn ghost" type="submit" disabled={busy}>
+          <button className="account-btn" type="submit" disabled={busy}>
             Save address
           </button>
         </form>
@@ -277,7 +280,7 @@ export default function AccountHome() {
           ))}
         </div>
         {bookings.length > 0 && (
-          <p style={{ marginTop: 12 }}>
+          <p className="account-links">
             <Link to="/account/bookings">View all bookings</Link>
             {invoices.length > 0 && (
               <>

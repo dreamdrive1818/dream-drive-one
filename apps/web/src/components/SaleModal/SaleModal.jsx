@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faXmark, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import "./SaleModal.css";
 
@@ -12,6 +14,11 @@ const SaleModal = () => {
   const location = useLocation();
   const isAdmin = location.pathname.includes("admin");
 
+  const dismiss = useCallback(() => {
+    sessionStorage.setItem(SESSION_KEY, "1");
+    setOpen(false);
+  }, []);
+
   useEffect(() => {
     if (isAdmin || !promoBanner) return;
     if (sessionStorage.getItem(SESSION_KEY) === "1") return;
@@ -19,10 +26,14 @@ const SaleModal = () => {
     return () => clearTimeout(timer);
   }, [isAdmin, promoBanner]);
 
-  const dismiss = () => {
-    sessionStorage.setItem(SESSION_KEY, "1");
-    setOpen(false);
-  };
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") dismiss();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, dismiss]);
 
   const handleCta = () => {
     dismiss();
@@ -33,33 +44,55 @@ const SaleModal = () => {
 
   if (isAdmin || !open || !promoBanner) return null;
 
+  const title = promoBanner.title || "Seasonal deals";
+  const body =
+    promoBanner.body || "Save on selected self-drive cars this season.";
+  const cta = promoBanner.ctaText || "See deals";
+
   return (
     <div className="sale-modal-overlay" onClick={dismiss} role="presentation">
       <div
-        className="sale-modal sale-modal--monsoon"
+        className="sale-modal"
         role="dialog"
         aria-modal="true"
-        aria-label={promoBanner.title || "Offer"}
+        aria-labelledby="sale-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sale-modal__glow" aria-hidden="true" />
-        <button type="button" className="sale-modal__close" onClick={dismiss} aria-label="Close offer">
-          ✕
+        <button
+          type="button"
+          className="sale-modal__close"
+          onClick={dismiss}
+          aria-label="Close offer"
+        >
+          <FontAwesomeIcon icon={faXmark} />
         </button>
-        <div className="sale-modal__badge">{promoBanner.title}</div>
-        <p className="sale-modal__eyebrow">Dream Drive</p>
-        <h2 className="sale-modal__title">{promoBanner.title}</h2>
-        <p className="sale-modal__lead">{promoBanner.body}</p>
-        {promoBanner.imageUrl ? (
-          <img src={promoBanner.imageUrl} alt="" style={{ width: "100%", borderRadius: 12, margin: "12px 0" }} />
-        ) : null}
-        <div className="sale-modal__actions">
-          <button type="button" className="sale-modal__cta" onClick={handleCta}>
-            {promoBanner.ctaText || "View offers"}
-          </button>
-          <button type="button" className="sale-modal__later" onClick={dismiss}>
-            Maybe later
-          </button>
+
+        <div className="sale-modal__media" aria-hidden="true">
+          {promoBanner.imageUrl ? (
+            <img src={promoBanner.imageUrl} alt="" />
+          ) : (
+            <div className="sale-modal__media-fallback">
+              <span>Dream Drive</span>
+            </div>
+          )}
+        </div>
+
+        <div className="sale-modal__body">
+          <p className="sale-modal__eyebrow">Limited-time offer</p>
+          <h2 id="sale-modal-title" className="sale-modal__title">
+            {title}
+          </h2>
+          <p className="sale-modal__lead">{body}</p>
+
+          <div className="sale-modal__actions">
+            <button type="button" className="sale-modal__cta" onClick={handleCta}>
+              {cta}
+              <FontAwesomeIcon icon={faArrowRight} />
+            </button>
+            <button type="button" className="sale-modal__later" onClick={dismiss}>
+              Maybe later
+            </button>
+          </div>
         </div>
       </div>
     </div>

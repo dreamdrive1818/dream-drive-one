@@ -1,6 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowRight,
+  faPaperclip,
+  faPaperPlane,
+  faTicket,
+} from "@fortawesome/free-solid-svg-icons";
 import { api } from "../../api";
 import { formatWhen, prettyStatus, statusTone } from "./format";
 
@@ -41,6 +48,7 @@ export default function AccountTickets() {
     e.preventDefault();
     setBusy(true);
     setError("");
+    setInfo("");
     try {
       const imageUrl = await uploadTicketImage(file);
       await api("/v1/me/tickets", {
@@ -77,6 +85,7 @@ export default function AccountTickets() {
     e.preventDefault();
     if (!openId) return;
     setBusy(true);
+    setError("");
     try {
       const imageUrl = await uploadTicketImage(replyFile);
       const data = await api(`/v1/me/tickets/${openId}/messages`, {
@@ -96,37 +105,46 @@ export default function AccountTickets() {
 
   return (
     <>
-      <h1>Support</h1>
-      <p className="account-lead">Open a ticket linked to a booking. Internal staff notes stay hidden.</p>
+      <header className="account-header">
+        <p className="account-eyebrow">Help</p>
+        <h1>Support</h1>
+        <p className="account-lead">
+          Open a ticket linked to a booking. Internal staff notes stay hidden.
+        </p>
+      </header>
+
       {error && <p className="account-msg err">{error}</p>}
       {info && <p className="account-msg ok">{info}</p>}
 
-      <div className="account-card" style={{ marginBottom: 16 }}>
+      <div className="account-card">
         <h2>New ticket</h2>
         <form onSubmit={createTicket}>
-          <div className="account-field">
-            <label htmlFor="subject">Subject</label>
-            <input
-              id="subject"
-              value={form.subject}
-              onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              required
-            />
-          </div>
-          <div className="account-field">
-            <label htmlFor="booking">Booking (optional)</label>
-            <select
-              id="booking"
-              value={form.bookingId}
-              onChange={(e) => setForm({ ...form, bookingId: e.target.value })}
-            >
-              <option value="">Not linked</option>
-              {bookings.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.publicId} · {prettyStatus(b.status)}
-                </option>
-              ))}
-            </select>
+          <div className="tickets-form-grid">
+            <div className="account-field">
+              <label htmlFor="subject">Subject</label>
+              <input
+                id="subject"
+                value={form.subject}
+                onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                placeholder="Short summary"
+                required
+              />
+            </div>
+            <div className="account-field">
+              <label htmlFor="booking">Booking (optional)</label>
+              <select
+                id="booking"
+                value={form.bookingId}
+                onChange={(e) => setForm({ ...form, bookingId: e.target.value })}
+              >
+                <option value="">Not linked</option>
+                {bookings.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.publicId} · {prettyStatus(b.status)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="account-field">
             <label htmlFor="body">Message</label>
@@ -134,68 +152,118 @@ export default function AccountTickets() {
               id="body"
               value={form.body}
               onChange={(e) => setForm({ ...form, body: e.target.value })}
+              placeholder="How can we help?"
               required
             />
           </div>
           <div className="account-field">
-            <label htmlFor="ticket-image">Image (optional)</label>
-            <input id="ticket-image" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <label htmlFor="ticket-image" className="tickets-attach">
+              <FontAwesomeIcon icon={faPaperclip} />
+              {file ? file.name : "Attach image (optional)"}
+            </label>
+            <input
+              id="ticket-image"
+              className="tickets-file-input"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
           </div>
           <button className="account-btn" type="submit" disabled={busy}>
-            Submit ticket
+            {busy ? "Submitting…" : "Submit ticket"}
+            {!busy && <FontAwesomeIcon icon={faArrowRight} />}
           </button>
         </form>
       </div>
 
       <div className="account-card">
         <h2>Your tickets</h2>
-        {rows.length === 0 && <p className="account-empty">No tickets yet.</p>}
+        {rows.length === 0 && (
+          <p className="account-empty">
+            No tickets yet. Open one above if you need help with a trip.
+          </p>
+        )}
         <div className="account-list">
           {rows.map((t) => (
             <button
               key={t.id}
               type="button"
-              className="account-item"
-              style={{ gridTemplateColumns: "1fr auto", cursor: "pointer", textAlign: "left" }}
+              className={`account-item account-item--btn ${
+                openId === t.id ? "is-open" : ""
+              }`}
               onClick={() => openTicket(t.id)}
             >
+              <span className="tickets-item-icon" aria-hidden="true">
+                <FontAwesomeIcon icon={faTicket} />
+              </span>
               <div>
                 <h3>{t.subject}</h3>
                 <p>{formatWhen(t.messages?.[0]?.createdAt)}</p>
               </div>
-              <span className={`account-pill ${statusTone(t.status)}`}>{prettyStatus(t.status)}</span>
+              <span className={`account-pill ${statusTone(t.status)}`}>
+                {prettyStatus(t.status)}
+              </span>
             </button>
           ))}
         </div>
+
         {thread && (
-          <div style={{ marginTop: 16 }}>
-            <h3>{thread.subject}</h3>
+          <div className="tickets-thread">
+            <div className="tickets-thread-head">
+              <h3>{thread.subject}</h3>
+              <span className={`account-pill ${statusTone(thread.status)}`}>
+                {prettyStatus(thread.status)}
+              </span>
+            </div>
+
             <div className="account-thread">
               {(thread.messages || []).map((m) => (
                 <div key={m.id} className="account-bubble">
-                  {m.body}
+                  <p className="account-bubble-body">{m.body}</p>
                   {m.imageUrl ? (
-                    <a href={m.imageUrl} target="_blank" rel="noreferrer">
-                      <img src={m.imageUrl} alt="" style={{ maxWidth: 180, display: "block", marginTop: 8, borderRadius: 8 }} />
+                    <a
+                      className="tickets-image"
+                      href={m.imageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <img src={m.imageUrl} alt="" />
                     </a>
                   ) : null}
                   <time>{formatWhen(m.createdAt)}</time>
                 </div>
               ))}
             </div>
+
             {thread.status !== "CLOSED" && (
-              <form onSubmit={sendReply}>
+              <form className="tickets-reply" onSubmit={sendReply}>
                 <div className="account-field">
                   <label htmlFor="reply">Reply</label>
-                  <textarea id="reply" value={reply} onChange={(e) => setReply(e.target.value)} required={!replyFile} />
+                  <textarea
+                    id="reply"
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder="Write your reply"
+                    required={!replyFile}
+                  />
                 </div>
-                <div className="account-field">
-                  <label htmlFor="reply-image">Image (optional)</label>
-                  <input id="reply-image" type="file" accept="image/*" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} />
+                <div className="tickets-reply-actions">
+                  <label htmlFor="reply-image" className="tickets-attach">
+                    <FontAwesomeIcon icon={faPaperclip} />
+                    {replyFile ? replyFile.name : "Attach image"}
+                  </label>
+                  <input
+                    id="reply-image"
+                    className="tickets-file-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setReplyFile(e.target.files?.[0] || null)}
+                  />
+                  <button className="account-btn" type="submit" disabled={busy}>
+                    {busy ? "Sending…" : "Send reply"}
+                    {!busy && <FontAwesomeIcon icon={faPaperPlane} />}
+                  </button>
                 </div>
-                <button className="account-btn" type="submit" disabled={busy}>
-                  Send reply
-                </button>
               </form>
             )}
           </div>

@@ -1,118 +1,130 @@
 import React from "react";
-import "./About.css";
+import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCarSide,
   faUserFriends,
   faShieldAlt,
   faMobileAlt,
+  faArrowRight,
 } from "@fortawesome/free-solid-svg-icons";
 import Achievements from "../Achievements/Achievements";
 import AnimateOnScroll from "../../assets/Animation/AnimateOnScroll";
-
+import "./About.css";
 
 const highlights = [
   {
     icon: faCarSide,
-    title: "Wide Car Selection",
-    desc: "Choose from hatchbacks to 7-seater SUVs like Nexon & Compass.",
+    title: "Wide car selection",
+    desc: "Hatchbacks to 7-seater SUVs — Nexon, Compass, and more.",
   },
   {
     icon: faUserFriends,
-    title: "Freedom to Drive",
-    desc: "No drivers, no limits. Drive when and where you want.",
+    title: "Freedom to drive",
+    desc: "No drivers, no limits. Go when and where you want.",
   },
   {
     icon: faShieldAlt,
-    title: "Reliable & Safe",
-    desc: "All cars are sanitized, insured, and regularly serviced.",
+    title: "Reliable & safe",
+    desc: "Sanitized, insured, and regularly serviced vehicles.",
   },
   {
     icon: faMobileAlt,
-    title: "Doorstep Delivery",
-    desc: "Book online and get your car delivered at your convenience.",
+    title: "Doorstep delivery",
+    desc: "Book online and get the car delivered to you.",
   },
 ];
 
 const About = () => {
   return (
     <>
+      <section className="about-page">
+        <div className="about-inner">
+          <header className="about-header">
+            <p className="about-eyebrow">About us</p>
+            <h1>
+              Welcome to <span>Dream Drive</span>
+            </h1>
+            <p className="about-lead">
+              Ranchi’s trusted self-drive car rental — clean cars, clear pricing,
+              and freedom on every trip.
+            </p>
+          </header>
 
-      <section className="about-container">
-        <div className="about-content">
-          {/* Intro */}
-          <AnimateOnScroll className="about-intro updated">
-            <h2>Welcome to <span>Dream Drive</span></h2>
-            <p className="tagline">Ranchi’s #1 Self-Drive Car Rental</p>
+          <AnimateOnScroll className="about-intro">
             <p>
-              Dream Drive is Ranchi’s trusted name in self-drive car rentals. Whether you’re planning a quick city run or a weekend getaway, we offer a wide range of well-maintained cars — including 7-seater SUVs like Compass and Nexon — all at affordable rates.
+              Whether you’re planning a quick city run or a weekend getaway, we
+              offer a wide range of well-maintained cars — including 7-seater
+              SUVs — at affordable rates.
             </p>
             <p>
-               At Dream Drive, we believe in giving you the freedom to drive at your own pace. No drivers. No time limits. Just smooth, clean, and comfortable rides. With flexible packages, doorstep delivery, and 24x7 support, renting a car in Ranchi has never been easier.
-            </p>
-            <p>
-              Whether it's for business, family travel, or a road trip — book your self-drive car today and experience convenience like never before.
+              No drivers. No time limits. Just smooth, comfortable rides with
+              flexible packages, doorstep delivery, and 24×7 support.
             </p>
           </AnimateOnScroll>
 
-          {/* Highlights */}
-          <AnimateOnScroll className="about-highlights-section">
-            <h3 className="highlight-heading">Why Choose Dream Drive?</h3>
+          <AnimateOnScroll className="about-highlights">
+            <div className="about-section-head">
+              <p className="about-eyebrow">Why us</p>
+              <h2>Why choose Dream Drive?</h2>
+            </div>
             <div className="about-highlights-grid">
-              {highlights.map((item, index) => (
-                <div className="highlight-card" key={index}>
-                  <div className="highlight-icon">
+              {highlights.map((item) => (
+                <article className="about-highlight" key={item.title}>
+                  <span className="about-highlight-icon" aria-hidden="true">
                     <FontAwesomeIcon icon={item.icon} />
-                  </div>
-                  <div className="highlight-info">
-                    <h4>{item.title}</h4>
-                    <p>{item.desc}</p>
-                  </div>
-                </div>
+                  </span>
+                  <h3>{item.title}</h3>
+                  <p>{item.desc}</p>
+                </article>
               ))}
             </div>
           </AnimateOnScroll>
 
-          {/* Our Story */}
-          <AnimateOnScroll className="about-story delay-2">
-            <div className="about-text-block">
-              <h3>Our Story</h3>
+          <AnimateOnScroll className="about-split">
+            <div className="about-copy">
+              <p className="about-eyebrow">Our story</p>
+              <h2>Built for a better rental</h2>
               <p>
-                DreamDrive was born out of a desire to revolutionize the way people experience car rentals in India.
-                Tired of long queues, unreliable vehicles, and hidden charges, we decided it was time for a better way.
+                Dream Drive started from a desire to fix car rental in Ranchi —
+                long queues, unreliable vehicles, and hidden charges.
               </p>
               <p>
-                Since launch, we’ve continuously refined our model by listening to real feedback and solving genuine problems.
-                Our focus on transparent pricing, quality control, and real-time support has helped us earn a loyal customer base.
+                We’ve refined the model by listening to real feedback: transparent
+                pricing, quality control, and support when you need it.
               </p>
             </div>
-            <div className="about-image-block">
+            <div className="about-visual" aria-hidden="true">
               <img
                 src="https://res.cloudinary.com/dcrfks1tq/image/upload/v1750163087/jeep_smrjsp.png"
-                alt="DreamDrive Fleet"
+                alt=""
               />
             </div>
           </AnimateOnScroll>
 
-          {/* Mission */}
-          <AnimateOnScroll className="about-mission">
-            <div className="about-image-block">
+          <AnimateOnScroll className="about-split about-split--reverse">
+            <div className="about-copy">
+              <p className="about-eyebrow">Our mission</p>
+              <h2>Freedom on every journey</h2>
+              <p>
+                Make self-drive rental in Ranchi easy, reliable, and enjoyable —
+                from hatchbacks to 7-seater SUVs for family trips, weekends, or
+                business.
+              </p>
+              <p>
+                Because every journey matters — and we’re here to make yours
+                unforgettable.
+              </p>
+              <Link className="about-cta" to="/fleet">
+                Browse cars
+                <FontAwesomeIcon icon={faArrowRight} />
+              </Link>
+            </div>
+            <div className="about-visual" aria-hidden="true">
               <img
                 src="https://res.cloudinary.com/dcrfks1tq/image/upload/v1750168799/tata-nexon-right-front-three-quarter2-removebg-preview_lad5vy_gfkhzv.png"
-                alt="DreamDrive Nexon"
+                alt=""
               />
-            </div>
-            <div className="about-text-block">
-              <h3>Our Mission</h3>
-              <p>
-                At Dream Drive, our mission is to make self-drive car rental in Ranchi easy, reliable, and enjoyable for everyone. We’re transforming traditional car rental experiences by using smart technology, offering clean and new self-drive cars, and focusing on customer satisfaction.
-              </p>
-              <p>
-              We aim to be the most trusted name in car rentals in Ranchi, providing everything from compact hatchbacks to 7-seater SUVs — perfect for family road trips, weekend getaways, or business needs. Whether you're booking a car for a day or a month, we’re here to deliver freedom, flexibility, and a seamless rental journey.
-              </p>
-              <p>
-               Because at Dream Drive, every journey matters — <span>and we’re here to make yours unforgettable.</span>
-              </p>
             </div>
           </AnimateOnScroll>
         </div>

@@ -144,9 +144,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
   gap: 0.75rem;
   margin-top: auto;
-  padding-top: 2.4rem;
+  padding: 1.2rem 2.4rem;
   min-height: 5rem;
   border-radius: 999px;
   background: #25d366;
@@ -292,7 +293,6 @@
 
   .dd-contact-wa {
     margin-top: 2rem;
-    padding-top: 0;
   }
 
   .dd-contact-form {

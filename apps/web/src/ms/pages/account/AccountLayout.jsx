@@ -22,7 +22,7 @@ export default function AccountLayout() {
   if (!ready) {
     return (
       <section className="account-page">
-        <p className="account-empty" style={{ padding: 24 }}>
+        <p className="account-empty" style={{ padding: "2.4rem" }}>
           Loading your account…
         </p>
       </section>
@@ -42,22 +42,29 @@ export default function AccountLayout() {
             <strong>{user.fullName || "Your account"}</strong>
             <span>{user.email}</span>
           </div>
-          <div className="account-nav-links">
+          <nav className="account-nav-links" aria-label="Account">
             {LINKS.map(([to, label]) => (
               <NavLink
                 key={to || "home"}
                 to={to ? `/account/${to}` : "/account"}
                 end={to === ""}
-                className={({ isActive }) => (isActive ? "is-active" : "")}
+                className={({ isActive }) => (isActive ? "is-active" : undefined)}
               >
                 {label}
               </NavLink>
             ))}
-            <NavLink to="/subscriptions" className={({ isActive }) => (isActive ? "is-active" : "")}>
+            <NavLink
+              to="/subscriptions"
+              className={({ isActive }) => (isActive ? "is-active" : undefined)}
+            >
               Subscriptions
             </NavLink>
-          </div>
-          <button type="button" className="account-nav-link account-nav-signout" onClick={logout}>
+          </nav>
+          <button
+            type="button"
+            className="account-nav-link account-nav-signout"
+            onClick={logout}
+          >
             Sign out
           </button>
         </aside>
@@ -68,4 +75,3 @@ export default function AccountLayout() {
     </section>
   );
 }
-

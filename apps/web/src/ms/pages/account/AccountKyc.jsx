@@ -2,21 +2,66 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faIdCard,
+  faAddressCard,
+  faCamera,
+  faFileLines,
+  faCloudArrowUp,
+  faCheck,
+  faArrowRight,
+} from "@fortawesome/free-solid-svg-icons";
 import { api } from "../../api";
 import { useAuth } from "../../AuthContext";
 import { formatDay, prettyStatus, statusTone } from "./format";
 
 const KINDS = [
-  { kind: "DL", label: "Driving licence", accept: ".pdf,.jpg,.jpeg,.png,.webp", required: true },
-  { kind: "AADHAAR", label: "Aadhaar", accept: ".pdf,.jpg,.jpeg,.png,.webp", required: true },
-  { kind: "PAN", label: "PAN", accept: ".pdf,.jpg,.jpeg,.png,.webp", required: false },
-  { kind: "SELFIE", label: "Selfie with ID", accept: ".jpg,.jpeg,.png,.webp", required: true },
-  { kind: "ADDRESS", label: "Address proof", accept: ".pdf,.jpg,.jpeg,.png,.webp", required: false },
+  {
+    kind: "DL",
+    label: "Driving licence",
+    accept: ".pdf,.jpg,.jpeg,.png,.webp",
+    required: true,
+    icon: faIdCard,
+  },
+  {
+    kind: "AADHAAR",
+    label: "Aadhaar",
+    accept: ".pdf,.jpg,.jpeg,.png,.webp",
+    required: true,
+    icon: faAddressCard,
+  },
+  {
+    kind: "PAN",
+    label: "PAN",
+    accept: ".pdf,.jpg,.jpeg,.png,.webp",
+    required: false,
+    icon: faIdCard,
+  },
+  {
+    kind: "SELFIE",
+    label: "Selfie with ID",
+    accept: ".jpg,.jpeg,.png,.webp",
+    required: true,
+    icon: faCamera,
+  },
+  {
+    kind: "ADDRESS",
+    label: "Address proof",
+    accept: ".pdf,.jpg,.jpeg,.png,.webp",
+    required: false,
+    icon: faFileLines,
+  },
 ];
 
 export default function AccountKyc() {
   const { user, refresh } = useAuth();
-  const [payload, setPayload] = useState({ cases: [], reusable: false, kycValidUntil: null, kycStatus: "NOT_STARTED" });
+  const [payload, setPayload] = useState({
+    cases: [],
+    reusable: false,
+    kycValidUntil: null,
+    kycStatus: "NOT_STARTED",
+  });
   const [files, setFiles] = useState({});
   const [aadhaarNumber, setAadhaarNumber] = useState("");
   const [panNumber, setPanNumber] = useState("");
@@ -105,59 +150,90 @@ export default function AccountKyc() {
 
   const locked = payload.reusable && !needs.length && latest?.status === "APPROVED";
   const rejected = latest?.status === "REJECTED";
+  const status = payload.kycStatus || user?.kycStatus;
 
   return (
     <>
-      <h1>KYC</h1>
-      <p className="account-lead">
-        Current status:{" "}
-        <span className={`account-pill ${statusTone(payload.kycStatus || user?.kycStatus)}`}>
-          {prettyStatus(payload.kycStatus || user?.kycStatus)}
-        </span>
+      <header className="account-header">
+        <p className="account-eyebrow">Verification</p>
+        <h1>KYC</h1>
+        <p className="account-lead">
+          Upload your IDs once — we reuse approved KYC for future self-drive trips.
+        </p>
+      </header>
+
+      <div className="kyc-status-bar">
+        <span className="kyc-status-label">Current status</span>
+        <span className={`account-pill ${statusTone(status)}`}>{prettyStatus(status)}</span>
         {payload.kycValidUntil && (
-          <> · valid until {formatDay(payload.kycValidUntil)}</>
+          <span className="kyc-status-meta">Valid until {formatDay(payload.kycValidUntil)}</span>
         )}
-      </p>
+      </div>
+
       {error && <p className="account-msg err">{error}</p>}
       {message && <p className="account-msg ok">{message}</p>}
       {rejected && latest?.notes && (
-        <p className="account-msg err">Rejected: {latest.notes}. Re-upload the requested documents.</p>
+        <p className="account-msg err">
+          Rejected: {latest.notes}. Re-upload the requested documents.
+        </p>
       )}
       {needs.length > 0 && (
         <p className="account-msg err">Re-upload required: {needs.join(", ")}</p>
       )}
 
       {locked ? (
-        <div className="account-card" style={{ marginBottom: 16 }}>
+        <div className="account-card">
           <h2>Approved</h2>
           <p className="account-hint">
-            This KYC can be reused for 12 months unless a document expires. Self-drive bookings skip a new upload
-            when the driving licence still covers drop-off.
+            This KYC can be reused for 12 months unless a document expires. Self-drive
+            bookings skip a new upload when the driving licence still covers drop-off.
           </p>
-          {latest?.aadhaarLast4 && <p>Aadhaar ending {latest.aadhaarLast4}</p>}
-          {latest?.panLast4 && <p>PAN ending {latest.panLast4}</p>}
-          {latest?.dlExpiresOn && <p>DL expires {formatDay(latest.dlExpiresOn)}</p>}
-          <p className="account-hint">Need to replace a file? Contact support to reset KYC.</p>
+          <ul className="kyc-approved-meta">
+            {latest?.aadhaarLast4 && <li>Aadhaar ending {latest.aadhaarLast4}</li>}
+            {latest?.panLast4 && <li>PAN ending {latest.panLast4}</li>}
+            {latest?.dlExpiresOn && <li>DL expires {formatDay(latest.dlExpiresOn)}</li>}
+          </ul>
+          <p className="account-hint">
+            Need to replace a file? Contact support to reset KYC.
+          </p>
         </div>
       ) : (
-        <div className="account-card" style={{ marginBottom: 16 }}>
+        <div className="account-card">
           <h2>{rejected ? "Re-submit documents" : "Submit documents"}</h2>
           <p className="account-hint">
-            PDF, JPG, PNG or WebP · max 8 MB. Self-drive needs driving licence, Aadhaar (or address proof), and a selfie.
-            Aadhaar and PAN numbers are hashed; we only keep the last 4 digits.
+            PDF, JPG, PNG or WebP · max 8 MB. Self-drive needs driving licence, Aadhaar
+            (or address proof), and a selfie. Numbers are hashed; we only keep the last 4
+            digits.
           </p>
           <form onSubmit={submit}>
             <div className="kyc-grid">
               {KINDS.map((item) => {
                 const must = needs.includes(item.kind) || (item.required && !needs.length);
                 const current = (latest?.documents || []).find((d) => d.kind === item.kind);
+                const selected = files[item.kind];
+                const inputId = `kyc-file-${item.kind}`;
                 return (
-                  <label key={item.kind} className={`kyc-drop ${needs.includes(item.kind) ? "needs" : ""}`}>
+                  <label
+                    key={item.kind}
+                    htmlFor={inputId}
+                    className={`kyc-drop ${needs.includes(item.kind) ? "needs" : ""} ${
+                      selected ? "has-file" : ""
+                    }`}
+                  >
+                    <span className="kyc-drop-icon" aria-hidden="true">
+                      <FontAwesomeIcon icon={selected ? faCheck : item.icon} />
+                    </span>
                     <strong>
                       {item.label}
                       {must ? " *" : ""}
                     </strong>
+                    <span className="kyc-drop-action">
+                      <FontAwesomeIcon icon={faCloudArrowUp} />
+                      {selected?.name ||
+                        (current ? `${prettyStatus(current.status)} on file` : "Choose file")}
+                    </span>
                     <input
+                      id={inputId}
                       type="file"
                       accept={item.accept}
                       onChange={(e) => {
@@ -165,47 +241,54 @@ export default function AccountKyc() {
                         setFiles((prev) => ({ ...prev, [item.kind]: file || undefined }));
                       }}
                     />
-                    <span>
-                      {files[item.kind]?.name ||
-                        (current ? `${prettyStatus(current.status)} on file` : "Choose file")}
-                    </span>
                   </label>
                 );
               })}
             </div>
-            <div className="account-field">
-              <label htmlFor="aadhaar">Aadhaar number</label>
-              <input
-                id="aadhaar"
-                inputMode="numeric"
-                autoComplete="off"
-                value={aadhaarNumber}
-                onChange={(e) => setAadhaarNumber(e.target.value)}
-                placeholder={latest?.aadhaarLast4 ? `Saved ending ${latest.aadhaarLast4}` : "12 digits"}
-              />
+
+            <div className="kyc-fields">
+              <div className="account-field">
+                <label htmlFor="aadhaar">Aadhaar number</label>
+                <input
+                  id="aadhaar"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={aadhaarNumber}
+                  onChange={(e) => setAadhaarNumber(e.target.value)}
+                  placeholder={
+                    latest?.aadhaarLast4
+                      ? `Saved ending ${latest.aadhaarLast4}`
+                      : "12 digits"
+                  }
+                />
+              </div>
+              <div className="account-field">
+                <label htmlFor="pan">PAN</label>
+                <input
+                  id="pan"
+                  autoComplete="off"
+                  value={panNumber}
+                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                  placeholder={
+                    latest?.panLast4 ? `Saved ending ${latest.panLast4}` : "ABCDE1234F"
+                  }
+                />
+              </div>
+              <div className="account-field">
+                <label htmlFor="dlExpiry">Driving licence expiry</label>
+                <input
+                  id="dlExpiry"
+                  type="date"
+                  value={dlExpiresOn}
+                  onChange={(e) => setDlExpiresOn(e.target.value)}
+                  required={!latest?.dlExpiresOn}
+                />
+              </div>
             </div>
-            <div className="account-field">
-              <label htmlFor="pan">PAN</label>
-              <input
-                id="pan"
-                autoComplete="off"
-                value={panNumber}
-                onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                placeholder={latest?.panLast4 ? `Saved ending ${latest.panLast4}` : "ABCDE1234F"}
-              />
-            </div>
-            <div className="account-field">
-              <label htmlFor="dlExpiry">Driving licence expiry</label>
-              <input
-                id="dlExpiry"
-                type="date"
-                value={dlExpiresOn}
-                onChange={(e) => setDlExpiresOn(e.target.value)}
-                required={!latest?.dlExpiresOn}
-              />
-            </div>
+
             <button className="account-btn" type="submit" disabled={busy}>
               {busy ? "Uploading…" : "Submit for review"}
+              {!busy && <FontAwesomeIcon icon={faArrowRight} />}
             </button>
           </form>
         </div>
@@ -216,7 +299,11 @@ export default function AccountKyc() {
         {cases.length === 0 && <p className="account-empty">No KYC cases yet.</p>}
         <div className="account-list">
           {cases.map((c) => (
-            <div key={c.id} className="account-item" style={{ gridTemplateColumns: "1fr auto" }}>
+            <div
+              key={c.id}
+              className="account-item"
+              style={{ gridTemplateColumns: "1fr auto" }}
+            >
               <div>
                 <h3>{prettyStatus(c.status)}</h3>
                 <p>
@@ -228,7 +315,9 @@ export default function AccountKyc() {
                   {c.dlExpiresOn ? ` · DL ${formatDay(c.dlExpiresOn)}` : ""}
                 </p>
               </div>
-              <span className={`account-pill ${statusTone(c.status)}`}>{prettyStatus(c.status)}</span>
+              <span className={`account-pill ${statusTone(c.status)}`}>
+                {prettyStatus(c.status)}
+              </span>
             </div>
           ))}
         </div>
