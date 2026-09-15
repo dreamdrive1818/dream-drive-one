@@ -2,133 +2,197 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faThumbsUp,
   faChair,
   faStopwatch,
   faShieldHalved,
+  faHeadset,
   faArrowRight,
-  faPhone,
+  faPlay,
+  faCarSide,
+  faTags,
+  faTruck,
+  faLocationDot,
 } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import AnimateOnScroll from "../../assets/Animation/AnimateOnScroll";
 import "./WhyChooseUs.css";
 
+/** Verified benefit copy from existing WhyChooseUs + LocalContext/About. */
 const FEATURES = [
   {
     id: "clean",
     icon: faChair,
+    tone: "mint",
     title: "Clean & Comfortable",
     text: "Choose from well-maintained cars that suit your style and needs.",
   },
   {
     id: "quick",
     icon: faStopwatch,
+    tone: "blue",
     title: "Quick & Easy",
     text: "Book your car in minutes — no hassle, no paperwork.",
   },
   {
     id: "honest",
     icon: faShieldHalved,
+    tone: "amber",
     title: "No Hidden Costs",
     text: "What you see is what you pay — simple and honest pricing.",
   },
+  {
+    id: "support",
+    icon: faHeadset,
+    tone: "lavender",
+    title: "24×7 Support",
+    text: "Flexible packages, doorstep delivery, and support when you need it.",
+  },
 ];
+
+/** Non-numeric trust items — no invented counts/ratings. */
+const TRUST_ITEMS = [
+  {
+    id: "fleet",
+    icon: faCarSide,
+    title: "Well-maintained cars",
+    label: "Ready for the road",
+  },
+  {
+    id: "pricing",
+    icon: faTags,
+    title: "Clear pricing",
+    label: "No hidden costs",
+  },
+  {
+    id: "delivery",
+    icon: faTruck,
+    title: "Doorstep delivery",
+    label: "Available in Ranchi",
+  },
+  {
+    id: "support",
+    icon: faHeadset,
+    title: "24×7 support",
+    label: "Here when you need us",
+  },
+];
+
+const CAR_ASSET =
+  "https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/maruti-suzuki-vitara-brezza-ldi-diesel-pearl-arctic-white-82811366-6pbqe-removebg-preview_pgoccl.png";
+
+const SCENIC_ASSET = "/success-hero-landscape.jpg";
 
 const WhyChoose = () => {
   const { webinfo, promoBanner } = useLocalContext();
   const navigate = useNavigate();
   const brand = webinfo?.name || "Dream Drive";
-  const phoneHref = webinfo?.phonecall
-    ? `tel:${webinfo.phonecall}`
-    : "tel:+917061112181";
+
+  const description =
+    promoBanner?.body ||
+    webinfo?.seo?.description ||
+    "Book SUVs like Nexon & Compass with flexible packages, 24×7 support, and doorstep delivery in Ranchi.";
+
+  const primaryCtaLabel = promoBanner?.ctaText || "Explore Fleet";
+  const primaryCtaRoute = promoBanner?.link || "/fleet";
 
   return (
-    <section className="why-choose">
+    <section className="why-choose" aria-label={`Why choose ${brand}`}>
       <div className="why-choose-inner">
-        <div className="why-choose-dots" aria-hidden="true">
-          {Array.from({ length: 35 }).map((_, i) => (
-            <span key={i} />
-          ))}
-        </div>
+        <div className="why-choose-main">
+          <AnimateOnScroll className="why-left delay-2">
+            <p className="why-eyebrow">Why Choose {brand}</p>
 
-        <AnimateOnScroll className="why-left delay-2">
-          <div className="why-badge" aria-hidden="true">
-            <FontAwesomeIcon icon={faThumbsUp} />
-          </div>
+            <h2 className="why-title">
+              <span className="why-title-line">Why Choose</span>
+              <span className="why-title-line why-title-line--accent">
+                {brand}
+              </span>
+            </h2>
 
-          <h2>
-            Why Choose <span className="why-brand">{brand}?</span>
-          </h2>
+            <p className="why-desc">{description}</p>
 
-          <span className="why-rule" aria-hidden="true" />
+            <div className="why-actions">
+              <button
+                type="button"
+                className="why-cta"
+                onClick={() => navigate(primaryCtaRoute)}
+              >
+                {primaryCtaLabel}
+                <FontAwesomeIcon icon={faArrowRight} />
+              </button>
 
-          <p>
-            {promoBanner?.body ||
-              "Monsoon Sale is live — easy bookings, clean rides, and special rainy-season rates so you can hit the road with confidence."}
-          </p>
-
-          <button
-            type="button"
-            className="why-cta"
-            onClick={() => navigate(promoBanner?.link || "/fleet")}
-          >
-            {promoBanner?.ctaText || "View Monsoon Deals"}
-            <span className="why-cta-arrow" aria-hidden="true">
-              <FontAwesomeIcon icon={faArrowRight} />
-            </span>
-          </button>
-        </AnimateOnScroll>
-
-        <AnimateOnScroll className="why-visual delay-3">
-          <div className="why-orbit" aria-hidden="true">
-            <span className="why-orbit-ring why-orbit-ring--solid" />
-            <span className="why-orbit-ring why-orbit-ring--dashed" />
-            <span className="why-orbit-ring why-orbit-ring--soft" />
-          </div>
-
-          <img
-            src="https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/maruti-suzuki-vitara-brezza-ldi-diesel-pearl-arctic-white-82811366-6pbqe-removebg-preview_pgoccl.png"
-            alt={`${brand} featured car`}
-            className="why-car-img"
-          />
-
-          <a href={phoneHref} className="why-call-now">
-            <FontAwesomeIcon icon={faPhone} />
-            Call Now
-          </a>
-        </AnimateOnScroll>
-
-        <AnimateOnScroll className="why-features delay-4">
-          <svg className="why-connectors" viewBox="0 0 120 420" aria-hidden="true">
-            <path
-              className="why-connector why-connector--1"
-              d="M10,70 C55,70 70,55 110,70"
-              fill="none"
-            />
-            <path
-              className="why-connector why-connector--2"
-              d="M10,210 C55,210 70,210 110,210"
-              fill="none"
-            />
-            <path
-              className="why-connector why-connector--3"
-              d="M10,350 C55,350 70,365 110,350"
-              fill="none"
-            />
-            <circle cx="10" cy="70" r="3.5" className="why-connector-dot" />
-            <circle cx="10" cy="210" r="3.5" className="why-connector-dot" />
-            <circle cx="10" cy="350" r="3.5" className="why-connector-dot" />
-          </svg>
-
-          <ul className="why-feature-list">
-            {FEATURES.map((item) => (
-              <li key={item.id} className="why-feature-card">
-                <span className="why-feature-icon" aria-hidden="true">
-                  <FontAwesomeIcon icon={item.icon} />
+              <button
+                type="button"
+                className="why-secondary"
+                onClick={() => navigate("/howitworks")}
+              >
+                <span className="why-play" aria-hidden="true">
+                  <FontAwesomeIcon icon={faPlay} />
                 </span>
-                <div className="why-feature-copy">
+                <span className="why-secondary-copy">
+                  <strong>How it works</strong>
+                  <em>See the process</em>
+                </span>
+              </button>
+            </div>
+          </AnimateOnScroll>
+
+          <AnimateOnScroll className="why-visual delay-3">
+            <div className="why-visual-stage">
+              <div
+                className="why-scenic"
+                style={{ backgroundImage: `url(${SCENIC_ASSET})` }}
+                aria-hidden="true"
+              />
+              <span className="why-scenic-arc" aria-hidden="true" />
+
+              <img
+                src={CAR_ASSET}
+                alt={`${brand} featured car`}
+                className="why-car-img"
+              />
+
+              <div className="why-callout">
+                <FontAwesomeIcon icon={faLocationDot} aria-hidden="true" />
+                <div>
+                  <span>Made for</span>
+                  <strong>Every Journey</strong>
+                </div>
+              </div>
+            </div>
+          </AnimateOnScroll>
+
+          <AnimateOnScroll className="why-features delay-4">
+            <ul className="why-feature-grid">
+              {FEATURES.map((item) => (
+                <li
+                  key={item.id}
+                  className={`why-feature-card why-feature-card--${item.tone}`}
+                >
+                  <span className="why-feature-icon" aria-hidden="true">
+                    <FontAwesomeIcon icon={item.icon} />
+                  </span>
                   <h3>{item.title}</h3>
                   <p>{item.text}</p>
+                </li>
+              ))}
+            </ul>
+          </AnimateOnScroll>
+        </div>
+
+        <AnimateOnScroll className="why-trust delay-5">
+          <ul className="why-trust-list">
+            {TRUST_ITEMS.map((item, index) => (
+              <li key={item.id} className="why-trust-item">
+                {index > 0 ? (
+                  <span className="why-trust-divider" aria-hidden="true" />
+                ) : null}
+                <span className="why-trust-icon" aria-hidden="true">
+                  <FontAwesomeIcon icon={item.icon} />
+                </span>
+                <div className="why-trust-copy">
+                  <strong>{item.title}</strong>
+                  <span>{item.label}</span>
                 </div>
               </li>
             ))}

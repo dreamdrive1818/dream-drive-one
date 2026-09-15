@@ -9,8 +9,9 @@ import {
   faUserFriends,
   faGasPump,
   faCogs,
+  faSliders,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
-import { ClipLoader } from "react-spinners";
 import { api } from "../api";
 import {
   RENTAL_TYPE_LABELS,
@@ -58,6 +59,7 @@ export default function Search() {
   const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
   const [maxRentalDays, setMaxRentalDays] = useState(30);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const filters = useMemo(
     () => parseFleetFilters(searchParams),
@@ -76,6 +78,22 @@ export default function Search() {
     () => sortCars(cars, filters.sort),
     [cars, filters.sort]
   );
+
+  const selectedCity = useMemo(
+    () => cities.find((c) => c.id === filters.cityId) || null,
+    [cities, filters.cityId]
+  );
+
+  const activeFilterCount = useMemo(() => {
+    let n = 0;
+    if (filters.type) n += 1;
+    if (filters.seats) n += 1;
+    if (filters.fuel) n += 1;
+    if (filters.transmission) n += 1;
+    if (filters.minPrice) n += 1;
+    if (filters.maxPrice) n += 1;
+    return n;
+  }, [filters]);
 
   const setFilters = useCallback(
     (patch) => {
@@ -164,6 +182,19 @@ export default function Search() {
     runSearch(filters);
   }, [apiFetchKey, dateError, runSearch, filters]);
 
+  useEffect(() => {
+    if (!filtersOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") setFiltersOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [filtersOpen]);
+
   function handleSubmit(e) {
     e.preventDefault();
     if (dateError) return;
@@ -194,349 +225,471 @@ export default function Search() {
     setFilters({ maxPrice: rupeesToPaiseString(rupees) });
   }
 
+  const rentalLabel =
+    RENTAL_TYPE_LABELS[filters.rentalType] || filters.rentalType;
+
+  function renderFilterPanel(idSuffix = "") {
+    const sid = (base) => `${base}${idSuffix}`;
+    return (
+      <div className="fleet-search-sidebar-inner">
+        <div className="fleet-search-sidebar-head">
+          <h2>Filters</h2>
+          <button
+            type="button"
+            className="fleet-search-clear-link"
+            onClick={handleClear}
+            disabled={loading}
+          >
+            Clear all
+          </button>
+        </div>
+
+        <div className="fleet-search-filter-group">
+          <label htmlFor={sid("fleet-type")}>Car type</label>
+          <select
+            id={sid("fleet-type")}
+            value={filters.type}
+            onChange={(e) => setFilters({ type: e.target.value })}
+          >
+            {TYPE_OPTIONS.map((o) => (
+              <option key={o.value || "any"} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="fleet-search-filter-group">
+          <label htmlFor={sid("fleet-seats")}>Seats</label>
+          <select
+            id={sid("fleet-seats")}
+            value={filters.seats}
+            onChange={(e) => setFilters({ seats: e.target.value })}
+          >
+            <option value="">Any</option>
+            {SEAT_OPTIONS.filter(Boolean).map((n) => (
+              <option key={n} value={n}>
+                {n} seats
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="fleet-search-filter-group">
+          <label htmlFor={sid("fleet-fuel")}>Fuel</label>
+          <select
+            id={sid("fleet-fuel")}
+            value={filters.fuel}
+            onChange={(e) => setFilters({ fuel: e.target.value })}
+          >
+            {FUEL_OPTIONS.map((o) => (
+              <option key={o.value || "any"} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="fleet-search-filter-group">
+          <label htmlFor={sid("fleet-transmission")}>Transmission</label>
+          <select
+            id={sid("fleet-transmission")}
+            value={filters.transmission}
+            onChange={(e) => setFilters({ transmission: e.target.value })}
+          >
+            {TRANSMISSION_OPTIONS.map((o) => (
+              <option key={o.value || "any"} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="fleet-search-filter-group">
+          <span className="fleet-search-filter-label">Daily price (₹)</span>
+          <div className="fleet-search-price-row">
+            <input
+              id={sid("fleet-min-price")}
+              type="number"
+              min="0"
+              step="100"
+              placeholder="Min"
+              aria-label="Minimum daily price"
+              value={minPriceRupees}
+              onChange={(e) => handleMinPriceChange(e.target.value)}
+            />
+            <span aria-hidden="true">–</span>
+            <input
+              id={sid("fleet-max-price")}
+              type="number"
+              min="0"
+              step="100"
+              placeholder="Max"
+              aria-label="Maximum daily price"
+              value={maxPriceRupees}
+              onChange={(e) => handleMaxPriceChange(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="fleet-search-sidebar-apply"
+          onClick={() => setFiltersOpen(false)}
+        >
+          Show results
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="fleet-search-page">
       <div className="fleet-search-inner">
         <header className="fleet-search-header">
           <p className="fleet-search-eyebrow">Fleet</p>
-          <h1>Find your car</h1>
+          <h1>Find your drive</h1>
           <p className="fleet-search-lead">
-            City, dates, and budget — prices are starting daily rates.
+            Choose city, dates, and filters — prices are starting daily rates.
           </p>
         </header>
 
-        <form className="fleet-search-filters" onSubmit={handleSubmit} noValidate>
-          <div className="fleet-search-primary">
-            <div className="fleet-search-fields">
-              <div className="fleet-search-field">
-                <label htmlFor="fleet-city">City</label>
-                <select
-                  id="fleet-city"
-                  value={filters.cityId}
-                  onChange={(e) => setFilters({ cityId: e.target.value })}
-                  disabled={citiesLoading}
-                >
-                  {!filters.cityId && <option value="">Select city</option>}
-                  {cities.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                      {c.state ? `, ${c.state}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="fleet-search-field">
-                <label htmlFor="fleet-rental">Rental</label>
-                <select
-                  id="fleet-rental"
-                  value={filters.rentalType}
-                  onChange={(e) => setFilters({ rentalType: e.target.value })}
-                >
-                  {RENTAL_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="fleet-search-field">
-                <label htmlFor="fleet-from">Pickup</label>
-                <input
-                  id="fleet-from"
-                  type="datetime-local"
-                  value={isoToDatetimeLocal(filters.from)}
-                  onChange={(e) => handleFromLocalChange(e.target.value)}
-                />
-              </div>
-
-              <div className="fleet-search-field">
-                <label htmlFor="fleet-to">Return</label>
-                <input
-                  id="fleet-to"
-                  type="datetime-local"
-                  value={isoToDatetimeLocal(filters.to)}
-                  onChange={(e) => handleToLocalChange(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="fleet-search-submit"
-              disabled={loading || !filters.cityId || Boolean(dateError)}
-            >
-              {loading ? "Searching…" : "Search"}
-              {!loading && <FontAwesomeIcon icon={faArrowRight} />}
-            </button>
-          </div>
-
-          <div className="fleet-search-more">
-            <div className="fleet-search-field">
-              <label htmlFor="fleet-type">Car type</label>
+        <form
+          className="fleet-search-bar"
+          onSubmit={handleSubmit}
+          noValidate
+          aria-label="Search cars"
+        >
+          <div className="fleet-search-bar-fields">
+            <div className="fleet-search-bar-field">
+              <label htmlFor="fleet-city">City</label>
               <select
-                id="fleet-type"
-                value={filters.type}
-                onChange={(e) => setFilters({ type: e.target.value })}
+                id="fleet-city"
+                value={filters.cityId}
+                onChange={(e) => setFilters({ cityId: e.target.value })}
+                disabled={citiesLoading}
               >
-                {TYPE_OPTIONS.map((o) => (
-                  <option key={o.value || "any"} value={o.value}>
-                    {o.label}
+                {!filters.cityId && <option value="">Select city</option>}
+                {cities.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.state ? `, ${c.state}` : ""}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="fleet-search-field">
-              <label htmlFor="fleet-seats">Seats</label>
-              <select
-                id="fleet-seats"
-                value={filters.seats}
-                onChange={(e) => setFilters({ seats: e.target.value })}
-              >
-                <option value="">Any</option>
-                {SEAT_OPTIONS.filter(Boolean).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="fleet-search-field">
-              <label htmlFor="fleet-fuel">Fuel</label>
-              <select
-                id="fleet-fuel"
-                value={filters.fuel}
-                onChange={(e) => setFilters({ fuel: e.target.value })}
-              >
-                {FUEL_OPTIONS.map((o) => (
-                  <option key={o.value || "any"} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="fleet-search-field">
-              <label htmlFor="fleet-transmission">Gear</label>
-              <select
-                id="fleet-transmission"
-                value={filters.transmission}
-                onChange={(e) => setFilters({ transmission: e.target.value })}
-              >
-                {TRANSMISSION_OPTIONS.map((o) => (
-                  <option key={o.value || "any"} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="fleet-search-field">
-              <label htmlFor="fleet-min-price">Min ₹</label>
+            <div className="fleet-search-bar-field">
+              <label htmlFor="fleet-from">Pickup</label>
               <input
-                id="fleet-min-price"
-                type="number"
-                min="0"
-                step="100"
-                placeholder="1500"
-                value={minPriceRupees}
-                onChange={(e) => handleMinPriceChange(e.target.value)}
+                id="fleet-from"
+                type="datetime-local"
+                value={isoToDatetimeLocal(filters.from)}
+                onChange={(e) => handleFromLocalChange(e.target.value)}
               />
             </div>
 
-            <div className="fleet-search-field">
-              <label htmlFor="fleet-max-price">Max ₹</label>
+            <div className="fleet-search-bar-field">
+              <label htmlFor="fleet-to">Return</label>
               <input
-                id="fleet-max-price"
-                type="number"
-                min="0"
-                step="100"
-                placeholder="5000"
-                value={maxPriceRupees}
-                onChange={(e) => handleMaxPriceChange(e.target.value)}
+                id="fleet-to"
+                type="datetime-local"
+                value={isoToDatetimeLocal(filters.to)}
+                onChange={(e) => handleToLocalChange(e.target.value)}
               />
             </div>
 
-            <button
-              type="button"
-              className="fleet-search-clear"
-              onClick={handleClear}
-              disabled={loading}
-            >
-              Clear
-            </button>
+            <div className="fleet-search-bar-field">
+              <label htmlFor="fleet-rental">Rental type</label>
+              <select
+                id="fleet-rental"
+                value={filters.rentalType}
+                onChange={(e) => setFilters({ rentalType: e.target.value })}
+              >
+                {RENTAL_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {dateError && (
-            <p className="fleet-search-validation" role="alert">
-              {dateError}
-            </p>
-          )}
+          <button
+            type="submit"
+            className="fleet-search-submit"
+            disabled={loading || !filters.cityId || Boolean(dateError)}
+          >
+            {loading ? "Searching…" : "Search"}
+            {!loading && <FontAwesomeIcon icon={faArrowRight} />}
+          </button>
         </form>
 
-        <div className="fleet-search-toolbar">
-          <p className="fleet-search-count">
-            {loading
-              ? "Loading results…"
-              : searched
-                ? `${sortedCars.length} car${sortedCars.length === 1 ? "" : "s"} found`
-                : "Select a city to browse cars"}
+        {dateError && (
+          <p className="fleet-search-validation" role="alert">
+            {dateError}
           </p>
-          <div className="fleet-search-sort">
-            <label htmlFor="fleet-sort">Sort</label>
-            <select
-              id="fleet-sort"
-              value={filters.sort}
-              onChange={(e) => setFilters({ sort: e.target.value })}
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value || "featured"} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+        )}
+
+        <div className="fleet-search-layout">
+          <aside className="fleet-search-sidebar fleet-search-sidebar--desktop">
+            {renderFilterPanel("")}
+          </aside>
+
+          <div className="fleet-search-main">
+            <div className="fleet-search-toolbar">
+              <div className="fleet-search-toolbar-left">
+                <button
+                  type="button"
+                  className="fleet-search-filters-toggle"
+                  onClick={() => setFiltersOpen(true)}
+                  aria-expanded={filtersOpen}
+                >
+                  <FontAwesomeIcon icon={faSliders} />
+                  Filters
+                  {activeFilterCount > 0 ? (
+                    <span className="fleet-search-filters-count">
+                      {activeFilterCount}
+                    </span>
+                  ) : null}
+                </button>
+
+                <p className="fleet-search-count">
+                  {loading
+                    ? "Loading results…"
+                    : searched
+                      ? `${sortedCars.length} car${
+                          sortedCars.length === 1 ? "" : "s"
+                        } found`
+                      : "Select a city to browse cars"}
+                  {!loading && searched && selectedCity?.name
+                    ? ` in ${selectedCity.name}`
+                    : ""}
+                  {!loading && searched && rentalLabel
+                    ? ` · ${rentalLabel}`
+                    : ""}
+                </p>
+              </div>
+
+              <div className="fleet-search-sort">
+                <label htmlFor="fleet-sort">Sort</label>
+                <select
+                  id="fleet-sort"
+                  value={filters.sort}
+                  onChange={(e) => setFilters({ sort: e.target.value })}
+                >
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.value || "featured"} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {error && (
+              <div
+                className="fleet-search-state fleet-search-state--error"
+                role="alert"
+              >
+                <p>{error}</p>
+                <button
+                  type="button"
+                  className="fleet-search-retry"
+                  onClick={() => runSearch(filters)}
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {loading && (
+              <div
+                className="fleet-search-skeletons"
+                aria-live="polite"
+                aria-label="Loading cars"
+              >
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="fleet-search-skeleton" />
+                ))}
+              </div>
+            )}
+
+            {!loading && !error && searched && sortedCars.length === 0 && (
+              <div className="fleet-search-state">
+                <div className="fleet-search-state-icon" aria-hidden="true">
+                  <FontAwesomeIcon icon={faCarSide} />
+                </div>
+                <p>No cars match these filters</p>
+                <p className="fleet-search-state-hint">
+                  Try different dates or clear some filters.
+                </p>
+                <button
+                  type="button"
+                  className="fleet-search-retry"
+                  onClick={handleClear}
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
+
+            {!loading && sortedCars.length > 0 && (
+              <div className="fleet-search-grid">
+                {sortedCars.map((car) => {
+                  const available = car.available !== false;
+                  const img = primaryImageUrl(car);
+                  const category = car.type || "";
+
+                  const cardInner = (
+                    <>
+                      <div className="fleet-search-card-media">
+                        {img ? (
+                          <img
+                            src={img}
+                            alt={car.name || "Vehicle"}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div
+                            className="fleet-search-card-placeholder"
+                            aria-hidden="true"
+                          >
+                            <FontAwesomeIcon icon={faCarSide} />
+                          </div>
+                        )}
+                        <span
+                          className={`fleet-search-badge ${
+                            available
+                              ? "fleet-search-badge--available"
+                              : "fleet-search-badge--unavailable"
+                          }`}
+                        >
+                          {available ? "Available" : "Unavailable"}
+                        </span>
+                        {car.featured ? (
+                          <span className="fleet-search-badge fleet-search-badge--featured">
+                            Featured
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="fleet-search-card-body">
+                        <div className="fleet-search-card-heading">
+                          <h3>{car.name || "—"}</h3>
+                          {category ? <p>{category}</p> : null}
+                        </div>
+
+                        <ul className="fleet-search-specs">
+                          <li>
+                            <FontAwesomeIcon icon={faUserFriends} />
+                            <span>
+                              {car.seats === null ||
+                              car.seats === undefined ||
+                              car.seats === ""
+                                ? "—"
+                                : car.seats}
+                            </span>
+                          </li>
+                          <li>
+                            <FontAwesomeIcon icon={faGasPump} />
+                            <span>
+                              {car.fuel === null ||
+                              car.fuel === undefined ||
+                              car.fuel === ""
+                                ? "—"
+                                : car.fuel}
+                            </span>
+                          </li>
+                          <li>
+                            <FontAwesomeIcon icon={faCogs} />
+                            <span>
+                              {car.transmission === null ||
+                              car.transmission === undefined ||
+                              car.transmission === ""
+                                ? "—"
+                                : car.transmission}
+                            </span>
+                          </li>
+                        </ul>
+
+                        <div className="fleet-search-card-footer">
+                          <div>
+                            <p className="fleet-search-price-label">From</p>
+                            <p className="fleet-search-price">
+                              {formatInr(car.pricePaise)}
+                              <span>/ day</span>
+                            </p>
+                          </div>
+                          {available ? (
+                            <span className="fleet-search-rent">
+                              View details
+                              <FontAwesomeIcon icon={faArrowRight} />
+                            </span>
+                          ) : (
+                            <span className="fleet-search-rent fleet-search-rent--disabled">
+                              Unavailable
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  );
+
+                  if (!available) {
+                    return (
+                      <div
+                        key={car.id}
+                        className="fleet-search-card fleet-search-card--unavailable"
+                        aria-disabled="true"
+                      >
+                        {cardInner}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={car.id}
+                      to={carDetailPath(car.slug, filters)}
+                      className="fleet-search-card"
+                    >
+                      {cardInner}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
-
-        {error && (
-          <div className="fleet-search-state fleet-search-state--error" role="alert">
-            <p>{error}</p>
-            <button
-              type="button"
-              className="fleet-search-retry"
-              onClick={() => runSearch(filters)}
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        {loading && (
-          <div className="fleet-search-spinner" aria-live="polite">
-            <ClipLoader color="#0e7c86" size={36} />
-          </div>
-        )}
-
-        {!loading && !error && searched && sortedCars.length === 0 && (
-          <div className="fleet-search-state">
-            <p>No cars match your filters.</p>
-            <p className="fleet-search-state-hint">
-              Try different dates or clear some filters.
-            </p>
-            <button
-              type="button"
-              className="fleet-search-retry"
-              onClick={handleClear}
-            >
-              Clear filters
-            </button>
-          </div>
-        )}
-
-        {!loading && sortedCars.length > 0 && (
-          <div className="fleet-search-grid">
-            {sortedCars.map((car) => {
-              const available = car.available !== false;
-              const img = primaryImageUrl(car);
-              const rentalLabel =
-                RENTAL_TYPE_LABELS[filters.rentalType] || filters.rentalType;
-
-              const cardInner = (
-                <>
-                  <div className="fleet-search-card-media">
-                    {img ? (
-                      <img src={img} alt={car.name} loading="lazy" />
-                    ) : (
-                      <div className="fleet-search-card-placeholder" aria-hidden="true">
-                        <FontAwesomeIcon icon={faCarSide} />
-                        <span>No image</span>
-                      </div>
-                    )}
-                    <span
-                      className={`fleet-search-badge ${
-                        available
-                          ? "fleet-search-badge--available"
-                          : "fleet-search-badge--unavailable"
-                      }`}
-                    >
-                      {available ? "Available" : "Unavailable"}
-                    </span>
-                    {car.featured ? (
-                      <span className="fleet-search-badge fleet-search-badge--featured">
-                        Featured
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="fleet-search-card-body">
-                    <div className="fleet-search-card-heading">
-                      <h3>{car.name}</h3>
-                      <p>{rentalLabel}</p>
-                    </div>
-                    <ul className="fleet-search-specs">
-                      <li>
-                        <FontAwesomeIcon icon={faUserFriends} />
-                        {car.seats || "—"}
-                      </li>
-                      <li>
-                        <FontAwesomeIcon icon={faGasPump} />
-                        {car.fuel || "—"}
-                      </li>
-                      <li>
-                        <FontAwesomeIcon icon={faCogs} />
-                        {car.transmission || "—"}
-                      </li>
-                    </ul>
-                    <div className="fleet-search-card-footer">
-                      <div>
-                        <p className="fleet-search-price-label">From</p>
-                        <p className="fleet-search-price">
-                          {formatInr(car.pricePaise)}
-                          <span>/ day</span>
-                        </p>
-                      </div>
-                      {available ? (
-                        <span className="fleet-search-rent">
-                          View
-                          <FontAwesomeIcon icon={faArrowRight} />
-                        </span>
-                      ) : (
-                        <span className="fleet-search-rent fleet-search-rent--disabled">
-                          Unavailable
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </>
-              );
-
-              if (!available) {
-                return (
-                  <div
-                    key={car.id}
-                    className="fleet-search-card fleet-search-card--unavailable"
-                    aria-disabled="true"
-                  >
-                    {cardInner}
-                  </div>
-                );
-              }
-
-              return (
-                <Link
-                  key={car.id}
-                  to={carDetailPath(car.slug, filters)}
-                  className="fleet-search-card"
-                >
-                  {cardInner}
-                </Link>
-              );
-            })}
-          </div>
-        )}
       </div>
+
+      {filtersOpen ? (
+        <div className="fleet-search-drawer" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="fleet-search-drawer-backdrop"
+            aria-label="Close filters"
+            onClick={() => setFiltersOpen(false)}
+          />
+          <div className="fleet-search-drawer-panel">
+            <div className="fleet-search-drawer-top">
+              <h2>Filters</h2>
+              <button
+                type="button"
+                className="fleet-search-drawer-close"
+                aria-label="Close filters"
+                onClick={() => setFiltersOpen(false)}
+              >
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            </div>
+            <aside className="fleet-search-sidebar fleet-search-sidebar--drawer">
+              {renderFilterPanel("-m")}
+            </aside>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
