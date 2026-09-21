@@ -1,6 +1,6 @@
 .contact-popup {
   position: fixed;
-  right: 2rem;
+  right: max(1.6rem, env(safe-area-inset-right));
   bottom: -48rem;
   width: min(30rem, calc(100vw - 3.2rem));
   padding: 1.5rem 1.5rem 1.4rem;
@@ -17,7 +17,8 @@
 }
 
 .contact-popup.show {
-  bottom: 11rem;
+  /* Clear Call FAB (5.6rem) + gap above bottom-right stack */
+  bottom: 8.8rem;
   opacity: 1;
   pointer-events: auto;
 }
@@ -190,8 +191,9 @@
 
 .contact-popup-reopen {
   position: fixed;
-  bottom: 9.5rem;
-  right: 2rem;
+  /* Stack above Call Now FAB with clear gap */
+  bottom: calc(1.6rem + 5.6rem + 1rem);
+  right: max(1.6rem, env(safe-area-inset-right));
   width: 5.6rem;
   height: 5.6rem;
   display: inline-flex;
@@ -233,18 +235,18 @@
 
 @media (max-width: 480px) {
   .contact-popup {
-    right: 1.6rem;
-    left: 1.6rem;
+    right: max(1.4rem, env(safe-area-inset-right));
+    left: max(1.4rem, env(safe-area-inset-left));
     width: auto;
     padding: 2rem 1.6rem 1.8rem;
   }
 
   .contact-popup.show {
-    bottom: 9rem;
+    bottom: 8.4rem;
   }
 
   .contact-popup-reopen {
-    right: 1.6rem;
-    bottom: 8.5rem;
+    right: max(1.4rem, env(safe-area-inset-right));
+    bottom: calc(1.4rem + 5.6rem + 1rem);
   }
 }

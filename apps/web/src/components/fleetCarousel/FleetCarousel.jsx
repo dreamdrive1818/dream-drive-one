@@ -1,48 +1,72 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import "./FleetCarousel.css";
 import { useAdminContext } from "../../context/AdminContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCarSide,
-  faArrowRight,
   faChevronLeft,
   faChevronRight,
-  faStar,
-  faUserFriends,
-  faCogs,
+  faCheck,
+  faDoorOpen,
   faGasPump,
+  faCalendarDays,
+  faMagnifyingGlass,
+  faSuitcase,
+  faUserFriends,
 } from "@fortawesome/free-solid-svg-icons";
 import HowItWorks from "../HowItWorks/HowItWorks";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+import { api } from "../../ms/api";
+import {
+  filtersToSearchParams,
+  dateToIsoAtHour,
+  validateDateRange,
+} from "../../ms/fleetSearch";
 
-const FILTERS = ["All", "Hatchback", "Sedan", "SUV", "MUV", "Luxury"];
-const DISCOVERY_CATEGORIES = ["Hatchback", "Sedan", "SUV", "MUV", "Luxury"];
-
-const IMG_NEXON =
-  "https://w0.peakpx.com/wallpaper/943/675/HD-wallpaper-tata-nexon-crossovers-2020-cars-studio-2020-tata-nexon-indian-cars-tata.jpg";
-const IMG_TOYOTA =
-  "https://images.pexels.com/photos/30287502/pexels-photo-30287502/free-photo-of-close-up-of-toyota-car-grille-with-raindrops.jpeg?cs=tinysrgb&dpr=1&w=500";
-const IMG_SWIFT =
-  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWFxiSE-Gr0dzYBhJ9W231pjACm_C03UjxJe5qU8WSnfbCroPOK-Xlzy8&s=10";
-const IMG_THAR =
-  "https://play-lh.googleusercontent.com/oYOUjAZasWlrlJQ2dahkIKND_90VTq1TWvJgdFTm44RiE3NQ4m6qPr5gNGFKKO93oSKkqSkrxBRkIwnm4zax";
-
-/** Display image overrides for known fleet cars (Home showcase only). */
-const FLEET_IMAGE_OVERRIDES = [
-  { match: /tata\s*nexon/i, url: IMG_NEXON },
-  { match: /toyota|innova/i, url: IMG_TOYOTA },
-  { match: /maruti|swift/i, url: IMG_SWIFT },
-  { match: /mahindra|thar/i, url: IMG_THAR },
+/**
+ * Reference class strip labels → internal fleet type filters.
+ * Visual labels match the mockup; filtering uses real inventory types.
+ */
+const CLASS_STRIP = [
+  { label: "Economy", type: "Hatchback" },
+  { label: "Intermediate", type: "Sedan" },
+  { label: "Standard", type: "SUV" },
+  { label: "Luxury", type: "Luxury" },
 ];
 
-/** Category strip fallbacks when no matching fleet car image exists. */
-const CATEGORY_IMAGE_FALLBACKS = {
-  Hatchback: IMG_SWIFT,
-  Sedan: IMG_TOYOTA,
-  SUV: IMG_NEXON,
-  MUV: IMG_TOYOTA,
-  Luxury: IMG_THAR,
+const BODY_TYPES = CLASS_STRIP.map((c) => c.type);
+
+/** Verified Dream Drive offer points — layout matches reference checklist. */
+const OFFER_INCLUDES = [
+  "Transparent pricing",
+  "Self-drive option",
+  "Digital booking",
+  "Quick pickup",
+];
+
+const ROAD_PRESENCE = "/fleet-road-presence.png";
+const EASE = [0.22, 1, 0.36, 1];
+
+/** Project-owned Cloudinary cutouts — used when API returns placeholders. */
+const FLEET_ASSETS = {
+  nexon:
+    "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750168799/tata-nexon-right-front-three-quarter2-removebg-preview_lad5vy_gfkhzv.png",
+  jeep:
+    "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750163087/jeep_smrjsp.png",
+  brezza:
+    "https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/maruti-suzuki-vitara-brezza-ldi-diesel-pearl-arctic-white-82811366-6pbqe-removebg-preview_pgoccl.png",
+  sedan:
+    "https://res.cloudinary.com/df10iqj1i/image/upload/v1766399135/24df9713-f67d-4f45-9da9-7ac8d7e124e8.png",
+  generic:
+    "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750169101/test_QkNB2Ri_axzqkj.png",
+};
+
+const DEFAULT_CLASS_IMAGES = {
+  Hatchback: FLEET_ASSETS.brezza,
+  Sedan: FLEET_ASSETS.sedan,
+  SUV: FLEET_ASSETS.nexon,
+  Luxury: FLEET_ASSETS.jeep,
 };
 
 const categoryTypeMatches = (carType, category) => {
@@ -50,12 +74,39 @@ const categoryTypeMatches = (carType, category) => {
   const cat = String(category || "").toLowerCase();
   if (!type || !cat) return false;
   if (type.includes(cat)) return true;
-  // Treat MPV and MUV as the same family for discovery thumbs
-  if (cat === "muv" && (type.includes("mpv") || type.includes("muv"))) {
+  if (cat === "hatchback" && (type.includes("hatch") || type.includes("economy")))
     return true;
-  }
-  if (cat === "suv" && type.includes("crossover")) return true;
+  // Intermediate — sedan + family MPV when no pure sedans in inventory
+  if (
+    cat === "sedan" &&
+    (type.includes("sedan") || type.includes("mpv") || type.includes("muv"))
+  )
+    return true;
+  if (cat === "suv" && (type.includes("suv") || type.includes("crossover")))
+    return true;
+  if (cat === "muv" && (type.includes("mpv") || type.includes("muv"))) return true;
+  if (cat === "luxury" && type.includes("luxury")) return true;
   return false;
+};
+
+/** Name-aware match so strip classes map to live inventory (e.g. Thar → Luxury). */
+const categoryMatchesCar = (car, category) => {
+  const type = car?.details?.type || car?.type || "";
+  const name = String(car?.name || "").toLowerCase();
+  const cat = String(category || "").toLowerCase();
+
+  if (cat === "luxury") {
+    return (
+      categoryTypeMatches(type, "Luxury") ||
+      /thar|fortuner|mercedes|bmw|audi|lexus/.test(name)
+    );
+  }
+  if (cat === "suv") {
+    // Keep premium SUVs under Luxury, not Standard
+    if (/thar|fortuner|mercedes|bmw|audi|lexus/.test(name)) return false;
+    return categoryTypeMatches(type, category);
+  }
+  return categoryTypeMatches(type, category);
 };
 
 const isDiscountedCar = (car) => {
@@ -72,83 +123,88 @@ const transmissionLabel = (value) => {
   return raw;
 };
 
-const seatsLabel = (seats) => {
-  if (seats === null || seats === undefined || seats === "") return null;
-  const raw = String(seats);
-  if (/seater/i.test(raw)) return raw;
-  return `${raw} Seater`;
-};
+const isPlaceholderUrl = (url) =>
+  /placehold\.co|placeholder|via\.placeholder|dummyimage|picsum\.photos/i.test(
+    String(url || "")
+  );
 
-const fuelLabel = (fuel) => {
-  if (fuel === null || fuel === undefined || fuel === "") return null;
-  return String(fuel);
-};
+const marketingImageForCar = (car) => {
+  const name = String(car?.name || "").toLowerCase();
+  const type = String(car?.details?.type || car?.type || "").toLowerCase();
 
-const resolveOverrideImage = (car) => {
-  const name = String(car?.name || "");
-  if (!name) return "";
-  const hit = FLEET_IMAGE_OVERRIDES.find((entry) => entry.match.test(name));
-  return hit?.url || "";
+  if (/nexon|tata/.test(name)) return FLEET_ASSETS.nexon;
+  if (/thar|mahindra|jeep|wrangler|compass/.test(name)) return FLEET_ASSETS.jeep;
+  if (/swift|brezza|baleno|wagon|alto|maruti|suzuki/.test(name))
+    return FLEET_ASSETS.brezza;
+  if (/innova|crysta|toyota|fortuner|sedan|city|ciaz/.test(name))
+    return FLEET_ASSETS.sedan;
+
+  if (/suv|crossover/.test(type)) return FLEET_ASSETS.nexon;
+  if (/hatch|hatchback/.test(type)) return FLEET_ASSETS.brezza;
+  if (/sedan/.test(type)) return FLEET_ASSETS.sedan;
+  if (/mpv|muv|van/.test(type)) return FLEET_ASSETS.sedan;
+  if (/luxury/.test(type)) return FLEET_ASSETS.jeep;
+
+  return FLEET_ASSETS.generic;
 };
 
 const resolveCarImage = (car) => {
-  const override = resolveOverrideImage(car);
-  if (override) return override;
-
   const images = Array.isArray(car?.images) ? car.images : [];
   for (const entry of images) {
     if (!entry) continue;
-    if (typeof entry === "string" && entry.trim()) return entry.trim();
-    if (typeof entry === "object" && entry.url && String(entry.url).trim()) {
-      return String(entry.url).trim();
-    }
+    const url =
+      typeof entry === "string"
+        ? entry.trim()
+        : entry.url
+          ? String(entry.url).trim()
+          : "";
+    if (url && !isPlaceholderUrl(url)) return url;
   }
-  return "";
+  return marketingImageForCar(car);
 };
 
 const FleetCarousel = () => {
   const { fetchCars } = useAdminContext();
-  const pricingVisible = true;
-
-  const [cars, setCars] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [isHovering, setIsHovering] = useState(false);
-  const [activeFilter, setActiveFilter] = useState("All");
-  const [brokenImages, setBrokenImages] = useState(() => new Set());
-
-  const itemsPerPage = 3;
+  const reduceMotion = useReducedMotion();
   const navigate = useNavigate();
   const location = useLocation();
   const isCarsPage = location.pathname === "/cars";
-  const intervalRef = useRef(null);
-  const touchStartX = useRef(null);
+  const catStripRef = useRef(null);
+
+  const [cars, setCars] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeType, setActiveType] = useState("Hatchback");
+  const [brokenImages, setBrokenImages] = useState(() => new Set());
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const [cities, setCities] = useState([]);
+  const [cityId, setCityId] = useState("");
+  const [vehicleClass, setVehicleClass] = useState("Hatchback");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [searchError, setSearchError] = useState("");
+
+  const itemsPerPage = 3;
 
   const formatPrice = (value) => {
-    if (!pricingVisible) return null;
     if (value === null || value === undefined || value === "") return null;
     const num = Number(value);
     if (Number.isNaN(num)) return null;
-    return `₹${num.toLocaleString("en-IN")}`;
+    return `₹${num.toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
-  const filteredCars = useMemo(() => {
-    if (activeFilter === "All") return cars;
-    return cars.filter((car) => {
-      const type = String(car.details?.type || car.type || "").toLowerCase();
-      return type.includes(activeFilter.toLowerCase());
-    });
-  }, [cars, activeFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredCars.length / itemsPerPage));
-
   useEffect(() => {
-    setCurrentPage(0);
-  }, [activeFilter]);
-
-  useEffect(() => {
-    setCurrentPage((prev) => Math.min(prev, totalPages - 1));
-  }, [totalPages]);
+    api("/v1/public/cities")
+      .then((rows) => {
+        const list = Array.isArray(rows) ? rows : [];
+        setCities(list);
+        if (list[0]?.id) setCityId(list[0].id);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const loadCars = async () => {
@@ -177,62 +233,62 @@ const FleetCarousel = () => {
     loadCars();
   }, [fetchCars]);
 
-  const startAutoSlide = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => {
-      if (!isHovering && totalPages > 1) {
-        setCurrentPage((prev) => (prev + 1) % totalPages);
-      }
-    }, 6000);
-  };
+  const filteredCars = useMemo(() => {
+    return cars.filter((car) => categoryMatchesCar(car, activeType));
+  }, [cars, activeType]);
+
+  const displayCars = useMemo(() => {
+    // If active class empty, fall back to full fleet so UI never looks broken
+    return filteredCars.length > 0 ? filteredCars : cars;
+  }, [filteredCars, cars]);
+
+  const totalPages = Math.max(1, Math.ceil(displayCars.length / itemsPerPage));
 
   useEffect(() => {
-    if (totalPages > 1) {
-      startAutoSlide();
-      return () => {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-      };
-    }
-  }, [totalPages, isHovering, filteredCars.length]);
+    setCurrentPage(0);
+  }, [activeType]);
 
-  const pageCars = useMemo(() => {
-    return filteredCars.slice(
-      currentPage * itemsPerPage,
-      currentPage * itemsPerPage + itemsPerPage
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages - 1));
+  }, [totalPages]);
+
+  useEffect(() => {
+    if (loading || cars.length === 0) return;
+    const hasActive = cars.some((car) => categoryMatchesCar(car, activeType));
+    if (hasActive) return;
+    const first = BODY_TYPES.find((cat) =>
+      cars.some((car) => categoryMatchesCar(car, cat))
     );
-  }, [filteredCars, currentPage, itemsPerPage]);
+    if (first) {
+      setActiveType(first);
+      setVehicleClass(first);
+    }
+  }, [cars, loading, activeType]);
 
-  const featuredCar = pageCars[0] || null;
-  const secondaryCars = pageCars.slice(1);
+  const pageCars = useMemo(
+    () =>
+      displayCars.slice(
+        currentPage * itemsPerPage,
+        currentPage * itemsPerPage + itemsPerPage
+      ),
+    [displayCars, currentPage, itemsPerPage]
+  );
 
-  const goToPrevPage = () => {
-    setCurrentPage((prev) => (prev === 0 ? totalPages - 1 : prev - 1));
-    startAutoSlide();
-  };
-
-  const goToNextPage = () => {
-    setCurrentPage((prev) => (prev + 1) % totalPages);
-    startAutoSlide();
-  };
-
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartX.current == null || totalPages <= 1) return;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
-    if (Math.abs(dx) < 50) return;
-    if (dx < 0) goToNextPage();
-    else goToPrevPage();
-  };
-
-  const handleViewCar = (car) => {
-    const slug = car.slug || car.urlSlug;
-    if (slug) navigate(`/cars/${slug}`);
-    else navigate("/fleet");
-  };
+  const categoryImages = useMemo(() => {
+    const map = {};
+    for (const item of CLASS_STRIP) {
+      const match = cars.find((car) => {
+        if (!categoryMatchesCar(car, item.type)) return false;
+        const url = resolveCarImage(car);
+        return Boolean(url) && !brokenImages.has(url);
+      });
+      const fromCar = match ? resolveCarImage(match) : "";
+      const fallback = DEFAULT_CLASS_IMAGES[item.type] || FLEET_ASSETS.generic;
+      map[item.type] =
+        fromCar && !brokenImages.has(fromCar) ? fromCar : fallback;
+    }
+    return map;
+  }, [cars, brokenImages]);
 
   const markImageBroken = (url) => {
     if (!url) return;
@@ -247,411 +303,237 @@ const FleetCarousel = () => {
   const getCarMeta = (car) => {
     const imageUrl = resolveCarImage(car);
     const showImage = Boolean(imageUrl) && !brokenImages.has(imageUrl);
-    const category = car.details?.type || car.type || "";
+    const seats = car.details?.seats != null && car.details?.seats !== ""
+      ? String(car.details.seats).replace(/seater/i, "").trim()
+      : null;
+    const doors = car.details?.doors ? String(car.details.doors) : null;
+    const bags = car.details?.bags || car.details?.luggage || null;
+    const fuel = car.details?.fuel ? String(car.details.fuel) : null;
     const transmission = transmissionLabel(
       car.details?.transmission ?? car.details?.mt
     );
-    const seats = seatsLabel(car.details?.seats);
-    const fuel = fuelLabel(car.details?.fuel);
-    const price = formatPrice(pricingVisible ? car.price : null);
-    const specs = [seats, transmission, fuel].filter(Boolean);
+    const price = formatPrice(car.price);
+    const year = car.details?.year || car.year || "";
+    const available =
+      car.available === "Available" ||
+      car.available === true ||
+      car.available === undefined;
     return {
       imageUrl,
       showImage,
-      category,
-      transmission,
       seats,
+      doors,
+      bags,
       fuel,
+      transmission,
       price,
-      specs,
-      isAvailable: car.available === "Available",
+      year,
+      isAvailable: available,
     };
   };
 
-  const pageLabel = String(currentPage + 1).padStart(2, "0");
-  const totalLabel = String(totalPages).padStart(2, "0");
-
-  const categoryImages = useMemo(() => {
-    const map = {};
-    for (const cat of DISCOVERY_CATEGORIES) {
-      const match = cars.find((car) => {
-        const type = car.details?.type || car.type || "";
-        if (!categoryTypeMatches(type, cat)) return false;
-        const url = resolveCarImage(car);
-        return Boolean(url) && !brokenImages.has(url);
-      });
-
-      if (match) {
-        map[cat] = {
-          url: resolveCarImage(match),
-          key: String(match.id),
-        };
-      } else {
-        const fallback = CATEGORY_IMAGE_FALLBACKS[cat];
-        if (fallback && !brokenImages.has(fallback)) {
-          map[cat] = { url: fallback, key: `fallback-${cat}` };
-        }
-      }
-    }
-    return map;
-  }, [cars, brokenImages]);
-
-  const showEmptyState = !loading && cars.length === 0;
-  const showFilterEmpty =
-    !loading && cars.length > 0 && filteredCars.length === 0;
-
-  const renderImage = (car, meta, variant) => {
-    if (meta.showImage) {
-      return (
-        <img
-          src={meta.imageUrl}
-          alt={car.name || "Vehicle"}
-          loading="lazy"
-          className={`fleet-img fleet-img--${variant}`}
-          onError={() => markImageBroken(meta.imageUrl)}
-        />
-      );
-    }
-    return (
-      <div className={`fleet-placeholder fleet-placeholder--${variant}`}>
-        <FontAwesomeIcon icon={faCarSide} />
-        <span>Image unavailable</span>
-      </div>
-    );
+  const handleViewCar = (car) => {
+    const slug = car.slug || car.urlSlug;
+    if (slug) navigate(`/cars/${slug}`);
+    else navigate("/fleet");
   };
+
+  const selectClass = (type) => {
+    setActiveType(type);
+    setVehicleClass(type);
+  };
+
+  const handleQuickSearch = (e) => {
+    e.preventDefault();
+    if (!cityId && cities.length > 0) {
+      setSearchError("Please select a pickup city.");
+      return;
+    }
+    const from = dateToIsoAtHour(fromDate, 10);
+    const to = dateToIsoAtHour(toDate, 10);
+    const err = validateDateRange(from, to);
+    if (err) {
+      setSearchError(err);
+      return;
+    }
+    setSearchError("");
+    const params = filtersToSearchParams({
+      cityId,
+      from,
+      to,
+      rentalType: "SELF_DRIVE",
+      type: vehicleClass ? String(vehicleClass).toLowerCase() : "",
+    });
+    navigate(`/fleet?${params.toString()}`);
+  };
+
+  const scrollCats = (dir) => {
+    catStripRef.current?.scrollBy({ left: dir * 200, behavior: "smooth" });
+  };
+
+  const resultCount =
+    filteredCars.length > 0 ? filteredCars.length : cars.length;
 
   return (
     <>
-      <motion.section
-        className="fleet-container"
+      <section
+        className="fleet-section"
         style={{ paddingTop: isCarsPage ? "3.5rem" : undefined }}
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        aria-label="Our fleet"
+        aria-label="Explore the fleet"
       >
-        <div className="fleet-div">
-          <header className="fleet-header">
-            <div className="fleet-header-copy">
-              <p className="fleet-eyebrow">Explore the fleet</p>
-              <h2 className="fleet-title">
-                Our Impressive <span>Fleet</span>
-              </h2>
-              <p className="fleet-subtitle">
-                Self-drive cars ready for your next trip.
-              </p>
-            </div>
-            {/* Trust strip omitted — no verified CMS claims available */}
+        <div className="fleet-wave" aria-hidden="true" />
+
+        <div className="fleet-shell">
+          <header className="fleet-intro">
+            <p className="fleet-intro-eyebrow">Explore the fleet</p>
+            <h2 className="fleet-intro-title">
+              Choose the car that fits <em>your trip</em>
+            </h2>
+            <p className="fleet-intro-sub">
+              Self-drive cars in Ranchi — search, filter, and book in minutes.
+            </p>
           </header>
 
-          <div className="fleet-toolbar">
-            <div
-              className="fleet-filters"
-              role="tablist"
-              aria-label="Car type filters"
-            >
-              {FILTERS.map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeFilter === filter}
-                  className={`fleet-filter ${
-                    activeFilter === filter ? "fleet-filter--active" : ""
-                  }`}
-                  onClick={() => setActiveFilter(filter)}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
+          <div className="fleet-grid">
+            <aside className="fleet-aside">
+              <form className="fleet-qs" onSubmit={handleQuickSearch}>
+                <h3>Quick Search</h3>
 
-            {!loading && !showEmptyState && totalPages > 1 ? (
-              <div className="fleet-pager" aria-label="Fleet navigation">
+                <label>
+                  Location
+                  <select
+                    value={cityId}
+                    onChange={(e) => setCityId(e.target.value)}
+                  >
+                    {cities.length === 0 && <option value="">Ranchi</option>}
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Vehicle Class
+                  <select
+                    value={vehicleClass}
+                    onChange={(e) => selectClass(e.target.value)}
+                  >
+                    {CLASS_STRIP.map((c) => (
+                      <option key={c.type} value={c.type}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="fleet-qs-row">
+                  <label>
+                    Pick-Up
+                    <span className="fleet-qs-date">
+                      <FontAwesomeIcon icon={faCalendarDays} />
+                      <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(e) => setFromDate(e.target.value)}
+                      />
+                    </span>
+                  </label>
+                  <label>
+                    Return
+                    <span className="fleet-qs-date">
+                      <FontAwesomeIcon icon={faCalendarDays} />
+                      <input
+                        type="date"
+                        value={toDate}
+                        onChange={(e) => setToDate(e.target.value)}
+                      />
+                    </span>
+                  </label>
+                </div>
+
+                {searchError ? (
+                  <p className="fleet-qs-err" role="alert">
+                    {searchError}
+                  </p>
+                ) : null}
+
+                <button type="submit" className="fleet-qs-btn">
+                  <FontAwesomeIcon icon={faMagnifyingGlass} />
+                  Search
+                </button>
+              </form>
+
+              <div className="fleet-body">
+                <h4>Body Type</h4>
+                {BODY_TYPES.map((type) => (
+                  <label key={type} className="fleet-body-item">
+                    <input
+                      type="checkbox"
+                      checked={activeType === type}
+                      onChange={() => selectClass(type)}
+                    />
+                    <i aria-hidden="true">
+                      <FontAwesomeIcon icon={faCheck} />
+                    </i>
+                    <span>{type}</span>
+                  </label>
+                ))}
+              </div>
+            </aside>
+
+            <div className="fleet-main">
+              <header className="fleet-main-head">
+                <h2>Search Results</h2>
+                {!loading && cars.length > 0 ? (
+                  <p>
+                    found {resultCount} car{resultCount === 1 ? "" : "s"} for
+                    your request
+                  </p>
+                ) : null}
+              </header>
+
+              <div className="fleet-classes">
                 <button
                   type="button"
-                  className="fleet-pager-btn"
-                  aria-label="Previous cars"
-                  onClick={goToPrevPage}
+                  className="fleet-classes-arrow"
+                  aria-label="Previous"
+                  onClick={() => scrollCats(-1)}
                 >
                   <FontAwesomeIcon icon={faChevronLeft} />
                 </button>
-                <p className="fleet-pager-index">
-                  <strong>{pageLabel}</strong>
-                  <span> / {totalLabel}</span>
-                </p>
-                <button
-                  type="button"
-                  className="fleet-pager-btn"
-                  aria-label="Next cars"
-                  onClick={goToNextPage}
-                >
-                  <FontAwesomeIcon icon={faChevronRight} />
-                </button>
-              </div>
-            ) : null}
-          </div>
 
-          {loading ? (
-            <div className="fleet-skeleton" aria-hidden="true">
-              <div className="fleet-skeleton-featured" />
-              <div className="fleet-skeleton-side">
-                <div className="fleet-skeleton-row" />
-                <div className="fleet-skeleton-row" />
-              </div>
-            </div>
-          ) : showEmptyState ? (
-            <div className="fleet-empty-state">
-              <div className="fleet-empty-state-icon" aria-hidden="true">
-                <FontAwesomeIcon icon={faCarSide} />
-              </div>
-              <h3>Fleet coming soon</h3>
-              <p>Our fleet will appear here when vehicles are available.</p>
-              <button
-                type="button"
-                className="fleet-empty-state-cta"
-                onClick={() => navigate("/fleet")}
-              >
-                Explore Fleet
-                <FontAwesomeIcon icon={faArrowRight} />
-              </button>
-            </div>
-          ) : showFilterEmpty ? (
-            <p className="fleet-empty">No cars match this category.</p>
-          ) : (
-            <>
-              <div
-                className="fleet-showcase"
-                onMouseEnter={() => setIsHovering(true)}
-                onMouseLeave={() => setIsHovering(false)}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-              >
-                {featuredCar
-                  ? (() => {
-                      const meta = getCarMeta(featuredCar);
-                      return (
-                        <motion.article
-                          key={`featured-${featuredCar.id}-${currentPage}`}
-                          className={`fleet-featured ${
-                            !meta.isAvailable
-                              ? "fleet-featured--unavailable"
-                              : ""
-                          }`}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.35 }}
-                        >
-                          <div className="fleet-featured-media">
-                            {renderImage(featuredCar, meta, "featured")}
-                            <div className="fleet-featured-shade" aria-hidden="true" />
-                          </div>
-
-                          <div className="fleet-featured-content">
-                            {meta.category ? (
-                              <p className="fleet-featured-category">
-                                {meta.category}
-                              </p>
-                            ) : null}
-
-                            <h3 className="fleet-featured-name">
-                              {featuredCar.name || "—"}
-                            </h3>
-
-                            {meta.specs.length > 0 ? (
-                              <ul className="fleet-featured-specs">
-                                {meta.seats ? (
-                                  <li>
-                                    <FontAwesomeIcon icon={faUserFriends} />
-                                    <span>{meta.seats}</span>
-                                  </li>
-                                ) : null}
-                                {meta.transmission ? (
-                                  <li>
-                                    <FontAwesomeIcon icon={faCogs} />
-                                    <span>{meta.transmission}</span>
-                                  </li>
-                                ) : null}
-                                {meta.fuel ? (
-                                  <li>
-                                    <FontAwesomeIcon icon={faGasPump} />
-                                    <span>{meta.fuel}</span>
-                                  </li>
-                                ) : null}
-                              </ul>
-                            ) : null}
-
-                            <div className="fleet-featured-footer">
-                              <div className="fleet-featured-price">
-                                {meta.price ? (
-                                  <>
-                                    <p className="fleet-price-label">
-                                      Starting from
-                                    </p>
-                                    <p className="fleet-price-value">
-                                      {meta.price}
-                                      <span>/day</span>
-                                    </p>
-                                  </>
-                                ) : null}
-                              </div>
-
-                              {meta.isAvailable ? (
-                                <button
-                                  type="button"
-                                  className="fleet-featured-cta"
-                                  onClick={() => handleViewCar(featuredCar)}
-                                >
-                                  View Car
-                                  <FontAwesomeIcon icon={faArrowRight} />
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="fleet-featured-cta fleet-featured-cta--disabled"
-                                  disabled
-                                >
-                                  Not Available
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {totalPages > 1 ? (
-                            <div
-                              className="fleet-featured-dots"
-                              aria-hidden="true"
-                            >
-                              {Array.from({
-                                length: Math.min(totalPages, 6),
-                              }).map((_, i) => (
-                                <span
-                                  key={i}
-                                  className={`fleet-dot ${
-                                    i === currentPage % Math.min(totalPages, 6)
-                                      ? "fleet-dot--active"
-                                      : ""
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          ) : null}
-                        </motion.article>
-                      );
-                    })()
-                  : null}
-
-                {secondaryCars.length > 0 ? (
-                  <aside className="fleet-secondary" aria-label="More vehicles">
-                    {secondaryCars.map((car, index) => {
-                      const meta = getCarMeta(car);
-                      const metaLine = [
-                        meta.category,
-                        meta.seats,
-                        meta.transmission,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ");
-
-                      return (
-                        <motion.button
-                          key={`secondary-${car.id}-${currentPage}`}
-                          type="button"
-                          className={`fleet-secondary-card ${
-                            !meta.isAvailable
-                              ? "fleet-secondary-card--unavailable"
-                              : ""
-                          }`}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{
-                            delay: 0.06 + index * 0.05,
-                            duration: 0.3,
-                          }}
-                          onClick={() =>
-                            meta.isAvailable ? handleViewCar(car) : undefined
-                          }
-                          disabled={!meta.isAvailable}
-                        >
-                          <div className="fleet-secondary-media">
-                            {renderImage(car, meta, "secondary")}
-                            <div
-                              className="fleet-secondary-shade"
-                              aria-hidden="true"
-                            />
-                          </div>
-
-                          <div className="fleet-secondary-body">
-                            <div className="fleet-secondary-copy">
-                              <h4>{car.name || "—"}</h4>
-                              {metaLine ? <p>{metaLine}</p> : null}
-                              {meta.price ? (
-                                <p className="fleet-secondary-price">
-                                  {meta.price}
-                                  <span>/day</span>
-                                </p>
-                              ) : null}
-                            </div>
-
-                            <span
-                              className="fleet-secondary-arrow"
-                              aria-hidden="true"
-                            >
-                              <FontAwesomeIcon icon={faArrowRight} />
-                            </span>
-                          </div>
-                        </motion.button>
-                      );
-                    })}
-                  </aside>
-                ) : null}
-              </div>
-
-              <div className="fleet-discovery">
-                <div className="fleet-discovery-intro">
-                  <span className="fleet-discovery-icon" aria-hidden="true">
-                    <FontAwesomeIcon icon={faStar} />
-                  </span>
-                  <div>
-                    <p className="fleet-discovery-title">
-                      Find the perfect car for every journey
-                    </p>
-                    <p className="fleet-discovery-sub">
-                      Browse by category or view the full fleet.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="fleet-discovery-cats">
-                  {DISCOVERY_CATEGORIES.map((cat) => {
-                    const thumb = categoryImages[cat];
+                <div className="fleet-classes-track" ref={catStripRef}>
+                  {CLASS_STRIP.map((item) => {
+                    const active = activeType === item.type;
+                    const thumb = categoryImages[item.type];
                     return (
                       <button
-                        key={cat}
+                        key={item.type}
                         type="button"
-                        className={`fleet-discovery-cat ${
-                          activeFilter === cat
-                            ? "fleet-discovery-cat--active"
-                            : ""
+                        className={`fleet-class ${
+                          active ? "is-active" : ""
                         }`}
-                        onClick={() => setActiveFilter(cat)}
+                        onClick={() => selectClass(item.type)}
                       >
-                        <span
-                          className="fleet-discovery-cat-icon"
-                          aria-hidden="true"
-                        >
+                        <span className="fleet-class-pic">
                           {thumb ? (
                             <img
-                              src={thumb.url}
+                              src={thumb}
                               alt=""
-                              loading="lazy"
-                              onError={() => markImageBroken(thumb.url)}
+                              onError={() => markImageBroken(thumb)}
                             />
                           ) : (
                             <FontAwesomeIcon icon={faCarSide} />
                           )}
+                          {active ? (
+                            <em>
+                              <FontAwesomeIcon icon={faCheck} />
+                            </em>
+                          ) : null}
                         </span>
-                        <span className="fleet-discovery-cat-name">{cat}</span>
+                        <span className="fleet-class-name">{item.label}</span>
                       </button>
                     );
                   })}
@@ -659,44 +541,192 @@ const FleetCarousel = () => {
 
                 <button
                   type="button"
-                  className="fleet-discovery-cta"
-                  onClick={() => navigate("/fleet")}
+                  className="fleet-classes-arrow"
+                  aria-label="Next"
+                  onClick={() => scrollCats(1)}
                 >
-                  View all cars
-                  <FontAwesomeIcon icon={faArrowRight} />
+                  <FontAwesomeIcon icon={faChevronRight} />
                 </button>
               </div>
 
-              {totalPages > 1 ? (
-                <div className="fleet-pager fleet-pager--mobile">
-                  <button
-                    type="button"
-                    className="fleet-pager-btn"
-                    aria-label="Previous cars"
-                    onClick={goToPrevPage}
-                  >
-                    <FontAwesomeIcon icon={faChevronLeft} />
-                  </button>
-                  <p className="fleet-pager-index">
-                    <strong>{pageLabel}</strong>
-                    <span> / {totalLabel}</span>
-                  </p>
-                  <button
-                    type="button"
-                    className="fleet-pager-btn"
-                    aria-label="Next cars"
-                    onClick={goToNextPage}
-                  >
-                    <FontAwesomeIcon icon={faChevronRight} />
-                  </button>
+              {loading ? (
+                <div className="fleet-loading">
+                  <div />
+                  <div />
                 </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      </motion.section>
+              ) : cars.length === 0 ? (
+                <div className="fleet-empty">
+                  <p>Fleet coming soon</p>
+                </div>
+              ) : (
+                <div className="fleet-list">
+                  {pageCars.map((car, index) => {
+                    const meta = getCarMeta(car);
+                    return (
+                      <motion.article
+                        key={`${car.id}-${currentPage}`}
+                        className="fleet-row"
+                        initial={
+                          reduceMotion ? false : { opacity: 0, y: 12 }
+                        }
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.35,
+                          delay: reduceMotion ? 0 : index * 0.06,
+                          ease: EASE,
+                        }}
+                      >
+                        <div className="fleet-row-pic">
+                          {meta.showImage ? (
+                            <img
+                              src={meta.imageUrl}
+                              alt={car.name || "Vehicle"}
+                              onError={() => markImageBroken(meta.imageUrl)}
+                            />
+                          ) : (
+                            <FontAwesomeIcon icon={faCarSide} />
+                          )}
+                        </div>
 
-      {location.pathname === "/cars" && <HowItWorks />}
+                        <div className="fleet-row-info">
+                          <h3>
+                            {car.name || "—"}
+                            {meta.year ? <span>{meta.year}</span> : null}
+                          </h3>
+
+                          <ul className="fleet-row-specs">
+                            {meta.seats ? (
+                              <li>
+                                <FontAwesomeIcon icon={faUserFriends} />
+                                {meta.seats}
+                              </li>
+                            ) : null}
+                            {meta.doors ? (
+                              <li>
+                                <FontAwesomeIcon icon={faDoorOpen} />
+                                {meta.doors}
+                              </li>
+                            ) : null}
+                            {meta.bags ? (
+                              <li>
+                                <FontAwesomeIcon icon={faSuitcase} />
+                                {meta.bags}
+                              </li>
+                            ) : null}
+                            {meta.fuel ? (
+                              <li>
+                                <FontAwesomeIcon icon={faGasPump} />
+                                {meta.fuel}
+                              </li>
+                            ) : null}
+                          </ul>
+
+                          <div className="fleet-row-offer">
+                            <p>This offer includes:</p>
+                            <ul>
+                              {OFFER_INCLUDES.map((item) => (
+                                <li key={item}>
+                                  <FontAwesomeIcon icon={faCheck} />
+                                  {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div className="fleet-row-buy">
+                          {meta.price ? (
+                            <>
+                              <strong>{meta.price}</strong>
+                              <span>per day</span>
+                            </>
+                          ) : (
+                            <span>See details</span>
+                          )}
+                          <button
+                            type="button"
+                            disabled={!meta.isAvailable}
+                            onClick={() => handleViewCar(car)}
+                          >
+                            {meta.isAvailable ? "Rent Now" : "Unavailable"}
+                          </button>
+                        </div>
+                      </motion.article>
+                    );
+                  })}
+
+                  {totalPages > 1 ? (
+                    <div className="fleet-pages">
+                      <button
+                        type="button"
+                        aria-label="Previous page"
+                        onClick={() =>
+                          setCurrentPage((p) =>
+                            p === 0 ? totalPages - 1 : p - 1
+                          )
+                        }
+                      >
+                        <FontAwesomeIcon icon={faChevronLeft} />
+                      </button>
+                      <span>
+                        {currentPage + 1}/{totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Next page"
+                        onClick={() =>
+                          setCurrentPage((p) => (p + 1) % totalPages)
+                        }
+                      >
+                        <FontAwesomeIcon icon={faChevronRight} />
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <motion.div
+            className="fleet-jeep-wrap"
+            aria-hidden="true"
+            initial={reduceMotion ? false : { opacity: 0, x: 80, scale: 0.92 }}
+            whileInView={
+              reduceMotion
+                ? undefined
+                : { opacity: 1, x: 0, scale: 1 }
+            }
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{
+              duration: 0.85,
+              delay: 0.15,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+          >
+            <span className="fleet-jeep-exhaust" aria-hidden="true">
+              <i className="fleet-dust fleet-dust--base" />
+              <i className="fleet-dust fleet-dust--1" />
+              <i className="fleet-dust fleet-dust--2" />
+              <i className="fleet-dust fleet-dust--3" />
+              <i className="fleet-dust fleet-dust--4" />
+            </span>
+            <span className="fleet-jeep-ambient" />
+            <span className="fleet-jeep-ground" />
+            <motion.img
+              src={ROAD_PRESENCE}
+              alt=""
+              className={`fleet-jeep${reduceMotion ? "" : " fleet-jeep--live"}`}
+              whileHover={
+                reduceMotion
+                  ? undefined
+                  : { scale: 1.04, y: -6, transition: { duration: 0.35 } }
+              }
+            />
+          </motion.div>
+        </div>
+      </section>
+
+      {isCarsPage && <HowItWorks />}
     </>
   );
 };

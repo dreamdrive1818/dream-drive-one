@@ -1,33 +1,39 @@
 .number-float {
   position: fixed;
-  right: 18px;
-  bottom: 30px; /* above WhatsApp button */
+  right: max(1.6rem, env(safe-area-inset-right));
+  bottom: max(1.6rem, env(safe-area-inset-bottom));
   z-index: 9999;
   animation: bounce 2s infinite;
 }
 
+/* Compact circular FAB — keeps tel: link + label for a11y, avoids covering Search Cars */
 .number-float a {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 18px;
+  justify-content: center;
+  width: 5.6rem;
+  height: 5.6rem;
+  padding: 0;
+  gap: 0;
   border-radius: 999px;
-  background: #25d366; /* brand blue */
+  background: #0e7c86;
   color: #fff;
   font-weight: 600;
-  font-size: 18.5px;
+  font-size: 0;
+  line-height: 0;
   text-decoration: none;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
   transition: background 0.3s ease, transform 0.2s ease;
 }
 
 .number-float a:hover {
-  background: #0f172a; /* darker blue on hover */
+  background: #0f172a;
   transform: translateY(-2px);
 }
 
 .number-float .icon {
-  font-size: 16px;
+  font-size: 2rem;
+  line-height: 1;
 }
 
 @keyframes bounce {
@@ -39,5 +45,12 @@
   }
   60% {
     transform: translateY(-3px);
+  }
+}
+
+@media (max-width: 480px) {
+  .number-float {
+    right: max(1.4rem, env(safe-area-inset-right));
+    bottom: max(1.4rem, env(safe-area-inset-bottom));
   }
 }
