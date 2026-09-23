@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import {
   getPostLoginPath,
@@ -24,6 +24,38 @@ export default function Login() {
     navigate(path, { replace: true });
   }, [navigate]);
 
+  const goHome = useCallback(() => {
+    navigate("/");
+  }, [navigate]);
+
+  const goBack = useCallback(() => {
+    if (typeof window === "undefined") {
+      navigate("/");
+      return;
+    }
+    const from = readRedirectFromLocation();
+    if (from && from !== "/login") {
+      navigate(from);
+      return;
+    }
+    const referrer = document.referrer;
+    try {
+      if (referrer) {
+        const refUrl = new URL(referrer);
+        if (
+          refUrl.origin === window.location.origin &&
+          refUrl.pathname !== "/login"
+        ) {
+          navigate(-1);
+          return;
+        }
+      }
+    } catch {
+      // Invalid referrer — fall through to home.
+    }
+    navigate("/");
+  }, [navigate]);
+
   useEffect(() => {
     if (!ready || !user || isSubmitLogin.current) return;
     completeLogin();
@@ -35,6 +67,16 @@ export default function Login() {
 
   return (
     <div className="customer-login-page customer-login-page--full">
+      <nav className="customer-login-nav" aria-label="Login page">
+        <button type="button" className="customer-login-nav-btn" onClick={goBack}>
+          <span aria-hidden="true">←</span>
+          Back
+        </button>
+        <button type="button" className="customer-login-nav-btn" onClick={goHome}>
+          Home
+        </button>
+      </nav>
+
       <aside className="customer-login-visual" aria-hidden="true">
         <img
           src={VISUAL_STAGE}
@@ -53,9 +95,6 @@ export default function Login() {
       </aside>
 
       <section className="customer-login-panel">
-        <Link to="/" className="customer-login-back">
-          ← Back to home
-        </Link>
         <AuthForm idPrefix="page-auth" onSuccess={completeLogin} />
       </section>
     </div>
