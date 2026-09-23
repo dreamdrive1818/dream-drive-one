@@ -131,6 +131,20 @@ export function AuthProvider({ children }) {
     [applySession, refresh, requireSession]
   );
 
+  const loginFacebook = useCallback(
+    async (accessToken) => {
+      const data = await api("/v1/auth/facebook", {
+        method: "POST",
+        body: { accessToken },
+      });
+      if (data?.error) throw new Error(data.error);
+      const me = await applySession(data.token, data.user);
+      if (me) return me;
+      return requireSession(refresh);
+    },
+    [applySession, refresh, requireSession]
+  );
+
   const loginDev = useCallback(
     async (email) => {
       setToken(`dev:${email.trim().toLowerCase()}`);
@@ -195,6 +209,7 @@ export function AuthProvider({ children }) {
       loginPassword: loginWithEmailPassword,
       register,
       loginGoogle,
+      loginFacebook,
       loginDev,
       sendOtp,
       verifyOtp,
@@ -214,6 +229,7 @@ export function AuthProvider({ children }) {
       loginWithEmailPassword,
       register,
       loginGoogle,
+      loginFacebook,
       loginDev,
       sendOtp,
       verifyOtp,

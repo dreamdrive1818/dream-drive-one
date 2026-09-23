@@ -33,6 +33,8 @@ import {
   sortCars,
   primaryImageUrl,
   formatInr,
+  defaultSearchDates,
+  localDateYmd,
 } from "../fleetSearch";
 import "./Search.css";
 
@@ -151,9 +153,14 @@ export default function Search() {
         setCities(list);
 
         const current = parseFleetFilters(searchParams);
-        if (!current.cityId && list[0]?.id) {
+        const dates = defaultSearchDates();
+        const patch = {};
+        if (!current.cityId && list[0]?.id) patch.cityId = list[0].id;
+        if (!current.from) patch.from = dates.from;
+        if (!current.to) patch.to = dates.to;
+        if (Object.keys(patch).length) {
           setSearchParams(
-            filtersToSearchParams({ ...current, cityId: list[0].id }),
+            filtersToSearchParams({ ...current, ...patch }),
             { replace: true }
           );
         }
@@ -203,9 +210,16 @@ export default function Search() {
 
   function handleClear() {
     const cityId = filters.cityId || cities[0]?.id || "";
-    setSearchParams(filtersToSearchParams({ ...EMPTY_FILTERS, cityId }), {
-      replace: true,
-    });
+    const dates = defaultSearchDates();
+    setSearchParams(
+      filtersToSearchParams({
+        ...EMPTY_FILTERS,
+        cityId,
+        from: dates.from,
+        to: dates.to,
+      }),
+      { replace: true }
+    );
     setError("");
   }
 
@@ -384,6 +398,7 @@ export default function Search() {
               <input
                 id="fleet-from"
                 type="datetime-local"
+                min={`${localDateYmd(0)}T00:00`}
                 value={isoToDatetimeLocal(filters.from)}
                 onChange={(e) => handleFromLocalChange(e.target.value)}
               />
@@ -394,6 +409,7 @@ export default function Search() {
               <input
                 id="fleet-to"
                 type="datetime-local"
+                min={isoToDatetimeLocal(filters.from) || `${localDateYmd(0)}T00:00`}
                 value={isoToDatetimeLocal(filters.to)}
                 onChange={(e) => handleToLocalChange(e.target.value)}
               />

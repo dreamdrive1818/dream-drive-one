@@ -11,11 +11,11 @@ import {
   faUser,
   faIndianRupeeSign,
 } from "@fortawesome/free-solid-svg-icons";
-import { ClipLoader } from "react-spinners";
 import { api, getToken } from "../api";
 import { useAuth } from "../AuthContext";
 import { subscribeBookingStatus } from "../bookingSocket";
 import { formatInr, RENTAL_TYPE_LABELS } from "../fleetSearch";
+import { TrackSkeleton } from "../../components/Skeleton/Skeleton";
 import "./Track.css";
 
 const STEPS = [
@@ -237,13 +237,7 @@ export default function Track() {
   }
 
   if (!booking) {
-    return (
-      <section className="track-page">
-        <div className="track-loading">
-          <ClipLoader color="#0e7c86" size={40} />
-        </div>
-      </section>
-    );
+    return <TrackSkeleton />;
   }
 
   const driver = booking.driverAssignment?.driver;

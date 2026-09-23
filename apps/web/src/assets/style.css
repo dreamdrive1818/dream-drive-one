@@ -11,6 +11,8 @@
 html {
   font-size: 10px;
   scroll-behavior: smooth;
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 /* Master Design Tokens */
@@ -96,6 +98,8 @@ html {
 
 body {
   width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
   background-color: var(--light-bg) !important;
   color: var(--text-dark);
   font-family: var(--font-family-main);

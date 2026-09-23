@@ -1,14 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { AppBootSkeleton } from "../../components/Skeleton/Skeleton";
 
 const ClientApp = dynamic(() => import("../ClientApp"), {
   ssr: false,
-  loading: () => (
-    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-      Loading Dream Drive…
-    </div>
-  ),
+  loading: () => <AppBootSkeleton />,
 });
 
 /**

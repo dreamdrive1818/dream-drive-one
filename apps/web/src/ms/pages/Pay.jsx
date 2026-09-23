@@ -6,6 +6,8 @@ import { ClipLoader } from "react-spinners";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
 import { formatInr, RENTAL_TYPE_LABELS } from "../fleetSearch";
+import { CheckoutSkeleton } from "../../components/Skeleton/Skeleton";
+import AuthModal from "../AuthModal";
 import "./Checkout.css";
 
 function loadRazorpay() {
@@ -35,14 +37,15 @@ export default function Pay() {
   const [useWallet, setUseWallet] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   useEffect(() => {
     if (!ready) return;
     if (!user) {
-      const next = encodeURIComponent(`/checkout/pay?booking=${bookingId}`);
-      navigate(`/login?redirect=${next}`, { replace: true });
+      setAuthOpen(true);
       return;
     }
+    setAuthOpen(false);
     if (!bookingId) return;
     Promise.all([
       api(`/v1/bookings/${bookingId}`),
@@ -137,14 +140,7 @@ export default function Pay() {
   }
 
   if (!ready || (!booking && !error && bookingId)) {
-    return (
-      <div className="checkout-page">
-        <div className="checkout-state" aria-live="polite">
-          <ClipLoader color="var(--primary-color, #0072ce)" size={36} />
-          <p>Loading payment…</p>
-        </div>
-      </div>
-    );
+    return <CheckoutSkeleton label="Loading payment" />;
   }
 
   if (!bookingId || error) {
@@ -242,6 +238,13 @@ export default function Pay() {
           </aside>
         </div>
       </div>
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onSuccess={() => setAuthOpen(false)}
+        initialMode="password"
+      />
     </div>
   );
 }

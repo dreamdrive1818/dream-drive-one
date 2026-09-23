@@ -46,6 +46,7 @@ import AccountInvoices from "../ms/pages/account/AccountInvoices";
 import AccountWallet from "../ms/pages/account/AccountWallet";
 import AccountTickets from "../ms/pages/account/AccountTickets";
 import Track from "../ms/pages/Track";
+import { RouteSkeleton } from "../components/Skeleton/Skeleton";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -62,6 +63,7 @@ const AppRoute = () => {
   const [loading, setLoading] = useState(true);
   const isFirstRender = useRef(true);
   const isAdminPage = location.pathname.includes("admin");
+  const isAuthPage = location.pathname === "/login";
   const { campaignActive } = useLocalContext();
 
   useEffect(() => {
@@ -77,25 +79,29 @@ const AppRoute = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    document.body.classList.toggle("monsoon-sale", !isAdminPage && campaignActive);
-    return () => document.body.classList.remove("monsoon-sale");
-  }, [isAdminPage, campaignActive]);
+    document.body.classList.toggle("monsoon-sale", !isAdminPage && !isAuthPage && campaignActive);
+    document.body.classList.toggle("auth-shell", isAuthPage);
+    return () => {
+      document.body.classList.remove("monsoon-sale");
+      document.body.classList.remove("auth-shell");
+    };
+  }, [isAdminPage, isAuthPage, campaignActive]);
 
   return (
     <>
       <ScrollToTop />
 
-      {!isAdminPage && <Numberattach />}
-      {!isAdminPage && <WhatsAppPopup />}
-      {!isAdminPage && <ContactPopup />}
-      {!isAdminPage && <MonsoonPromoBar />}
-      {!isAdminPage && <SaleModal />}
+      {!isAdminPage && !isAuthPage && <Numberattach />}
+      {!isAdminPage && !isAuthPage && <WhatsAppPopup />}
+      {!isAdminPage && !isAuthPage && <ContactPopup />}
+      {!isAdminPage && !isAuthPage && <MonsoonPromoBar />}
+      {!isAdminPage && !isAuthPage && <SaleModal />}
 
-      {!isAdminPage && <Header />}
+      {!isAdminPage && !isAuthPage && <Header />}
       {!isAdminPage && (
-        <main className="route-container">
+        <main className={`route-container${isAuthPage ? " route-container--auth" : ""}`}>
           {loading ? (
-            <div className="route-spinner" />
+            <RouteSkeleton />
           ) : (
             <div className="fade-in-bottom">
               <Routes>
@@ -143,8 +149,8 @@ const AppRoute = () => {
         </main>
       )}
       {isAdminPage && <AdminLayout />}
-      {!isAdminPage && <DreamCarBanner />}
-      {!isAdminPage && <Footer />}
+      {!isAdminPage && !isAuthPage && <DreamCarBanner />}
+      {!isAdminPage && !isAuthPage && <Footer />}
     </>
   );
 };

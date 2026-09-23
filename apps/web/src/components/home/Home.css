@@ -1,5 +1,7 @@
 .home {
   position: relative;
+  overflow-x: clip;
+  max-width: 100%;
   background:
     radial-gradient(ellipse at top, rgba(14, 124, 134, 0.05), transparent 42%),
     var(--light-bg);

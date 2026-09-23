@@ -22,6 +22,8 @@ import {
   filtersToSearchParams,
   dateToIsoAtHour,
   validateDateRange,
+  defaultSearchDates,
+  localDateYmd,
 } from "../../../ms/fleetSearch";
 
 /** Project-owned scenic hero stage (marketing asset in /public). */
@@ -48,12 +50,14 @@ const Hero2 = () => {
       ? heroBanner.imageUrl
       : HERO_STAGE;
 
+  const defaults = defaultSearchDates();
   const [cities, setCities] = useState([]);
   const [cityId, setCityId] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(defaults.fromDate);
+  const [toDate, setToDate] = useState(defaults.toDate);
   const [rentalType, setRentalType] = useState("SELF_DRIVE");
   const [searchError, setSearchError] = useState("");
+  const todayMin = localDateYmd(0);
 
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -409,8 +413,15 @@ const Hero2 = () => {
                 <input
                   id="hero2-from"
                   type="date"
+                  min={todayMin}
                   value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setFromDate(next);
+                    if (toDate && next && toDate <= next) {
+                      setToDate(localDateYmd(2, new Date(`${next}T12:00:00`)));
+                    }
+                  }}
                 />
               ),
             },
@@ -425,6 +436,7 @@ const Hero2 = () => {
                 <input
                   id="hero2-to"
                   type="date"
+                  min={fromDate || todayMin}
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
                 />

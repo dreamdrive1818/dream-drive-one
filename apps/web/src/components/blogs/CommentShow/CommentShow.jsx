@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../../api/http";
+import { CommentsSkeleton } from "../../Skeleton/Skeleton";
 import "./CommentShow.css";
 
 const CommentShow = ({ blogId }) => {
@@ -23,7 +24,7 @@ const CommentShow = ({ blogId }) => {
     }
   }, [blogId]);
 
-  if (loading) return <div className="comment-section"><p className="comment-loading">Loading comments...</p></div>;
+  if (loading) return <CommentsSkeleton />;
   if (comments.length === 0) return <p className="comment-none">No comments yet.</p>;
 
   return (

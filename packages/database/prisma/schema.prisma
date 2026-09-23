@@ -561,16 +561,18 @@ model CarImage {
 }
 
 model PricingRule {
-  id          String     @id @default(cuid())
-  carModelId  String
-  rentalType  RentalType
-  dailyPaise  Int
-  hourlyPaise Int?
+  id           String     @id @default(cuid())
+  carModelId   String
+  rentalType   RentalType
+  dailyPaise   Int
+  /// Flat package price when the trip is 12 hours or less
+  under12Paise Int?
+  hourlyPaise  Int?
   extraKmPaise Int?
-  depositPaise Int       @default(0)
-  startsOn    DateTime?
-  endsOn      DateTime?
-  carModel    CarModel   @relation(fields: [carModelId], references: [id], onDelete: Cascade)
+  depositPaise Int        @default(0)
+  startsOn     DateTime?
+  endsOn       DateTime?
+  carModel     CarModel   @relation(fields: [carModelId], references: [id], onDelete: Cascade)
 }
 
 model CatalogSettings {

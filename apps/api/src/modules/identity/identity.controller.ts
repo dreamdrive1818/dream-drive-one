@@ -76,6 +76,12 @@ export class IdentityController {
     return this.identity.loginWithGoogle(body.idToken, clientIp(req));
   }
 
+  @Post("v1/auth/facebook")
+  facebook(@Req() req: Request, @Body() body: { accessToken?: string }) {
+    if (!body?.accessToken) throw new BadRequestException("accessToken required");
+    return this.identity.loginWithFacebook(body.accessToken, clientIp(req));
+  }
+
   @Post("v1/auth/otp/send")
   async sendOtp(@Body() body: { email?: string }) {
     if (!body?.email) throw new BadRequestException("email required");

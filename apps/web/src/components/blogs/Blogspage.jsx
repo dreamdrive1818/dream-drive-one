@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useBlogContext } from "../../context/BlogContext";
-import { ClipLoader } from "react-spinners";
+import { BlogPostSkeleton } from "../Skeleton/Skeleton";
 import './Blogpage.css';
 import CommentForm from "./CommentForm/CommentForm";
 import CommentShow from "./CommentShow/CommentShow";
@@ -17,11 +17,7 @@ const Blogspage = () => {
   }, [slug]);
 
   if (loading || !selectedBlog) {
-    return (
-      <div className="loader-wrapper">
-        <ClipLoader color="#b78a4d" size={80} />
-      </div>
-    );
+    return <BlogPostSkeleton />;
   }
 
   const injectHeadingIds = (htmlString) => {

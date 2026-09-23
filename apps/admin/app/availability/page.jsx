@@ -1,12 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
+
+function currentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function shiftMonth(month, delta) {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(month) {
+  return new Date(`${month}-01T12:00:00`).toLocaleString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+}
 
 export default function AvailabilityPage() {
   const [settings, setSettings] = useState({ bufferHours: 3, maxRentalDays: 30 });
   const [vehicles, setVehicles] = useState([]);
   const [blocks, setBlocks] = useState([]);
+  const [vehicleId, setVehicleId] = useState("");
+  const [month, setMonth] = useState(currentMonth);
+  const [calendar, setCalendar] = useState(null);
   const [form, setForm] = useState({
     vehicleId: "",
     startsAt: "",
@@ -14,13 +35,48 @@ export default function AvailabilityPage() {
     reason: "maintenance",
   });
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  function load() {
+  function loadBase() {
     api("/v1/admin/catalog-settings").then(setSettings).catch((e) => setError(e.message));
-    api("/v1/admin/vehicles").then(setVehicles).catch(() => {});
+    api("/v1/admin/vehicles").then((rows) => {
+      setVehicles(rows);
+      if (!vehicleId && rows[0]) setVehicleId(rows[0].id);
+    }).catch(() => {});
     api("/v1/admin/availability-blocks").then(setBlocks).catch(() => {});
   }
-  useEffect(load, []);
+
+  async function loadCalendar(id = vehicleId, m = month) {
+    if (!id) {
+      setCalendar(null);
+      return;
+    }
+    try {
+      const data = await api(`/v1/admin/availability-calendar?vehicleId=${id}&month=${m}`);
+      setCalendar(data);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  useEffect(loadBase, []);
+  useEffect(() => {
+    loadCalendar();
+  }, [vehicleId, month]);
+
+  const calendarCells = useMemo(() => {
+    if (!calendar?.month) return [];
+    const [y, mo] = calendar.month.split("-").map(Number);
+    const first = new Date(Date.UTC(y, mo - 1, 1));
+    const startPad = first.getUTCDay();
+    const byDate = Object.fromEntries((calendar.days || []).map((d) => [d.date, d]));
+    const cells = [];
+    for (let i = 0; i < startPad; i += 1) cells.push(null);
+    for (const day of calendar.days || []) {
+      cells.push(byDate[day.date]);
+    }
+    return cells;
+  }, [calendar]);
 
   async function saveSettings(e) {
     e.preventDefault();
@@ -53,7 +109,8 @@ export default function AvailabilityPage() {
         },
       });
       setForm({ ...form, startsAt: "", endsAt: "", reason: "maintenance" });
-      load();
+      loadBase();
+      if (form.vehicleId === vehicleId) loadCalendar();
     } catch (err) {
       setError(err.message);
     }
@@ -63,16 +120,139 @@ export default function AvailabilityPage() {
     if (!window.confirm("Remove this block?")) return;
     try {
       await api(`/v1/admin/availability-blocks/${id}`, { method: "DELETE" });
-      load();
+      loadBase();
+      loadCalendar();
     } catch (err) {
       setError(err.message);
     }
   }
 
+  async function toggleDay(day) {
+    if (!day?.canToggle || !vehicleId || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      if (day.status === "available") {
+        await api("/v1/admin/availability-blocks/day", {
+          method: "POST",
+          body: { vehicleId, date: day.date, reason: "blocked" },
+        });
+      } else if (day.status === "blocked") {
+        await api("/v1/admin/availability-blocks/day/unblock", {
+          method: "POST",
+          body: { vehicleId, date: day.date },
+        });
+      }
+      await loadCalendar();
+      loadBase();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setVehicleStatus(status) {
+    if (!vehicleId) return;
+    setError("");
+    setBusy(true);
+    try {
+      await api(`/v1/admin/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        body: { status },
+      });
+      await loadCalendar();
+      loadBase();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const selected = vehicles.find((v) => v.id === vehicleId);
+  const vehicleStatus = calendar?.vehicle?.status || selected?.status || "";
+
   return (
     <div className="stack">
-      <h2>Availability</h2>
+      <h2>Availability calendar</h2>
+      <p className="muted">
+        Tap a day to block or unblock. Bookings and holds stay unavailable until released from the booking.
+      </p>
       {error && <p className="err">{error}</p>}
+
+      <div className="card">
+        <h3>Vehicle calendar</h3>
+        <div className="row" style={{ marginBottom: 12 }}>
+          <label style={{ flex: 1, minWidth: 220 }}>
+            Vehicle
+            <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
+              <option value="">Select</option>
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.registration} · {v.carModel?.name} · {v.branch?.city?.name || v.branch?.name} · {v.status}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="row" style={{ alignItems: "flex-end", gap: 8 }}>
+            <button type="button" className="ghost" onClick={() => setMonth((m) => shiftMonth(m, -1))}>
+              ‹
+            </button>
+            <strong style={{ fontSize: 16, minWidth: 140, textAlign: "center" }}>{monthLabel(month)}</strong>
+            <button type="button" className="ghost" onClick={() => setMonth((m) => shiftMonth(m, 1))}>
+              ›
+            </button>
+          </div>
+        </div>
+
+        {vehicleId && (
+          <div className="row" style={{ marginBottom: 12 }}>
+            <span className="muted">Vehicle status: <strong style={{ color: "var(--text)" }}>{vehicleStatus}</strong></span>
+            {vehicleStatus === "AVAILABLE" && (
+              <button type="button" className="ghost" disabled={busy} onClick={() => setVehicleStatus("BLOCKED")}>
+                Block vehicle
+              </button>
+            )}
+            {vehicleStatus === "BLOCKED" && (
+              <button type="button" disabled={busy} onClick={() => setVehicleStatus("AVAILABLE")}>
+                Unblock vehicle
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="avail-cal-week">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <span key={d}>{d}</span>
+          ))}
+        </div>
+        <div className="avail-cal-grid">
+          {calendarCells.map((day, i) => {
+            if (!day) return <span key={`e-${i}`} className="avail-cal-empty" />;
+            const dayNum = Number(day.date.slice(-2));
+            return (
+              <button
+                key={day.date}
+                type="button"
+                disabled={!day.canToggle || busy}
+                title={day.reason || day.status}
+                className={`avail-cal-day is-${day.status} ${day.canToggle ? "is-toggle" : ""}`}
+                onClick={() => toggleDay(day)}
+              >
+                <span className="avail-cal-num">{dayNum}</span>
+                <span className="avail-cal-status">{day.status}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="avail-cal-legend">
+          <span><i className="dot available" /> Available</span>
+          <span><i className="dot blocked" /> Blocked (manual — click to unblock)</span>
+          <span><i className="dot unavailable" /> Unavailable (booking / hold / maintenance)</span>
+        </div>
+      </div>
 
       <form className="card" onSubmit={saveSettings}>
         <h3>Buffer & rental caps</h3>
@@ -103,7 +283,7 @@ export default function AvailabilityPage() {
       </form>
 
       <form className="card" onSubmit={createBlock}>
-        <h3>Block a vehicle</h3>
+        <h3>Block a date range</h3>
         <div className="row">
           <label>
             Vehicle
@@ -155,7 +335,7 @@ export default function AvailabilityPage() {
                   {String(b.reason).startsWith("HOLD:") || String(b.reason).startsWith("BOOKING:") ? (
                     <span className="muted">booking</span>
                   ) : (
-                    <button type="button" className="ghost" onClick={() => remove(b.id)}>Remove</button>
+                    <button type="button" className="ghost" onClick={() => remove(b.id)}>Unblock</button>
                   )}
                 </td>
               </tr>

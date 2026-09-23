@@ -3,9 +3,9 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faArrowRight } from "@fortawesome/free-solid-svg-icons";
-import { ClipLoader } from "react-spinners";
 import api from "../../api/http";
 import { usePageSeoSuppression } from "../../utils/usePageSeoSuppression";
+import { FaqSkeleton } from "../Skeleton/Skeleton";
 import "./Faq.css";
 
 function parseFaqItems(html) {
@@ -97,11 +97,7 @@ export default function Faq() {
   }
 
   if (!page) {
-    return (
-      <div className="faq-loader">
-        <ClipLoader color="#0e7c86" size={48} />
-      </div>
-    );
+    return <FaqSkeleton />;
   }
 
   return (
