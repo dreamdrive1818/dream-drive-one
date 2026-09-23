@@ -68,6 +68,7 @@ body.auth-shell .fade-in-bottom {
 }
 
 .customer-login-page--full {
+  position: relative;
   min-height: 100vh;
   height: 100vh;
   max-height: 100vh;
@@ -76,6 +77,46 @@ body.auth-shell .fade-in-bottom {
   justify-content: stretch;
   background: #0b1b2b;
   overflow: hidden;
+}
+
+.customer-login-nav {
+  position: absolute;
+  top: 2.2rem;
+  left: 2.2rem;
+  z-index: 6;
+  display: flex;
+  gap: 0.8rem;
+}
+
+.customer-login-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(8, 20, 28, 0.46);
+  color: #f7fbfb;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 1.35rem;
+  font-weight: 650;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.18s, transform 0.18s, border-color 0.18s;
+}
+
+.customer-login-nav-btn:hover {
+  background: rgba(8, 20, 28, 0.68);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.customer-login-nav-btn:focus-visible {
+  outline: 2px solid #8ee4e8;
+  outline-offset: 2px;
 }
 
 .customer-login-visual {
@@ -184,22 +225,6 @@ body.auth-shell .fade-in-bottom {
     #f5f9f8;
   overflow: auto;
   animation: customer-login-fade-up 0.55s ease both;
-}
-
-.customer-login-back {
-  align-self: flex-start;
-  width: min(460px, 100%);
-  margin: 0 auto 1.6rem;
-  color: #0a5f66;
-  font-size: 1.35rem;
-  font-weight: 650;
-  text-decoration: none;
-  transition: color 0.15s, transform 0.15s;
-}
-
-.customer-login-back:hover {
-  color: #07454a;
-  transform: translateX(-2px);
 }
 
 .customer-login-page--full .customer-login-shell {
@@ -732,6 +757,17 @@ body.auth-shell .fade-in-bottom {
     padding: 3.2rem 2.4rem 2.6rem;
   }
 
+  .customer-login-nav {
+    top: 1.4rem;
+    left: 1.4rem;
+  }
+
+  .customer-login-nav-btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 1.25rem;
+    background: rgba(8, 20, 28, 0.62);
+  }
+
   .customer-login-visual-bg {
     object-position: center 48%;
   }
@@ -786,6 +822,11 @@ body.auth-shell .fade-in-bottom {
 
   .customer-login-shell--compact .customer-login-subtitle {
     display: none;
+  }
+
+  .customer-login-nav {
+    top: 1rem;
+    left: 1rem;
   }
 
   .customer-login-page--full .customer-login-visual {
