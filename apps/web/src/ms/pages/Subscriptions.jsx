@@ -10,10 +10,10 @@ import {
   faRightLeft,
   faCalendarDays,
 } from "@fortawesome/free-solid-svg-icons";
-import { ClipLoader } from "react-spinners";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
 import { formatInr } from "../fleetSearch";
+import { SubscriptionsSkeleton } from "../../components/Skeleton/Skeleton";
 import "./Subscriptions.css";
 
 export default function Subscriptions() {
@@ -76,11 +76,7 @@ export default function Subscriptions() {
           ) : null}
         </header>
 
-        {loading ? (
-          <div className="subs-loading">
-            <ClipLoader color="#0e7c86" size={40} />
-          </div>
-        ) : null}
+        {loading ? <SubscriptionsSkeleton /> : null}
 
         {error ? <p className="subs-err">{error}</p> : null}
 

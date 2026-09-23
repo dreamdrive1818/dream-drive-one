@@ -35,35 +35,90 @@ async function main() {
     },
   });
 
+  // Operating cities only — public /v1/public/cities filters active: true
+  const ranchi = await prisma.city.upsert({
+    where: { slug: "ranchi" },
+    update: { name: "Ranchi", state: "Jharkhand", active: true },
+    create: { name: "Ranchi", slug: "ranchi", state: "Jharkhand", active: true },
+  });
+  const jamshedpur = await prisma.city.upsert({
+    where: { slug: "jamshedpur" },
+    update: { name: "Jamshedpur", state: "Jharkhand", active: true },
+    create: { name: "Jamshedpur", slug: "jamshedpur", state: "Jharkhand", active: true },
+  });
+  const kolkata = await prisma.city.upsert({
+    where: { slug: "kolkata" },
+    update: { name: "Kolkata", state: "West Bengal", active: true },
+    create: { name: "Kolkata", slug: "kolkata", state: "West Bengal", active: true },
+  });
+
+  // Legacy seed cities — keep rows for FK stability, hide from public dropdown
   const pune = await prisma.city.upsert({
     where: { slug: "pune" },
-    update: {},
-    create: { name: "Pune", slug: "pune", state: "Maharashtra", active: true },
+    update: { active: false },
+    create: { name: "Pune", slug: "pune", state: "Maharashtra", active: false },
   });
   const mumbai = await prisma.city.upsert({
     where: { slug: "mumbai" },
-    update: {},
-    create: { name: "Mumbai", slug: "mumbai", state: "Maharashtra", active: true },
+    update: { active: false },
+    create: { name: "Mumbai", slug: "mumbai", state: "Maharashtra", active: false },
+  });
+  await prisma.city.updateMany({
+    where: { slug: { notIn: ["ranchi", "jamshedpur", "kolkata"] } },
+    data: { active: false },
+  });
+
+  const ranchiHq = await prisma.branch.upsert({
+    where: { id: "seed-ranchi-hq" },
+    update: { cityId: ranchi.id, name: "Ranchi HQ", address: "Main Road, Ranchi", active: true },
+    create: {
+      id: "seed-ranchi-hq",
+      cityId: ranchi.id,
+      name: "Ranchi HQ",
+      address: "Main Road, Ranchi",
+    },
+  });
+  const jamshedpurHq = await prisma.branch.upsert({
+    where: { id: "seed-jamshedpur-hq" },
+    update: { cityId: jamshedpur.id, name: "Jamshedpur Branch", address: "Bistupur, Jamshedpur", active: true },
+    create: {
+      id: "seed-jamshedpur-hq",
+      cityId: jamshedpur.id,
+      name: "Jamshedpur Branch",
+      address: "Bistupur, Jamshedpur",
+    },
+  });
+  const kolkataHq = await prisma.branch.upsert({
+    where: { id: "seed-kolkata-hq" },
+    update: { cityId: kolkata.id, name: "Kolkata Branch", address: "Park Street, Kolkata", active: true },
+    create: {
+      id: "seed-kolkata-hq",
+      cityId: kolkata.id,
+      name: "Kolkata Branch",
+      address: "Park Street, Kolkata",
+    },
   });
 
   const puneHq = await prisma.branch.upsert({
     where: { id: "seed-pune-hq" },
-    update: {},
+    update: { active: false },
     create: {
       id: "seed-pune-hq",
       cityId: pune.id,
       name: "Pune HQ",
       address: "Baner, Pune",
+      active: false,
     },
   });
   const mumbaiHq = await prisma.branch.upsert({
     where: { id: "seed-mumbai-hq" },
-    update: {},
+    update: { active: false },
     create: {
       id: "seed-mumbai-hq",
       cityId: mumbai.id,
       name: "Andheri Branch",
       address: "Andheri East, Mumbai",
+      active: false,
     },
   });
 
@@ -95,8 +150,8 @@ async function main() {
       await prisma.staffScope.create({
         data: {
           userId: user.id,
-          cityId: cityId ?? pune.id,
-          branchId: branchScoped ? puneHq.id : null,
+          cityId: cityId ?? ranchi.id,
+          branchId: branchScoped ? ranchiHq.id : null,
         },
       });
     }
@@ -106,8 +161,8 @@ async function main() {
   await ensureUser("admin@dreamdrive.test", "Super Admin", "SUPER_ADMIN");
   await ensureUser("fleet@dreamdrive.test", "Fleet Ops", "FLEET_OPS");
   await ensureUser("finance@dreamdrive.test", "Finance", "FINANCE");
-  await ensureUser("branch@dreamdrive.test", "Pune Branch Manager", "BRANCH_MANAGER");
-  await ensureUser("city@dreamdrive.test", "Pune City Manager", "CITY_MANAGER");
+  await ensureUser("branch@dreamdrive.test", "Ranchi Branch Manager", "BRANCH_MANAGER");
+  await ensureUser("city@dreamdrive.test", "Ranchi City Manager", "CITY_MANAGER");
   const customer = await ensureUser("customer@dreamdrive.test", "Demo Customer", "CUSTOMER");
   await prisma.user.update({
     where: { id: customer.id },
@@ -121,64 +176,111 @@ async function main() {
     { slug: "thar", name: "Mahindra Thar", type: "suv", seats: 4, fuel: "diesel", transmission: "manual", daily: 400000, deposit: 1500000 },
   ];
 
-  for (const car of cars) {
-    const model = await prisma.carModel.upsert({
-      where: { slug: car.slug },
-      update: { published: true, featured: car.slug !== "thar" },
-      create: {
-        slug: car.slug,
-        name: car.name,
-        type: car.type,
-        seats: car.seats,
-        fuel: car.fuel,
-        transmission: car.transmission,
-        cityId: pune.id,
-        published: true,
-        featured: car.slug !== "thar",
-        images: {
-          create: [
-            {
-              url: `https://placehold.co/800x500/111/fff?text=${encodeURIComponent(car.name)}`,
-              sortOrder: 0,
-            },
-          ],
+  const cityFleets = [
+    { city: ranchi, branch: ranchiHq, rto: "JH01", slugSuffix: "" },
+    { city: jamshedpur, branch: jamshedpurHq, rto: "JH05", slugSuffix: "-jamshedpur" },
+    { city: kolkata, branch: kolkataHq, rto: "WB06", slugSuffix: "-kolkata" },
+  ];
+
+  const seededVehicles: { id: string; citySlug: string; carSlug: string; registration: string }[] = [];
+
+  for (const fleet of cityFleets) {
+    for (const [index, car] of cars.entries()) {
+      const modelSlug = `${car.slug}${fleet.slugSuffix}`;
+      const model = await prisma.carModel.upsert({
+        where: { slug: modelSlug },
+        update: {
+          published: true,
+          featured: car.slug !== "thar",
+          cityId: fleet.city.id,
+          name: car.name,
+          type: car.type,
+          seats: car.seats,
+          fuel: car.fuel,
+          transmission: car.transmission,
         },
-      },
-    });
-    const types: RentalType[] = ["SELF_DRIVE", "WITH_DRIVER_LOCAL", "WITH_DRIVER_INTERCITY"];
-    for (const rentalType of types) {
-      const existing = await prisma.pricingRule.findFirst({
-        where: { carModelId: model.id, rentalType },
+        create: {
+          slug: modelSlug,
+          name: car.name,
+          type: car.type,
+          seats: car.seats,
+          fuel: car.fuel,
+          transmission: car.transmission,
+          cityId: fleet.city.id,
+          published: true,
+          featured: car.slug !== "thar",
+          displayOrder: index + 1,
+          images: {
+            create: [
+              {
+                url: `https://placehold.co/800x500/111/fff?text=${encodeURIComponent(car.name)}`,
+                sortOrder: 0,
+              },
+            ],
+          },
+        },
       });
-      if (!existing) {
-        await prisma.pricingRule.create({
+
+      const types: RentalType[] = ["SELF_DRIVE", "WITH_DRIVER_LOCAL", "WITH_DRIVER_INTERCITY"];
+      for (const rentalType of types) {
+        const existing = await prisma.pricingRule.findFirst({
+          where: { carModelId: model.id, rentalType },
+        });
+        if (!existing) {
+          await prisma.pricingRule.create({
+            data: {
+              carModelId: model.id,
+              rentalType,
+              dailyPaise: rentalType === "WITH_DRIVER_LOCAL" ? Math.round(car.daily * 1.2) : car.daily,
+              under12Paise: Math.round(
+                (rentalType === "WITH_DRIVER_LOCAL" ? car.daily * 1.2 : car.daily) * 0.55
+              ),
+              hourlyPaise: rentalType === "WITH_DRIVER_LOCAL" ? Math.round(car.daily / 8) : null,
+              extraKmPaise: 1200,
+              depositPaise: rentalType === "SELF_DRIVE" ? car.deposit : 0,
+            },
+          });
+        } else if (existing.under12Paise == null) {
+          await prisma.pricingRule.update({
+            where: { id: existing.id },
+            data: {
+              under12Paise: Math.round(existing.dailyPaise * 0.55),
+            },
+          });
+        }
+      }
+
+      const reg = `${fleet.rto}${car.slug.slice(0, 2).toUpperCase()}1001`;
+      let vehicle = await prisma.vehicle.findUnique({ where: { registration: reg } });
+      if (!vehicle) {
+        vehicle = await prisma.vehicle.create({
+          data: {
+            registration: reg,
+            carModelId: model.id,
+            branchId: fleet.branch.id,
+            year: 2023 + (index % 2),
+            color: index % 2 === 0 ? "white" : "silver",
+            odometerKm: 8000 + index * 1500,
+            status: "AVAILABLE",
+          },
+        });
+      } else {
+        vehicle = await prisma.vehicle.update({
+          where: { id: vehicle.id },
           data: {
             carModelId: model.id,
-            rentalType,
-            dailyPaise: rentalType === "WITH_DRIVER_LOCAL" ? Math.round(car.daily * 1.2) : car.daily,
-            hourlyPaise: rentalType === "WITH_DRIVER_LOCAL" ? Math.round(car.daily / 8) : null,
-            extraKmPaise: 1200,
-            depositPaise: rentalType === "SELF_DRIVE" ? car.deposit : 0,
+            branchId: fleet.branch.id,
+            status: vehicle.status === "SOLD" ? "AVAILABLE" : vehicle.status,
           },
         });
       }
-    }
-    const reg = `MH12${car.slug.slice(0, 2).toUpperCase()}1001`;
-    const found = await prisma.vehicle.findUnique({ where: { registration: reg } });
-    if (!found) {
-      await prisma.vehicle.create({
-        data: {
-          registration: reg,
-          carModelId: model.id,
-          branchId: puneHq.id,
-          year: 2023,
-          color: "white",
-          odometerKm: 12000,
-        },
+      seededVehicles.push({
+        id: vehicle.id,
+        citySlug: fleet.city.slug,
+        carSlug: car.slug,
+        registration: reg,
       });
-    }
-    const vehicle = await prisma.vehicle.findUnique({ where: { registration: reg } });
-    if (vehicle) {
+
       const docs = [
         { kind: "RC", expiresAt: new Date("2030-12-31T23:59:59.000Z") },
         { kind: "INSURANCE", expiresAt: new Date("2027-12-31T23:59:59.000Z") },
@@ -203,10 +305,58 @@ async function main() {
     }
   }
 
+  // Demo calendar: one blocked vehicle + a few date blocks (available / unavailable / blocked)
+  const ranchiThar = seededVehicles.find((v) => v.citySlug === "ranchi" && v.carSlug === "thar");
+  if (ranchiThar) {
+    await prisma.vehicle.update({
+      where: { id: ranchiThar.id },
+      data: { status: "BLOCKED" },
+    });
+  }
+  const ranchiSwift = seededVehicles.find((v) => v.citySlug === "ranchi" && v.carSlug === "swift");
+  const jsrNexon = seededVehicles.find((v) => v.citySlug === "jamshedpur" && v.carSlug === "nexon");
+  const kolInnova = seededVehicles.find((v) => v.citySlug === "kolkata" && v.carSlug === "innova");
+  const now = new Date();
+  const dayUtc = (offsetDays: number, hour = 0) =>
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offsetDays, hour, 0, 0));
+  const demoBlocks = [
+    ranchiSwift && {
+      vehicleId: ranchiSwift.id,
+      startsAt: dayUtc(3, 0),
+      endsAt: dayUtc(5, 0),
+      reason: "MANUAL:service",
+    },
+    jsrNexon && {
+      vehicleId: jsrNexon.id,
+      startsAt: dayUtc(7, 0),
+      endsAt: dayUtc(9, 0),
+      reason: "MANUAL:partner-hold",
+    },
+    kolInnova && {
+      vehicleId: kolInnova.id,
+      startsAt: dayUtc(10, 0),
+      endsAt: dayUtc(12, 0),
+      reason: "MANUAL:maintenance",
+    },
+  ].filter(Boolean) as { vehicleId: string; startsAt: Date; endsAt: Date; reason: string }[];
+  for (const block of demoBlocks) {
+    const exists = await prisma.availabilityBlock.findFirst({
+      where: {
+        vehicleId: block.vehicleId,
+        reason: block.reason,
+        startsAt: block.startsAt,
+        endsAt: block.endsAt,
+      },
+    });
+    if (!exists) {
+      await prisma.availabilityBlock.create({ data: block });
+    }
+  }
+
   await prisma.driver.upsert({
     where: { phone: "9876500001" },
-    update: {},
-    create: { fullName: "Suresh Patil", phone: "9876500001", branchId: puneHq.id },
+    update: { branchId: ranchiHq.id },
+    create: { fullName: "Suresh Patil", phone: "9876500001", branchId: ranchiHq.id },
   });
   const suresh = await prisma.driver.findUnique({ where: { phone: "9876500001" } });
   if (suresh) {
@@ -224,8 +374,8 @@ async function main() {
   }
   await prisma.driver.upsert({
     where: { phone: "9876500002" },
-    update: {},
-    create: { fullName: "Ramesh Jadhav", phone: "9876500002", branchId: puneHq.id, active: true },
+    update: { branchId: ranchiHq.id },
+    create: { fullName: "Ramesh Jadhav", phone: "9876500002", branchId: ranchiHq.id, active: true },
   });
 
   await prisma.offer.upsert({
@@ -510,18 +660,23 @@ async function main() {
   });
 
   await prisma.cityPairRate.upsert({
-    where: { fromCityId_toCityId: { fromCityId: pune.id, toCityId: mumbai.id } },
-    update: { oneWayPaise: 350000 },
-    create: { fromCityId: pune.id, toCityId: mumbai.id, oneWayPaise: 350000 },
+    where: { fromCityId_toCityId: { fromCityId: ranchi.id, toCityId: jamshedpur.id } },
+    update: { oneWayPaise: 250000 },
+    create: { fromCityId: ranchi.id, toCityId: jamshedpur.id, oneWayPaise: 250000 },
+  });
+  await prisma.cityPairRate.upsert({
+    where: { fromCityId_toCityId: { fromCityId: ranchi.id, toCityId: kolkata.id } },
+    update: { oneWayPaise: 450000 },
+    create: { fromCityId: ranchi.id, toCityId: kolkata.id, oneWayPaise: 450000 },
   });
 
   await prisma.airportTerminal.upsert({
-    where: { cityId_code: { cityId: pune.id, code: "PNQ" } },
-    update: {},
+    where: { cityId_code: { cityId: ranchi.id, code: "IXR" } },
+    update: { active: true },
     create: {
-      cityId: pune.id,
-      name: "Pune Airport",
-      code: "PNQ",
+      cityId: ranchi.id,
+      name: "Birsa Munda Airport",
+      code: "IXR",
       freeWaitMinutes: 45,
       waitPaisePerMin: 500,
       nightSurchargePaise: 20000,
@@ -530,12 +685,12 @@ async function main() {
     },
   });
   await prisma.airportTerminal.upsert({
-    where: { cityId_code: { cityId: mumbai.id, code: "BOM" } },
-    update: {},
+    where: { cityId_code: { cityId: kolkata.id, code: "CCU" } },
+    update: { active: true },
     create: {
-      cityId: mumbai.id,
-      name: "Mumbai CSIA T2",
-      code: "BOM",
+      cityId: kolkata.id,
+      name: "Netaji Subhas Chandra Bose Intl",
+      code: "CCU",
       freeWaitMinutes: 60,
       waitPaisePerMin: 800,
       nightSurchargePaise: 30000,
@@ -562,7 +717,7 @@ async function main() {
   await prisma.tourPackage.upsert({
     where: { slug: "ashtavinayak" },
     update: {
-      cityId: pune.id,
+      cityId: ranchi.id,
       carClass: "suv",
       inclusions: "Driver, tolls, parking. Extra km billed on return.",
       depositPaise: 500000,
@@ -573,7 +728,7 @@ async function main() {
       days: 2,
       pricePaise: 1200000,
       depositPaise: 500000,
-      cityId: pune.id,
+      cityId: ranchi.id,
       carClass: "suv",
       inclusions: "Driver, tolls, parking. Extra km billed on return.",
       published: true,
@@ -587,34 +742,67 @@ async function main() {
   });
 
   await prisma.workshop.upsert({
-    where: { id: "seed-pune-workshop" },
-    update: { cityId: pune.id, active: true },
+    where: { id: "seed-ranchi-workshop" },
+    update: { cityId: ranchi.id, active: true },
     create: {
-      id: "seed-pune-workshop",
-      name: "Pune HQ workshop",
-      address: "Service bay, Baner, Pune",
-      phone: "02000000001",
-      cityId: pune.id,
+      id: "seed-ranchi-workshop",
+      name: "Ranchi HQ workshop",
+      address: "Service bay, Main Road, Ranchi",
+      phone: "06510000001",
+      cityId: ranchi.id,
       active: true,
     },
   });
   await prisma.workshop.upsert({
-    where: { id: "seed-mumbai-workshop" },
-    update: { cityId: mumbai.id, active: true },
+    where: { id: "seed-kolkata-workshop" },
+    update: { cityId: kolkata.id, active: true },
     create: {
-      id: "seed-mumbai-workshop",
-      name: "Andheri workshop",
-      address: "Service bay, Andheri East, Mumbai",
-      phone: "02200000001",
-      cityId: mumbai.id,
+      id: "seed-kolkata-workshop",
+      name: "Kolkata workshop",
+      address: "Service bay, Park Street, Kolkata",
+      phone: "03300000001",
+      cityId: kolkata.id,
       active: true,
     },
+  });
+  await prisma.workshop.updateMany({
+    where: { id: { in: ["seed-pune-workshop", "seed-mumbai-workshop"] } },
+    data: { active: false },
+  });
+
+  // Move any leftover seed fleet off inactive Pune/Mumbai branches
+  await prisma.vehicle.updateMany({
+    where: { branchId: { in: [puneHq.id, mumbaiHq.id] } },
+    data: { branchId: ranchiHq.id },
+  });
+  await prisma.carModel.updateMany({
+    where: { cityId: { in: [pune.id, mumbai.id] } },
+    data: { cityId: ranchi.id },
+  });
+
+  // Retire legacy Maharashtra plate demo units (pre-city-split seed)
+  await prisma.vehicle.updateMany({
+    where: {
+      OR: [
+        { registration: { startsWith: "MH12" } },
+        { registration: { startsWith: "MH02" } },
+        { registration: { startsWith: "MH01" } },
+      ],
+    },
+    data: { status: "SOLD" },
   });
 
   console.log("Seed complete. Dev logins:");
   console.log("  Bearer dev:admin@dreamdrive.test");
   console.log("  Bearer dev:customer@dreamdrive.test");
-  console.log("Cities", pune.slug, mumbai.slug, "branches", puneHq.name, mumbaiHq.name);
+  console.log(
+    "Cities",
+    ranchi.slug,
+    jamshedpur.slug,
+    kolkata.slug,
+    "— cars seeded per city:",
+    cars.map((c) => c.slug).join(", ")
+  );
 }
 
 main()

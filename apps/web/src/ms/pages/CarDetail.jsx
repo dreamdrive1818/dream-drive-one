@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCarSide, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-import { ClipLoader } from "react-spinners";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
 import {
@@ -18,20 +17,22 @@ import {
   validateDateRange,
   sortedCarImages,
   pricingRuleForType,
+  estimateTripPrice,
   formatInr,
   monthKey,
   shiftMonth,
   dateToIsoAtHour,
   isoDate,
+  defaultSearchDates,
+  localDateYmd,
+  buildApiSearchParams,
+  carDetailPath,
+  primaryImageUrl,
 } from "../fleetSearch";
 import { saveQuoteHandoff } from "../quoteStorage";
+import { CarDetailSkeleton } from "../../components/Skeleton/Skeleton";
+import AuthModal from "../AuthModal";
 import "./CarDetail.css";
-
-function loginRedirectPath(slug, context) {
-  const qs = detailPreserveParams(context).toString();
-  const path = `/cars/${slug}${qs ? `?${qs}` : ""}`;
-  return `/login?redirect=${encodeURIComponent(path)}`;
-}
 
 export default function CarDetail() {
   const { slug } = useParams();
@@ -54,6 +55,10 @@ export default function CarDetail() {
   const [airports, setAirports] = useState([]);
   const [packages, setPackages] = useState([]);
   const [reviews, setReviews] = useState(null);
+  const [otherCars, setOtherCars] = useState([]);
+  const [otherCarsLoading, setOtherCarsLoading] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const pendingQuoteAfterAuth = useRef(false);
 
   const context = useMemo(
     () => parseFleetFilters(searchParams),
@@ -76,6 +81,24 @@ export default function CarDetail() {
     [car?.pricingRules, context.rentalType, context.from]
   );
 
+  const tripEstimate = useMemo(() => {
+    if (context.rentalType === "TOUR_PACKAGE") return null;
+    return estimateTripPrice(
+      pricingRule,
+      context.from,
+      context.to,
+      context.rentalType
+    );
+  }, [pricingRule, context.from, context.to, context.rentalType]);
+
+  const under12Rate = useMemo(() => {
+    if (!pricingRule) return null;
+    if (pricingRule.under12Paise != null && pricingRule.under12Paise > 0) {
+      return pricingRule.under12Paise;
+    }
+    return Math.round((pricingRule.dailyPaise || 0) * 0.55);
+  }, [pricingRule]);
+
   const updateContext = useCallback(
     (patch) => {
       const next = { ...parseFleetFilters(searchParams), ...patch };
@@ -83,6 +106,24 @@ export default function CarDetail() {
     },
     [searchParams, setSearchParams]
   );
+
+  // Default pickup = today, return = +2 days when missing from URL
+  useEffect(() => {
+    if (!car) return;
+    const current = parseFleetFilters(searchParams);
+    if (current.from && current.to) return;
+    const dates = defaultSearchDates();
+    const patch = {};
+    if (!current.from) patch.from = dates.from;
+    if (!current.to) patch.to = dates.to;
+    if (!current.cityId && car.cityId) patch.cityId = car.cityId;
+    if (Object.keys(patch).length) {
+      setSearchParams(syncDetailSearchParams({ ...current, ...patch }), {
+        replace: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [car?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,6 +170,66 @@ export default function CarDetail() {
     const params = cityId ? `?cityId=${encodeURIComponent(cityId)}` : "";
     api(`/v1/public/airports${params}`).then(setAirports).catch(() => setAirports([]));
   }, [car?.city?.id, context.cityId]);
+
+  useEffect(() => {
+    if (!car?.id) {
+      setOtherCars([]);
+      return undefined;
+    }
+
+    const cityId = car.city?.id || context.cityId;
+    if (!cityId) {
+      setOtherCars([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setOtherCarsLoading(true);
+
+    const filters = {
+      cityId,
+      rentalType: context.rentalType || "SELF_DRIVE",
+      from: !dateError && context.from ? context.from : "",
+      to: !dateError && context.to ? context.to : "",
+    };
+
+    api(`/v1/public/search?${buildApiSearchParams(filters)}`)
+      .then((rows) => {
+        if (cancelled) return;
+        const list = Array.isArray(rows) ? rows : [];
+        const currentType = (car.type || "").toLowerCase();
+        const others = list
+          .filter((row) => row.id !== car.id && row.slug !== car.slug)
+          .sort((a, b) => {
+            const aMatch = (a.type || "").toLowerCase() === currentType ? 0 : 1;
+            const bMatch = (b.type || "").toLowerCase() === currentType ? 0 : 1;
+            if (aMatch !== bMatch) return aMatch - bMatch;
+            return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+          })
+          .slice(0, 6);
+        setOtherCars(others);
+      })
+      .catch(() => {
+        if (!cancelled) setOtherCars([]);
+      })
+      .finally(() => {
+        if (!cancelled) setOtherCarsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    car?.id,
+    car?.slug,
+    car?.type,
+    car?.city?.id,
+    context.cityId,
+    context.rentalType,
+    context.from,
+    context.to,
+    dateError,
+  ]);
 
   useEffect(() => {
     if (!car?.id) {
@@ -220,21 +321,7 @@ export default function CarDetail() {
     updateContext({ to: dateToIsoAtHour(key, 10) });
   }
 
-  async function handleQuote(e) {
-    e.preventDefault();
-    setQuoteError("");
-
-    if (!context.from || !context.to) {
-      setQuoteError("Please select pickup and return dates.");
-      return;
-    }
-    if (dateError) return;
-
-    if (!user) {
-      navigate(loginRedirectPath(slug, context));
-      return;
-    }
-
+  async function createQuoteAndCheckout() {
     if (!pricingRule && context.rentalType !== "TOUR_PACKAGE") {
       setQuoteError("This rental type is not available for this car.");
       return;
@@ -288,15 +375,35 @@ export default function CarDetail() {
     }
   }
 
+  async function handleQuote(e) {
+    e.preventDefault();
+    setQuoteError("");
+
+    if (!context.from || !context.to) {
+      setQuoteError("Please select pickup and return dates.");
+      return;
+    }
+    if (dateError) return;
+
+    if (!user) {
+      pendingQuoteAfterAuth.current = true;
+      setAuthOpen(true);
+      return;
+    }
+
+    await createQuoteAndCheckout();
+  }
+
+  async function handleAuthSuccess() {
+    setAuthOpen(false);
+    if (pendingQuoteAfterAuth.current) {
+      pendingQuoteAfterAuth.current = false;
+      await createQuoteAndCheckout();
+    }
+  }
+
   if (carLoading) {
-    return (
-      <div className="car-detail-page">
-        <div className="car-detail-loading">
-          <ClipLoader color="var(--primary-color, #0072ce)" size={40} />
-          <p style={{ marginTop: 16 }}>Loading car details…</p>
-        </div>
-      </div>
-    );
+    return <CarDetailSkeleton />;
   }
 
   if (carError || !car) {
@@ -325,7 +432,7 @@ export default function CarDetail() {
         </Link>
 
         <div className="car-detail-layout">
-          <section aria-label="Car gallery">
+          <section className="car-detail-gallery" aria-label="Car gallery">
             <div className="car-detail-gallery-main">
               {mainImage ? (
                 <img src={mainImage} alt={car.name} />
@@ -409,6 +516,7 @@ export default function CarDetail() {
                 <input
                   id="detail-from"
                   type="datetime-local"
+                  min={`${localDateYmd(0)}T00:00`}
                   value={isoToDatetimeLocal(context.from)}
                   onChange={(e) =>
                     updateContext({ from: datetimeLocalToIso(e.target.value) })
@@ -422,6 +530,7 @@ export default function CarDetail() {
                 <input
                   id="detail-to"
                   type="datetime-local"
+                  min={isoToDatetimeLocal(context.from) || `${localDateYmd(0)}T00:00`}
                   value={isoToDatetimeLocal(context.to)}
                   onChange={(e) =>
                     updateContext({ to: datetimeLocalToIso(e.target.value) })
@@ -596,8 +705,8 @@ export default function CarDetail() {
                   })}
                 </div>
                 <p className="car-detail-cal-legend">
-                  <span className="dot busy" /> Blocked
-                  <span className="dot ok" /> Free
+                  <span className="dot ok" /> Available
+                  <span className="dot busy" /> Unavailable / blocked
                   <span className="dot sel" /> Selected
                 </p>
               </div>
@@ -613,14 +722,28 @@ export default function CarDetail() {
                   </>
                 ) : pricingRule ? (
                   <>
-                    <p className="from-price">
-                      {formatInr(pricingRule.dailyPaise)}{" "}
-                      <span>/ day from</span>
-                    </p>
+                    <div className="car-detail-rate-grid" aria-label="Rate card">
+                      <div
+                        className={`car-detail-rate-card${
+                          tripEstimate?.mode === "under12" ? " is-active" : ""
+                        }`}
+                      >
+                        <span className="car-detail-rate-label">Under 12 hours</span>
+                        <strong>{formatInr(under12Rate)}</strong>
+                        <span className="car-detail-rate-note">flat package</span>
+                      </div>
+                      <div
+                        className={`car-detail-rate-card${
+                          tripEstimate?.mode === "daily" ? " is-active" : ""
+                        }`}
+                      >
+                        <span className="car-detail-rate-label">24 hours</span>
+                        <strong>{formatInr(pricingRule.dailyPaise)}</strong>
+                        <span className="car-detail-rate-note">per day</span>
+                      </div>
+                    </div>
                     <p className="car-detail-price-meta">
                       {RENTAL_TYPE_LABELS[context.rentalType] || context.rentalType}
-                      {pricingRule.depositPaise > 0 &&
-                        ` · Deposit ${formatInr(pricingRule.depositPaise)}`}
                       {pricingRule.extraKmPaise != null &&
                         ` · Extra km ${formatInr(pricingRule.extraKmPaise)}`}
                     </p>
@@ -631,6 +754,74 @@ export default function CarDetail() {
                   </p>
                 )}
               </div>
+
+              {tripEstimate && !dateError && (
+                <div className="car-detail-estimate" aria-live="polite">
+                  <h3>Your trip total</h3>
+                  <dl className="car-detail-estimate-rows">
+                    <div>
+                      <dt>Pickup</dt>
+                      <dd>
+                        {new Date(context.from).toLocaleString("en-IN", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Return</dt>
+                      <dd>
+                        {new Date(context.to).toLocaleString("en-IN", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Duration</dt>
+                      <dd>
+                        {tripEstimate.hours}h
+                        {tripEstimate.mode === "daily"
+                          ? ` · ${tripEstimate.days} day${tripEstimate.days === 1 ? "" : "s"}`
+                          : ""}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Pricing</dt>
+                      <dd>{tripEstimate.label}</dd>
+                    </div>
+                    <div>
+                      <dt>Rental</dt>
+                      <dd>{formatInr(tripEstimate.rentalPaise)}</dd>
+                    </div>
+                    {tripEstimate.depositPaise > 0 && (
+                      <div>
+                        <dt>Deposit</dt>
+                        <dd>{formatInr(tripEstimate.depositPaise)}</dd>
+                      </div>
+                    )}
+                    <div className="car-detail-estimate-total">
+                      <dt>Total</dt>
+                      <dd>{formatInr(tripEstimate.totalPaise)}</dd>
+                    </div>
+                  </dl>
+                  <p className="car-detail-estimate-hint">
+                    {tripEstimate.mode === "under12"
+                      ? "Trips of 12 hours or less use the under-12 package price."
+                      : "Trips over 12 hours are billed in 24-hour day blocks."}
+                    {" "}
+                    Final amount is confirmed when you continue.
+                  </p>
+                </div>
+              )}
 
               <p className="car-detail-hint">
                 Grey dates are fully booked or blocked (including a {car.bufferHours ?? 3}-hour
@@ -676,8 +867,10 @@ export default function CarDetail() {
                 {submitting
                   ? "Creating quote…"
                   : user
-                    ? "Continue to checkout"
-                    : "Sign in to get quote"}
+                    ? tripEstimate
+                      ? `Continue · ${formatInr(tripEstimate.rentalPaise)}`
+                      : "Continue to checkout"
+                    : "Sign in to continue booking"}
               </button>
 
               {!user && authReady && (
@@ -712,7 +905,102 @@ export default function CarDetail() {
             </div>
           </section>
         )}
+
+        {(otherCarsLoading || otherCars.length > 0) && (
+          <section className="car-detail-others" aria-label="Other cars">
+            <div className="car-detail-others-head">
+              <div>
+                <h2>Other cars</h2>
+                <p className="car-detail-hint">
+                  More options
+                  {car.city?.name ? ` in ${car.city.name}` : ""}
+                  {car.type ? ` · similar to ${car.type}` : ""}
+                </p>
+              </div>
+              <Link to={fleetBackHref} className="car-detail-others-all">
+                View all
+              </Link>
+            </div>
+
+            {otherCarsLoading ? (
+              <div className="car-detail-others-grid" aria-busy="true">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="car-detail-others-skeleton" />
+                ))}
+              </div>
+            ) : (
+              <div className="car-detail-others-grid">
+                {otherCars.map((row) => {
+                  const img = primaryImageUrl(row);
+                  const available = row.available !== false;
+                  const card = (
+                    <>
+                      <div className="car-detail-others-media">
+                        {img ? (
+                          <img src={img} alt={row.name || "Vehicle"} loading="lazy" />
+                        ) : (
+                          <div className="car-detail-others-placeholder" aria-hidden="true">
+                            <FontAwesomeIcon icon={faCarSide} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="car-detail-others-body">
+                        <h3>{row.name || "—"}</h3>
+                        <p>
+                          {[row.type, row.seats ? `${row.seats} seats` : "", row.fuel]
+                            .filter(Boolean)
+                            .join(" · ") || "—"}
+                        </p>
+                        <div className="car-detail-others-footer">
+                          <span className="car-detail-others-price">
+                            {formatInr(row.pricePaise)}
+                            <small>/ day</small>
+                          </span>
+                          <span className="car-detail-others-link">
+                            {available ? "View" : "Unavailable"}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  );
+
+                  if (!available) {
+                    return (
+                      <div
+                        key={row.id}
+                        className="car-detail-others-card car-detail-others-card--disabled"
+                        aria-disabled="true"
+                      >
+                        {card}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={row.id}
+                      to={carDetailPath(row.slug, context)}
+                      className="car-detail-others-card"
+                    >
+                      {card}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </div>
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => {
+          pendingQuoteAfterAuth.current = false;
+          setAuthOpen(false);
+        }}
+        onSuccess={handleAuthSuccess}
+        initialMode="password"
+      />
     </div>
   );
 }

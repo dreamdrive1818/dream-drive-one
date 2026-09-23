@@ -3,9 +3,9 @@ import { Helmet } from "react-helmet-async";
 import { Link, useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
-import { ClipLoader } from "react-spinners";
 import api from "../../api/http";
 import { usePageSeoSuppression } from "../../utils/usePageSeoSuppression";
+import { LegalSkeleton } from "../Skeleton/Skeleton";
 import "../TermsAndConditions/TermsAndConditions.css";
 
 export default function CmsPage({ slug: slugProp }) {
@@ -46,11 +46,7 @@ export default function CmsPage({ slug: slugProp }) {
   }
 
   if (!page) {
-    return (
-      <div className="legal-loader">
-        <ClipLoader color="#0e7c86" size={40} />
-      </div>
-    );
+    return <LegalSkeleton />;
   }
 
   const title = page.title || "Terms & conditions";

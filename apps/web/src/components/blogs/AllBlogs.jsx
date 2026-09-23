@@ -3,13 +3,13 @@ import "./AllBlogs.css";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
-import { ClipLoader } from "react-spinners";
 import { useLocalContext } from "../../context/LocalContext";
 import { useAdminContext } from "../../context/AdminContext";
 import { Helmet } from "react-helmet-async";
 import { sortBlogsByDate } from "../../utils/sortBlogsByDate";
 import { useBlogContext } from "../../context/BlogContext";
 import { usePageSeoSuppression } from "../../utils/usePageSeoSuppression";
+import { BlogsListSkeleton } from "../Skeleton/Skeleton";
 
 const FALLBACK_COVERS = [
   "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80",
@@ -173,11 +173,7 @@ const AllBlogs = () => {
       };
 
   if (loading) {
-    return (
-      <div className="blogs-page-loader">
-        <ClipLoader color="#0e7c86" size={48} />
-      </div>
-    );
+    return <BlogsListSkeleton />;
   }
 
   return (

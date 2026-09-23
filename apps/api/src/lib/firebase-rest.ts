@@ -101,3 +101,47 @@ export async function verifyGoogleOrFirebaseIdToken(idToken: string): Promise<{
   }
   return { uid: data.sub, email: data.email, name: data.name };
 }
+
+/** Verify Facebook Login access token via Graph API. */
+export async function verifyFacebookAccessToken(accessToken: string): Promise<{
+  uid: string;
+  email: string;
+  name?: string;
+}> {
+  const appId = process.env.FACEBOOK_APP_ID;
+  const appSecret = process.env.FACEBOOK_APP_SECRET;
+  if (appId && appSecret) {
+    const debugRes = await fetch(
+      `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(accessToken)}&access_token=${encodeURIComponent(`${appId}|${appSecret}`)}`
+    );
+    const debug = (await debugRes.json()) as {
+      data?: { is_valid?: boolean; app_id?: string };
+      error?: { message?: string };
+    };
+    if (!debugRes.ok || !debug.data?.is_valid) {
+      throw new UnauthorizedException(debug.error?.message || "Invalid Facebook token");
+    }
+    if (debug.data.app_id && debug.data.app_id !== appId) {
+      throw new UnauthorizedException("Facebook token is not for this app");
+    }
+  }
+
+  const res = await fetch(
+    `https://graph.facebook.com/me?fields=id,name,email&access_token=${encodeURIComponent(accessToken)}`
+  );
+  const data = (await res.json()) as {
+    id?: string;
+    email?: string;
+    name?: string;
+    error?: { message?: string };
+  };
+  if (!res.ok || !data.id) {
+    throw new UnauthorizedException(data.error?.message || "Invalid Facebook token");
+  }
+  if (!data.email) {
+    throw new UnauthorizedException(
+      "Facebook did not return an email. Grant email permission and try again."
+    );
+  }
+  return { uid: `fb:${data.id}`, email: data.email, name: data.name };
+}

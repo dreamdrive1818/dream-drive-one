@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ClipLoader } from "react-spinners";
 import api from "../../../api/http";
+import { RecentBlogsSkeleton } from "../../Skeleton/Skeleton";
 import "./RecentBlogs.css";
 
 const RecentBlogs = () => {
@@ -38,9 +38,7 @@ const RecentBlogs = () => {
       <h2 className="recent-title">Recent Blogs</h2>
 
       {loading ? (
-        <div className="recent-loading">
-          <ClipLoader color="#b78a4d" size={60} />
-        </div>
+        <RecentBlogsSkeleton />
       ) : recentBlogs.length === 0 ? (
         <div className="no-recent-blogs">
           <p>No other posts found.</p>

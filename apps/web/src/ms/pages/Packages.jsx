@@ -4,9 +4,12 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight, faCalendarDays, faCarSide, faLocationDot } from "@fortawesome/free-solid-svg-icons";
-import { ClipLoader } from "react-spinners";
 import { api } from "../api";
 import { formatInr } from "../fleetSearch";
+import {
+  PackagesListSkeleton,
+  PackageDetailSkeleton,
+} from "../../components/Skeleton/Skeleton";
 import "./Packages.css";
 
 export default function Packages() {
@@ -39,11 +42,7 @@ function PackageList() {
           </p>
         </header>
 
-        {loading ? (
-          <div className="packages-loading">
-            <ClipLoader color="#0e7c86" size={40} />
-          </div>
-        ) : null}
+        {loading ? <PackagesListSkeleton /> : null}
 
         {error ? <p className="packages-err">{error}</p> : null}
 
@@ -126,13 +125,7 @@ function PackageDetail({ slug }) {
   }, [slug]);
 
   if (loading) {
-    return (
-      <section className="packages-page">
-        <div className="packages-inner packages-loading">
-          <ClipLoader color="#0e7c86" size={40} />
-        </div>
-      </section>
-    );
+    return <PackageDetailSkeleton />;
   }
 
   if (error || !pack) {

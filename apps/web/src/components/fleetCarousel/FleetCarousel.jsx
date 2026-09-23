@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import "./FleetCarousel.css";
-import { useAdminContext } from "../../context/AdminContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -22,7 +21,10 @@ import {
   filtersToSearchParams,
   dateToIsoAtHour,
   validateDateRange,
+  defaultSearchDates,
+  localDateYmd,
 } from "../../ms/fleetSearch";
+import { FleetCarouselSkeleton } from "../Skeleton/Skeleton";
 
 /**
  * Reference class strip labels → internal fleet type filters.
@@ -164,7 +166,6 @@ const resolveCarImage = (car) => {
 };
 
 const FleetCarousel = () => {
-  const { fetchCars } = useAdminContext();
   const reduceMotion = useReducedMotion();
   const navigate = useNavigate();
   const location = useLocation();
@@ -180,9 +181,11 @@ const FleetCarousel = () => {
   const [cities, setCities] = useState([]);
   const [cityId, setCityId] = useState("");
   const [vehicleClass, setVehicleClass] = useState("Hatchback");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const dateDefaults = defaultSearchDates();
+  const [fromDate, setFromDate] = useState(dateDefaults.fromDate);
+  const [toDate, setToDate] = useState(dateDefaults.toDate);
   const [searchError, setSearchError] = useState("");
+  const todayMin = localDateYmd(0);
 
   const itemsPerPage = 3;
 
@@ -196,42 +199,75 @@ const FleetCarousel = () => {
     })}`;
   };
 
+  const mapSearchCars = (rows) => {
+    const list = Array.isArray(rows) ? rows : rows?.results || [];
+    return list.map((car) => ({
+      ...car,
+      images: (car.images || []).map((img) =>
+        typeof img === "string" ? img : img?.url
+      ),
+      price: (car.pricePaise ?? 0) / 100,
+      salePrice: car.salePricePaise != null ? car.salePricePaise / 100 : undefined,
+      available: car.available === false ? "Unavailable" : "Available",
+      details: {
+        type: car.type,
+        seats: car.seats,
+        fuel: car.fuel,
+        transmission: car.transmission,
+      },
+    }));
+  };
+
   useEffect(() => {
     api("/v1/public/cities")
       .then((rows) => {
         const list = Array.isArray(rows) ? rows : [];
         setCities(list);
-        if (list[0]?.id) setCityId(list[0].id);
+        if (!list.length) return;
+        const ranchi = list.find((c) =>
+          /ranchi/i.test(String(c.name || ""))
+        );
+        setCityId((prev) => prev || ranchi?.id || list[0].id);
       })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const loadCars = async () => {
+      setLoading(true);
       try {
-        const carData = await fetchCars();
+        const qs = new URLSearchParams();
+        if (cityId) qs.set("cityId", cityId);
+        const path = qs.toString()
+          ? `/v1/public/search?${qs}`
+          : "/v1/public/search";
+        const carData = mapSearchCars(await api(path));
         const discountPct = (car) => {
           const sale = Number(car.salePrice);
           const price = Number(car.price);
           return ((sale - price) / sale) * 100;
         };
-        const sortedCars = [...(carData || [])].sort((a, b) => {
+        const sortedCars = [...carData].sort((a, b) => {
           const aDisc = isDiscountedCar(a);
           const bDisc = isDiscountedCar(b);
           if (aDisc !== bDisc) return aDisc ? -1 : 1;
           if (aDisc && bDisc) return discountPct(b) - discountPct(a);
           return (a.displayOrder ?? 9999) - (b.displayOrder ?? 9999);
         });
-        setCars(sortedCars);
+        if (!cancelled) setCars(sortedCars);
       } catch (err) {
         console.error("Failed to load fleet cars:", err);
-        setCars([]);
+        if (!cancelled) setCars([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     loadCars();
-  }, [fetchCars]);
+    return () => {
+      cancelled = true;
+    };
+  }, [cityId]);
 
   const filteredCars = useMemo(() => {
     return cars.filter((car) => categoryMatchesCar(car, activeType));
@@ -435,8 +471,15 @@ const FleetCarousel = () => {
                       <FontAwesomeIcon icon={faCalendarDays} />
                       <input
                         type="date"
+                        min={todayMin}
                         value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setFromDate(next);
+                          if (toDate && next && toDate <= next) {
+                            setToDate(localDateYmd(2, new Date(`${next}T12:00:00`)));
+                          }
+                        }}
                       />
                     </span>
                   </label>
@@ -446,6 +489,7 @@ const FleetCarousel = () => {
                       <FontAwesomeIcon icon={faCalendarDays} />
                       <input
                         type="date"
+                        min={fromDate || todayMin}
                         value={toDate}
                         onChange={(e) => setToDate(e.target.value)}
                       />
@@ -550,13 +594,28 @@ const FleetCarousel = () => {
               </div>
 
               {loading ? (
-                <div className="fleet-loading">
-                  <div />
-                  <div />
-                </div>
+                <FleetCarouselSkeleton />
               ) : cars.length === 0 ? (
                 <div className="fleet-empty">
-                  <p>Fleet coming soon</p>
+                  <p>No cars found for this city.</p>
+                  <button
+                    type="button"
+                    className="fleet-empty-link"
+                    onClick={() => navigate("/fleet")}
+                  >
+                    Browse full fleet
+                  </button>
+                </div>
+              ) : pageCars.length === 0 ? (
+                <div className="fleet-empty">
+                  <p>No {activeType.toLowerCase()} cars available right now.</p>
+                  <button
+                    type="button"
+                    className="fleet-empty-link"
+                    onClick={() => selectClass("Hatchback")}
+                  >
+                    Show economy cars
+                  </button>
                 </div>
               ) : (
                 <div className="fleet-list">

@@ -12,6 +12,7 @@ import {
   firebaseSignInWithPassword,
   firebaseSignUpWithPassword,
   verifyGoogleOrFirebaseIdToken,
+  verifyFacebookAccessToken,
 } from "../../lib/firebase-rest";
 import { mintSessionToken } from "../../lib/session-token";
 
@@ -579,6 +580,21 @@ export class IdentityService {
       ip,
     });
     await this.audit({ actorId: user.id, action: "auth.google", entityId: user.id, ip });
+    return {
+      token: mintSessionToken({ email: user.email, uid: user.firebaseUid }),
+      user,
+    };
+  }
+
+  async loginWithFacebook(accessToken: string, ip?: string) {
+    const fb = await verifyFacebookAccessToken(accessToken);
+    const user = await this.upsertFromIdentity({
+      firebaseUid: fb.uid,
+      email: fb.email,
+      fullName: fb.name,
+      ip,
+    });
+    await this.audit({ actorId: user.id, action: "auth.facebook", entityId: user.id, ip });
     return {
       token: mintSessionToken({ email: user.email, uid: user.firebaseUid }),
       user,

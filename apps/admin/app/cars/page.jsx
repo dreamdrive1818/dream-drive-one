@@ -37,6 +37,7 @@ export default function CarsPage() {
     carModelId: "",
     rentalType: "SELF_DRIVE",
     dailyPaise: 180000,
+    under12Paise: 99000,
     extraKmPaise: 1200,
     depositPaise: 500000,
     startsOn: "",
@@ -114,6 +115,7 @@ export default function CarsPage() {
         body: {
           ...price,
           dailyPaise: Number(price.dailyPaise),
+          under12Paise: Number(price.under12Paise),
           extraKmPaise: Number(price.extraKmPaise),
           depositPaise: Number(price.depositPaise),
           startsOn: price.startsOn || null,
@@ -228,7 +230,8 @@ export default function CarsPage() {
               {RENTAL_TYPES.map((t) => <option key={t}>{t}</option>)}
             </select>
           </label>
-          <label>Daily (paise)<input type="number" value={price.dailyPaise} onChange={(e) => setPrice({ ...price, dailyPaise: e.target.value })} /></label>
+          <label>Daily / 24h (paise)<input type="number" value={price.dailyPaise} onChange={(e) => setPrice({ ...price, dailyPaise: e.target.value })} /></label>
+          <label>Under 12h (paise)<input type="number" value={price.under12Paise} onChange={(e) => setPrice({ ...price, under12Paise: e.target.value })} /></label>
           <label>Extra km (paise)<input type="number" value={price.extraKmPaise} onChange={(e) => setPrice({ ...price, extraKmPaise: e.target.value })} /></label>
           <label>Deposit (paise)<input type="number" value={price.depositPaise} onChange={(e) => setPrice({ ...price, depositPaise: e.target.value })} /></label>
         </div>
@@ -242,7 +245,8 @@ export default function CarsPage() {
             <thead>
               <tr>
                 <th>Type</th>
-                <th>Daily</th>
+                <th>24h</th>
+                <th>≤12h</th>
                 <th>Season</th>
                 <th></th>
               </tr>
@@ -252,6 +256,11 @@ export default function CarsPage() {
                 <tr key={r.id}>
                   <td>{r.rentalType}</td>
                   <td>₹{(r.dailyPaise / 100).toLocaleString("en-IN")}</td>
+                  <td>
+                    {r.under12Paise != null
+                      ? `₹${(r.under12Paise / 100).toLocaleString("en-IN")}`
+                      : "—"}
+                  </td>
                   <td>
                     {r.startsOn || r.endsOn
                       ? `${r.startsOn ? String(r.startsOn).slice(0, 10) : "…"} → ${r.endsOn ? String(r.endsOn).slice(0, 10) : "…"}`

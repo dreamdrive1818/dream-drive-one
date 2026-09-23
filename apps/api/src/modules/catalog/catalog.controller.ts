@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -15,7 +16,7 @@ import { RentalType } from "@prisma/client";
 import { CatalogService } from "./catalog.service";
 import { assertInternal, requireRoles } from "../../lib/auth";
 
-const CATALOG_ADMIN = ["FLEET_OPS", "CITY_MANAGER", "SUPER_ADMIN"] as const;
+const CATALOG_ADMIN = ["FLEET_OPS", "CITY_MANAGER", "SUPER_ADMIN", "BRANCH_MANAGER"] as const;
 const PRICING_ADMIN = ["FINANCE", "CITY_MANAGER", "SUPER_ADMIN"] as const;
 
 @Controller()
@@ -113,6 +114,7 @@ export class CatalogController {
       carModelId: string;
       rentalType: RentalType;
       dailyPaise: number;
+      under12Paise?: number;
       hourlyPaise?: number;
       extraKmPaise?: number;
       depositPaise?: number;
@@ -133,6 +135,7 @@ export class CatalogController {
       carModelId: string;
       rentalType: RentalType;
       dailyPaise: number;
+      under12Paise?: number;
       hourlyPaise?: number;
       extraKmPaise?: number;
       depositPaise?: number;
@@ -185,6 +188,17 @@ export class CatalogController {
     return this.catalog.listBlocks({ vehicleId, carModelId });
   }
 
+  @Get("v1/admin/availability-calendar")
+  vehicleCalendar(
+    @Req() req: Request,
+    @Query("vehicleId") vehicleId: string,
+    @Query("month") month?: string
+  ) {
+    requireRoles(req, ...CATALOG_ADMIN, "SALES");
+    if (!vehicleId) throw new BadRequestException("vehicleId required");
+    return this.catalog.vehicleCalendar(vehicleId, month);
+  }
+
   @Post("v1/admin/availability-blocks")
   createBlock(
     @Req() req: Request,
@@ -192,6 +206,24 @@ export class CatalogController {
   ) {
     requireRoles(req, ...CATALOG_ADMIN);
     return this.catalog.createBlock(body);
+  }
+
+  @Post("v1/admin/availability-blocks/day")
+  blockDay(
+    @Req() req: Request,
+    @Body() body: { vehicleId: string; date: string; reason?: string }
+  ) {
+    requireRoles(req, ...CATALOG_ADMIN);
+    return this.catalog.blockDay(body);
+  }
+
+  @Post("v1/admin/availability-blocks/day/unblock")
+  unblockDay(
+    @Req() req: Request,
+    @Body() body: { vehicleId: string; date: string }
+  ) {
+    requireRoles(req, ...CATALOG_ADMIN);
+    return this.catalog.unblockDay(body);
   }
 
   @Delete("v1/admin/availability-blocks/:id")

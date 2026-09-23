@@ -1297,15 +1297,28 @@ export class BookingEngine {
       if (!rule) throw new BadRequestException("No price for this rental type");
       depositPaise = rule.depositPaise;
       extraKmPaise = rule.extraKmPaise;
-      if (input.rentalType === "WITH_DRIVER_LOCAL" && rule.hourlyPaise) {
-        amountPaise = rule.hourlyPaise * hours;
-        breakdown.push({ label: `Chauffeur ${hours}h`, amountPaise });
-      } else if (input.rentalType === "AIRPORT" && rule.hourlyPaise && hours <= 8) {
+      if (input.rentalType === "AIRPORT" && rule.hourlyPaise && hours <= 8) {
         amountPaise = rule.hourlyPaise * hours;
         breakdown.push({ label: `Airport transfer ${hours}h`, amountPaise });
+      } else if (hours <= 12) {
+        const under12 =
+          rule.under12Paise != null && rule.under12Paise > 0
+            ? rule.under12Paise
+            : Math.round(rule.dailyPaise * 0.55);
+        amountPaise = under12;
+        breakdown.push({
+          label: `Under 12 hours package (${hours}h)`,
+          amountPaise,
+        });
+      } else if (input.rentalType === "WITH_DRIVER_LOCAL" && rule.hourlyPaise) {
+        amountPaise = rule.hourlyPaise * hours;
+        breakdown.push({ label: `Chauffeur ${hours}h`, amountPaise });
       } else {
         amountPaise = rule.dailyPaise * days;
-        breakdown.push({ label: `${days} day${days === 1 ? "" : "s"}`, amountPaise });
+        breakdown.push({
+          label: `${days} × 24h day${days === 1 ? "" : "s"}`,
+          amountPaise,
+        });
       }
     }
 

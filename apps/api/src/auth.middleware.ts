@@ -22,6 +22,7 @@ const PUBLIC = [
   /^\/v1\/auth\/login$/,
   /^\/v1\/auth\/register$/,
   /^\/v1\/auth\/google$/,
+  /^\/v1\/auth\/facebook$/,
   /^\/v1\/webhooks\//,
 ];
 

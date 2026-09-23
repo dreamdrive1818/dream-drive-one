@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, getToken } from "../../api";
 import { formatWhen, prettyStatus, rupees, statusTone } from "./format";
+import { Skeleton, SkeletonText } from "../../../components/Skeleton/Skeleton";
 
 export default function AccountBookingDetail() {
   const { id } = useParams();
@@ -68,7 +69,16 @@ export default function AccountBookingDetail() {
     }
   }
 
-  if (!booking && !error) return <p className="account-empty">Loading booking…</p>;
+  if (!booking && !error) {
+    return (
+      <div className="account-card" aria-busy="true" aria-label="Loading booking" style={{ minHeight: 280 }}>
+        <Skeleton height={28} width="40%" className="dd-skel-mb" />
+        <Skeleton height={14} width="55%" className="dd-skel-mb-sm" />
+        <SkeletonText lines={4} />
+        <Skeleton height={120} width="100%" className="dd-skel-mt" />
+      </div>
+    );
+  }
   if (error && !booking) return <p className="account-msg err">{error}</p>;
 
   const canCancel = !["HANDOVER", "ONGOING", "COMPLETED", "CANCELLED", "NO_SHOW"].includes(booking.status);

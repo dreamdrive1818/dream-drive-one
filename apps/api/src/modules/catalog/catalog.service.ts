@@ -34,6 +34,7 @@ type Db = Prisma.TransactionClient | typeof prisma;
 type PriceRow = {
   rentalType: RentalType;
   dailyPaise: number;
+  under12Paise?: number | null;
   extraKmPaise: number | null;
   depositPaise: number;
   hourlyPaise: number | null;
@@ -611,6 +612,7 @@ export class CatalogService {
     carModelId: string;
     rentalType: RentalType;
     dailyPaise: number;
+    under12Paise?: number;
     hourlyPaise?: number;
     extraKmPaise?: number;
     depositPaise?: number;
@@ -622,6 +624,7 @@ export class CatalogService {
         carModelId: body.carModelId,
         rentalType: body.rentalType,
         dailyPaise: Number(body.dailyPaise),
+        under12Paise: body.under12Paise != null ? Number(body.under12Paise) : undefined,
         hourlyPaise: body.hourlyPaise != null ? Number(body.hourlyPaise) : undefined,
         extraKmPaise: body.extraKmPaise != null ? Number(body.extraKmPaise) : undefined,
         depositPaise: body.depositPaise != null ? Number(body.depositPaise) : 0,
@@ -636,6 +639,7 @@ export class CatalogService {
     carModelId: string;
     rentalType: RentalType;
     dailyPaise: number;
+    under12Paise?: number;
     hourlyPaise?: number;
     extraKmPaise?: number;
     depositPaise?: number;
@@ -659,6 +663,12 @@ export class CatalogService {
       where: { id },
       data: {
         dailyPaise: body.dailyPaise != null ? Number(body.dailyPaise) : undefined,
+        under12Paise:
+          body.under12Paise === null
+            ? null
+            : body.under12Paise != null
+              ? Number(body.under12Paise)
+              : undefined,
         hourlyPaise: body.hourlyPaise != null ? Number(body.hourlyPaise) : undefined,
         extraKmPaise: body.extraKmPaise != null ? Number(body.extraKmPaise) : undefined,
         depositPaise: body.depositPaise != null ? Number(body.depositPaise) : undefined,
@@ -695,6 +705,208 @@ export class CatalogService {
       orderBy: { startsAt: "desc" },
       take: 200,
     });
+  }
+
+  async vehicleCalendar(vehicleId: string, month?: string) {
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      include: {
+        carModel: { select: { id: true, name: true, slug: true } },
+        branch: { include: { city: { select: { id: true, name: true, slug: true } } } },
+      },
+    });
+    if (!vehicle) throw new NotFoundException("Vehicle not found");
+
+    const cal = this.monthBounds(month);
+    const windowStart = cal.start;
+    const windowEnd = cal.end;
+    const [bookings, blocks, jobs] = await Promise.all([
+      prisma.booking.findMany({
+        where: {
+          vehicleId,
+          status: { in: BLOCKING },
+          startsAt: { lt: windowEnd },
+          endsAt: { gt: windowStart },
+        },
+        select: { id: true, publicId: true, startsAt: true, endsAt: true, status: true },
+      }),
+      prisma.availabilityBlock.findMany({
+        where: {
+          vehicleId,
+          startsAt: { lt: windowEnd },
+          endsAt: { gt: windowStart },
+        },
+        select: { id: true, startsAt: true, endsAt: true, reason: true },
+      }),
+      prisma.maintenanceJob.findMany({
+        where: {
+          vehicleId,
+          status: { in: ["SCHEDULED", "IN_PROGRESS"] },
+          startsAt: { lt: windowEnd },
+          endsAt: { gt: windowStart },
+        },
+        select: { id: true, startsAt: true, endsAt: true, status: true, type: true },
+      }),
+    ]);
+
+    const vehicleUnavailable = ["BLOCKED", "MAINTENANCE", "SOLD", "ON_TRIP"].includes(
+      vehicle.status
+    );
+    const days: {
+      date: string;
+      status: "available" | "unavailable" | "blocked";
+      reason: string | null;
+      blockId: string | null;
+      canToggle: boolean;
+    }[] = [];
+
+    const cursor = new Date(cal.start);
+    while (cursor < cal.end) {
+      const dayFrom = new Date(cursor);
+      const dayTo = new Date(cursor);
+      dayTo.setUTCDate(dayTo.getUTCDate() + 1);
+      const date = dayFrom.toISOString().slice(0, 10);
+
+      if (vehicleUnavailable) {
+        days.push({
+          date,
+          status: vehicle.status === "BLOCKED" ? "blocked" : "unavailable",
+          reason: `vehicle:${vehicle.status.toLowerCase()}`,
+          blockId: null,
+          canToggle: false,
+        });
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        continue;
+      }
+
+      const booking = bookings.find((b) => b.startsAt < dayTo && b.endsAt > dayFrom);
+      if (booking) {
+        days.push({
+          date,
+          status: "unavailable",
+          reason: `booking:${booking.publicId}`,
+          blockId: null,
+          canToggle: false,
+        });
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        continue;
+      }
+
+      const job = jobs.find(
+        (j) =>
+          j.startsAt != null && j.endsAt != null && j.startsAt < dayTo && j.endsAt > dayFrom
+      );
+      if (job) {
+        days.push({
+          date,
+          status: "unavailable",
+          reason: `maintenance:${job.type}`,
+          blockId: null,
+          canToggle: false,
+        });
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        continue;
+      }
+
+      const block = blocks.find((b) => b.startsAt < dayTo && b.endsAt > dayFrom);
+      if (block) {
+        const isHold = block.reason.startsWith("HOLD:") || block.reason.startsWith("BOOKING:");
+        days.push({
+          date,
+          status: isHold ? "unavailable" : "blocked",
+          reason: block.reason,
+          blockId: isHold ? null : block.id,
+          canToggle: !isHold,
+        });
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        continue;
+      }
+
+      days.push({
+        date,
+        status: "available",
+        reason: null,
+        blockId: null,
+        canToggle: true,
+      });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    return {
+      month: cal.key,
+      vehicle: {
+        id: vehicle.id,
+        registration: vehicle.registration,
+        status: vehicle.status,
+        carModel: vehicle.carModel,
+        branch: vehicle.branch,
+      },
+      days,
+    };
+  }
+
+  async blockDay(body: { vehicleId: string; date: string; reason?: string }) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
+      throw new BadRequestException("date must be YYYY-MM-DD");
+    }
+    const vehicle = await prisma.vehicle.findUnique({ where: { id: body.vehicleId } });
+    if (!vehicle) throw new NotFoundException("Vehicle not found");
+    if (vehicle.status !== "AVAILABLE") {
+      throw new BadRequestException(
+        `Vehicle is ${vehicle.status}; set status to AVAILABLE first`
+      );
+    }
+
+    const startsAt = new Date(`${body.date}T00:00:00.000Z`);
+    const endsAt = new Date(startsAt);
+    endsAt.setUTCDate(endsAt.getUTCDate() + 1);
+
+    const busy = await this.vehicleBusy(vehicle.id, startsAt, endsAt);
+    if (busy) {
+      throw new BadRequestException("Day already unavailable (booking, hold, or maintenance)");
+    }
+
+    const reasonRaw = String(body.reason || "blocked").trim() || "blocked";
+    const reason =
+      reasonRaw.startsWith("HOLD:") ||
+      reasonRaw.startsWith("BOOKING:") ||
+      reasonRaw.startsWith("MAINT:")
+        ? reasonRaw
+        : `MANUAL:${reasonRaw}`;
+
+    return prisma.availabilityBlock.create({
+      data: { vehicleId: vehicle.id, startsAt, endsAt, reason },
+      include: { vehicle: { include: { carModel: true } } },
+    });
+  }
+
+  async unblockDay(body: { vehicleId: string; date: string }) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
+      throw new BadRequestException("date must be YYYY-MM-DD");
+    }
+    const startsAt = new Date(`${body.date}T00:00:00.000Z`);
+    const endsAt = new Date(startsAt);
+    endsAt.setUTCDate(endsAt.getUTCDate() + 1);
+
+    const blocks = await prisma.availabilityBlock.findMany({
+      where: {
+        vehicleId: body.vehicleId,
+        startsAt: { lt: endsAt },
+        endsAt: { gt: startsAt },
+      },
+    });
+    const removable = blocks.filter(
+      (b) => !b.reason.startsWith("HOLD:") && !b.reason.startsWith("BOOKING:")
+    );
+    if (!removable.length) {
+      throw new BadRequestException(
+        "No manual block on this day (booking holds cannot be cleared here)"
+      );
+    }
+    await prisma.availabilityBlock.deleteMany({
+      where: { id: { in: removable.map((b) => b.id) } },
+    });
+    return { removed: removable.length, date: body.date };
   }
 
   async createBlock(body: {

@@ -216,6 +216,24 @@ export function isoDate(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** Local calendar YYYY-MM-DD, optionally offset from today. */
+export function localDateYmd(offsetDays = 0, from = new Date()) {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate() + offsetDays);
+  return isoDate(d);
+}
+
+/** Default search trip: pickup = today, return = today + 2 days. */
+export function defaultSearchDates(returnOffsetDays = 2) {
+  const fromDate = localDateYmd(0);
+  const toDate = localDateYmd(Math.max(1, returnOffsetDays));
+  return {
+    fromDate,
+    toDate,
+    from: dateToIsoAtHour(fromDate, 10),
+    to: dateToIsoAtHour(toDate, 10),
+  };
+}
+
 export function dateToIsoAtHour(dateStr, hour = 10) {
   if (!dateStr) return "";
   const d = new Date(`${dateStr}T${String(hour).padStart(2, "0")}:00:00`);
@@ -259,6 +277,70 @@ export function pricingRuleForType(pricingRules, rentalType, atIso) {
     if (seasonal.length) return seasonal[0];
   }
   return pool.find((r) => !r.startsOn && !r.endsOn) ?? pool[0] ?? null;
+}
+
+/**
+ * Live trip estimate from a pricing rule + pickup/return ISO times.
+ * ≤12h → under-12 package; >12h → N × 24h day rate.
+ */
+export function estimateTripPrice(rule, fromIso, toIso, rentalType = "SELF_DRIVE") {
+  if (!rule || !fromIso || !toIso) return null;
+  const from = new Date(fromIso);
+  const to = new Date(toIso);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || !(to > from)) {
+    return null;
+  }
+  const ms = to.getTime() - from.getTime();
+  const hours = Math.max(1, Math.ceil(ms / 3_600_000));
+  const days = Math.max(1, Math.ceil(ms / 86_400_000));
+  const under12Paise =
+    rule.under12Paise != null && rule.under12Paise > 0
+      ? rule.under12Paise
+      : Math.round((rule.dailyPaise || 0) * 0.55);
+  const dailyPaise = rule.dailyPaise || 0;
+  const depositPaise = rule.depositPaise || 0;
+  const extraKmPaise = rule.extraKmPaise;
+
+  let mode = "daily";
+  let rentalPaise = 0;
+  let label = "";
+
+  if (rentalType === "AIRPORT" && rule.hourlyPaise && hours <= 8) {
+    mode = "hourly";
+    rentalPaise = rule.hourlyPaise * hours;
+    label = `Airport transfer · ${hours}h`;
+  } else if (hours <= 12) {
+    mode = "under12";
+    rentalPaise = under12Paise;
+    label = `Under 12 hours · ${hours}h`;
+  } else if (rentalType === "WITH_DRIVER_LOCAL" && rule.hourlyPaise) {
+    mode = "hourly";
+    rentalPaise = rule.hourlyPaise * hours;
+    label = `Chauffeur · ${hours}h`;
+  } else {
+    mode = "daily";
+    rentalPaise = dailyPaise * days;
+    label = `${days} × 24h day${days === 1 ? "" : "s"}`;
+  }
+
+  return {
+    hours,
+    days,
+    mode,
+    label,
+    under12Paise,
+    dailyPaise,
+    rentalPaise,
+    depositPaise,
+    extraKmPaise,
+    totalPaise: rentalPaise + depositPaise,
+    breakdown: [
+      { label, amountPaise: rentalPaise },
+      ...(depositPaise > 0
+        ? [{ label: "Security deposit", amountPaise: depositPaise }]
+        : []),
+    ],
+  };
 }
 
 /** Detail-page query sync (preserves cityId + booking context). */

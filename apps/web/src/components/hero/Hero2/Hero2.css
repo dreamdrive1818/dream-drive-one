@@ -5,11 +5,12 @@
 .hero2-v2 {
   position: relative;
   width: 100%;
+  max-width: 100%;
   background: #ffffff;
   color: var(--text-dark, #0f172a);
   font-family: var(--font-family-main);
   padding: 2.8rem 0 3.5rem;
-  overflow: visible;
+  overflow-x: clip;
 }
 
 .hero2-v2-shell {

@@ -12,7 +12,8 @@
   --bg: #eef1f5;
 
   position: relative;
-  overflow: visible;
+  overflow-x: clip;
+  overflow-y: visible;
   padding: 7.2rem 2rem 0;
   font-family: var(--font-family-main), "Helvetica Neue", Arial, sans-serif;
   background: var(--bg);
@@ -21,7 +22,7 @@
 
 .fleet-wave {
   position: absolute;
-  inset: auto -10% -30% 35%;
+  inset: auto 0 -30% 35%;
   height: 70%;
   background:
     radial-gradient(ellipse 70% 55% at 70% 60%, #fff 0%, rgba(255, 255, 255, 0.85) 38%, transparent 70%);
@@ -34,7 +35,7 @@
   z-index: 1;
   width: min(1140px, 100%);
   margin: 0 auto;
-  padding-bottom: 16rem;
+  padding-bottom: 3.2rem;
   overflow: visible;
 }
 
@@ -603,14 +604,28 @@
   color: var(--muted);
 }
 
-/* —— Jeep overlay (dominant road-presence) —— */
+.fleet-empty-link {
+  margin-top: 1.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--navy);
+  font-size: 1.4rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* —— Jeep road presence (below car listings, in document flow) —— */
 
 .fleet-jeep-wrap {
-  position: absolute;
-  left: 36%;
-  bottom: -0.5rem;
-  width: min(620px, 58%);
-  z-index: 5;
+  position: relative;
+  left: auto;
+  bottom: auto;
+  display: block;
+  width: min(620px, 72%);
+  max-width: 100%;
+  margin: 2.8rem 0 0 auto;
+  z-index: 1;
   pointer-events: none;
   line-height: 0;
   overflow: visible;
@@ -878,11 +893,12 @@
   }
 
   .fleet-jeep-wrap {
-    display: none;
+    width: min(480px, 85%);
+    margin: 2rem auto 0;
   }
 
   .fleet-shell {
-    padding-bottom: 3rem;
+    padding-bottom: 2.4rem;
   }
 }
 

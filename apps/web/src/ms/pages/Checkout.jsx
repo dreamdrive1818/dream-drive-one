@@ -7,6 +7,8 @@ import { api } from "../api";
 import { useAuth } from "../AuthContext";
 import { RENTAL_TYPE_LABELS, formatInr } from "../fleetSearch";
 import { loadQuoteHandoff, saveQuoteHandoff } from "../quoteStorage";
+import { CheckoutSkeleton } from "../../components/Skeleton/Skeleton";
+import AuthModal from "../AuthModal";
 import "./Checkout.css";
 
 function formatDatePart(iso) {
@@ -197,6 +199,7 @@ export default function Checkout() {
   const [applying, setApplying] = useState(false);
   const [offerMessage, setOfferMessage] = useState("");
   const [offerError, setOfferError] = useState("");
+  const [authOpen, setAuthOpen] = useState(false);
 
   useEffect(() => {
     const fromNav = location.state?.quote;
@@ -215,11 +218,9 @@ export default function Checkout() {
 
   useEffect(() => {
     if (!authReady) return;
-    if (!user) {
-      const next = encodeURIComponent(`/checkout/${quoteId}`);
-      navigate(`/login?redirect=${next}`, { replace: true });
-    }
-  }, [authReady, user, quoteId, navigate]);
+    if (!user) setAuthOpen(true);
+    else setAuthOpen(false);
+  }, [authReady, user]);
 
   useEffect(() => {
     if (!user || !quoteId) return;
@@ -230,12 +231,9 @@ export default function Checkout() {
         if (row.expired) setError("This quote has expired. Pick dates again on the car page.");
       })
       .catch((err) => {
-        if (err.status === 401) {
-          const next = encodeURIComponent(`/checkout/${quoteId}`);
-          navigate(`/login?redirect=${next}`, { replace: true });
-        }
+        if (err.status === 401) setAuthOpen(true);
       });
-  }, [user, quoteId, navigate]);
+  }, [user, quoteId]);
 
   async function pay() {
     if (!quote || quote.expired) {
@@ -283,14 +281,7 @@ export default function Checkout() {
   }
 
   if (!ready) {
-    return (
-      <div className="checkout-page">
-        <div className="checkout-state" aria-live="polite">
-          <ClipLoader color="var(--primary-color, #0072ce)" size={36} />
-          <p>Loading your quote…</p>
-        </div>
-      </div>
-    );
+    return <CheckoutSkeleton label="Loading your quote" />;
   }
 
   if (!quoteId || !quote) {
@@ -556,7 +547,19 @@ export default function Checkout() {
               ) : null}
 
               <div className="checkout-price-rows">
-                {hasAmount ? (
+                {(Array.isArray(quote.payload?.breakdown) ? quote.payload.breakdown : []).map(
+                  (row, i) => (
+                    <div key={`${row.label}-${i}`} className="checkout-price-row">
+                      <span>{row.label}</span>
+                      <strong>{formatInr(row.amountPaise)}</strong>
+                    </div>
+                  )
+                )}
+                {hasAmount &&
+                !(
+                  Array.isArray(quote.payload?.breakdown) &&
+                  quote.payload.breakdown.length
+                ) ? (
                   <div className="checkout-price-row">
                     <span>Rental amount</span>
                     <strong>{formatInr(quote.amountPaise)}</strong>
@@ -618,6 +621,13 @@ export default function Checkout() {
         </div>
 
       </div>
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onSuccess={() => setAuthOpen(false)}
+        initialMode="password"
+      />
     </div>
   );
 }

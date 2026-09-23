@@ -10,6 +10,8 @@ import {
   filtersToSearchParams,
   dateToIsoAtHour,
   validateDateRange,
+  defaultSearchDates,
+  localDateYmd,
 } from "../../ms/fleetSearch";
 import "./HomeSearchBar.css";
 
@@ -17,10 +19,12 @@ export default function HomeSearchBar() {
   const navigate = useNavigate();
   const [cities, setCities] = useState([]);
   const [cityId, setCityId] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const defaults = defaultSearchDates();
+  const [fromDate, setFromDate] = useState(defaults.fromDate);
+  const [toDate, setToDate] = useState(defaults.toDate);
   const [rentalType, setRentalType] = useState("SELF_DRIVE");
   const [error, setError] = useState("");
+  const todayMin = localDateYmd(0);
 
   useEffect(() => {
     api("/v1/public/cities")
@@ -87,8 +91,15 @@ export default function HomeSearchBar() {
               <input
                 id="home-from"
                 type="date"
+                min={todayMin}
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setFromDate(next);
+                  if (toDate && next && toDate <= next) {
+                    setToDate(localDateYmd(2, new Date(`${next}T12:00:00`)));
+                  }
+                }}
               />
             </div>
 
@@ -97,6 +108,7 @@ export default function HomeSearchBar() {
               <input
                 id="home-to"
                 type="date"
+                min={fromDate || todayMin}
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
               />

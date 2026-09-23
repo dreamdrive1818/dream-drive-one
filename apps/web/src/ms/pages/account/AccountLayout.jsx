@@ -3,6 +3,7 @@
 import React from "react";
 import { NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
+import { AccountSkeleton } from "../../../components/Skeleton/Skeleton";
 import "./Account.css";
 
 const LINKS = [
@@ -20,13 +21,7 @@ export default function AccountLayout() {
   const location = useLocation();
 
   if (!ready) {
-    return (
-      <section className="account-page">
-        <p className="account-empty" style={{ padding: "2.4rem" }}>
-          Loading your account…
-        </p>
-      </section>
-    );
+    return <AccountSkeleton />;
   }
 
   if (!user) {
