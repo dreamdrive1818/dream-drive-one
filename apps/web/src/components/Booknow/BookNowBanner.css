@@ -1,425 +1,252 @@
 .book-banner {
+  --bb-teal: #0e7c86;
+  --bb-accent: #2ec4b6;
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  min-height: min(78vh, 62rem);
   display: flex;
-  align-items: stretch;
-  padding: 0;
+  align-items: center;
+  min-height: clamp(42rem, 36vw, 54rem);
+  padding: 6rem 1.8rem;
   font-family: var(--font-family-main);
-  color: #fff;
-  background: #050d12;
+  color: #ffffff;
+  background: #0a121a;
 }
 
-.book-banner-bg {
+/* ── Night scene ── */
+
+.book-banner-media {
   position: absolute;
   inset: 0;
-  z-index: 0;
-  background:
-    url("/book-banner-hero.jpg")
-      center right / cover no-repeat;
+  z-index: -2;
+}
+
+.book-banner-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 72% 55%;
 }
 
 .book-banner-shade {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: -1;
   background:
     linear-gradient(
-      100deg,
-      rgba(2, 8, 14, 0.78) 0%,
-      rgba(2, 8, 14, 0.42) 38%,
-      rgba(2, 8, 14, 0.08) 62%,
-      rgba(2, 8, 14, 0.18) 100%
+      90deg,
+      rgba(7, 13, 20, 0.82) 0%,
+      rgba(7, 13, 20, 0.55) 30%,
+      rgba(7, 13, 20, 0.12) 52%,
+      transparent 64%
     ),
-    linear-gradient(
-      180deg,
-      rgba(2, 8, 14, 0.15) 0%,
-      transparent 40%,
-      rgba(2, 8, 14, 0.45) 100%
-    );
+    linear-gradient(180deg, transparent 70%, rgba(7, 13, 20, 0.35) 100%);
   pointer-events: none;
 }
 
-.book-banner-frame {
-  position: relative;
-  z-index: 2;
+/* ── Copy ── */
+
+.book-banner-inner {
   width: 100%;
-  max-width: 1240px;
+  max-width: var(--dd-container, 1240px);
   margin: 0 auto;
-  padding: 5.5rem 1.8rem 2rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 4rem;
-  flex: 1;
-  box-sizing: border-box;
-}
-
-.book-banner-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 2rem;
-  padding-top: 1.5rem;
-  flex: 1;
-}
-
-.book-banner-script {
-  margin: 0.4rem 0.5rem 0 0;
-  justify-self: end;
-  font-family: var(--font-family-display);
-  font-size: clamp(2.6rem, 3vw, 3.4rem);
-  font-weight: 500;
-  font-style: italic;
-  color: rgba(255, 255, 255, 0.95);
-  line-height: 1;
-  position: relative;
-  flex-shrink: 0;
-  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  white-space: nowrap;
-}
-
-.book-banner-script::after {
-  content: "";
-  position: absolute;
-  left: 0.15rem;
-  bottom: -0.55rem;
-  width: 5rem;
-  height: 0.28rem;
-  border-radius: 999px;
-  background: #2ec4b6;
-  transform: rotate(-8deg);
 }
 
 .book-banner-copy {
-  max-width: 54rem;
+  max-width: 46rem;
 }
 
-.book-banner-kicker {
+.book-banner-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 1.2rem;
-  margin: 0 0 1.5rem;
-  font-size: 1.25rem;
+  margin: 0 0 1.8rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.92);
 }
 
-.book-banner-kicker-line {
-  display: inline-block;
-  width: 5.2rem;
-  height: 2px;
+.book-banner-eyebrow-rule {
+  width: 4rem;
+  height: 1.5px;
   border-radius: 999px;
-  background: #2ec4b6;
+  background: var(--bb-accent);
 }
 
 .book-banner-title {
-  margin: 0 0 1.3rem;
+  margin: 0;
   font-family: var(--font-family-display);
-  font-size: clamp(4rem, 5.6vw, 6.4rem);
+  font-size: clamp(3.8rem, 4vw, 5.6rem);
   font-weight: 650;
+  line-height: 1.05;
   letter-spacing: -0.03em;
-  line-height: 1.06;
-  color: #fff;
-  max-width: 13ch;
+  color: #ffffff;
 }
 
 .book-banner-title span {
-  color: #2ec4b6;
+  display: block;
+  color: var(--bb-accent);
 }
 
 .book-banner-lead {
-  margin: 0 0 2.6rem;
-  max-width: 44rem;
-  font-size: 1.65rem;
+  margin: 1.6rem 0 2.8rem;
+  max-width: 30rem;
+  font-size: 1.6rem;
   line-height: 1.55;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.82);
 }
 
-.book-banner-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1.5rem 2rem;
-}
-
 .book-banner-cta {
   display: inline-flex;
   align-items: center;
-  gap: 0.8rem;
-  min-height: 5rem;
+  gap: 0.9rem;
+  min-height: 4.8rem;
   padding: 0 2.4rem;
   border: 0;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #0e7c86 0%, #14b8a6 100%);
-  color: #fff;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--bb-teal) 0%, #14b8a6 100%);
+  color: #ffffff;
   font-family: inherit;
-  font-size: 1.55rem;
+  font-size: 1.5rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow:
-    0 0 0 7px rgba(46, 196, 182, 0.18),
-    0 12px 28px rgba(14, 124, 134, 0.35);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  box-shadow: 0 12px 30px -10px rgba(20, 184, 166, 0.55);
+  transition:
+    filter 150ms ease,
+    translate 200ms cubic-bezier(0.25, 0.8, 0.25, 1),
+    box-shadow 200ms cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.book-banner-cta svg {
+  transition: translate 200ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .book-banner-cta:hover {
   filter: brightness(1.05);
-  box-shadow:
-    0 0 0 9px rgba(46, 196, 182, 0.22),
-    0 14px 32px rgba(14, 124, 134, 0.4);
 }
 
-.book-banner-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  color: inherit;
+.book-banner-cta:focus-visible {
+  outline: 2px solid var(--bb-accent);
+  outline-offset: 3px;
 }
 
-.book-banner-play {
-  flex-shrink: 0;
-  width: 4.6rem;
-  height: 4.6rem;
-  border-radius: 999px;
-  border: 1.5px solid rgba(255, 255, 255, 0.7);
-  color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  padding-left: 0.18rem;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.book-banner-secondary-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.book-banner-secondary-copy strong {
-  font-size: 1.45rem;
-  font-weight: 750;
-  color: #ffffff;
-}
-
-.book-banner-secondary-copy em {
-  font-style: normal;
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.65);
-}
-
-.book-banner-secondary:hover .book-banner-play {
-  border-color: #2ec4b6;
-  color: #2ec4b6;
-}
-
-/* Feature bar */
-
-.book-banner-featurebar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.8rem;
-  padding: 1.8rem 0 1.4rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.book-banner-features {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem 1.8rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.book-banner-feature {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-  min-width: 0;
-}
-
-.book-banner-feature-icon {
-  flex-shrink: 0;
-  margin-top: 0.2rem;
-  color: #2ec4b6;
-  font-size: 1.55rem;
-}
-
-.book-banner-feature strong {
-  display: block;
-  font-size: 1.4rem;
-  font-weight: 750;
-  color: #ffffff;
-  line-height: 1.2;
-}
-
-.book-banner-feature span {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.62);
-}
-
-.book-banner-trust {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 1rem;
-  min-height: 5.4rem;
-  padding: 0.6rem 0.75rem 0.6rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  background: rgba(20, 28, 38, 0.72);
-  backdrop-filter: blur(10px);
-  color: #ffffff;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.book-banner-trust:hover {
-  background: rgba(20, 28, 38, 0.88);
-  border-color: rgba(46, 196, 182, 0.45);
-}
-
-.book-banner-avatars {
-  display: inline-flex;
-  align-items: center;
-}
-
-.book-banner-avatars span {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 999px;
-  border: 2px solid rgba(20, 28, 38, 0.9);
-  background: linear-gradient(135deg, #0e7c86, #2ec4b6);
-}
-
-.book-banner-avatars span:nth-child(2) {
-  margin-left: -0.75rem;
-  background: linear-gradient(135deg, #475569, #0e7c86);
-}
-
-.book-banner-avatars span:nth-child(3) {
-  margin-left: -0.75rem;
-  background: linear-gradient(135deg, #64748b, #14b8a6);
-}
-
-.book-banner-trust-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-  padding-right: 0.35rem;
-}
-
-.book-banner-trust-copy strong {
-  font-size: 1.45rem;
-  font-weight: 750;
-  line-height: 1.15;
-}
-
-.book-banner-trust-copy em {
-  font-style: normal;
-  font-size: 1.15rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.62);
-}
-
-.book-banner-trust-arrow {
-  width: 3.4rem;
-  height: 3.4rem;
-  border-radius: 999px;
-  border: 1.5px solid rgba(255, 255, 255, 0.55);
-  background: transparent;
-  color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.15rem;
-}
-
-@media (max-width: 1100px) {
-  .book-banner-script {
-    display: none;
+@media (hover: hover) {
+  .book-banner-cta:hover {
+    translate: 0 -2px;
+    box-shadow: 0 16px 34px -10px rgba(20, 184, 166, 0.65);
   }
 
-  .book-banner-featurebar {
+  .book-banner-cta:hover svg {
+    translate: 4px 0;
+  }
+}
+
+/* ── Tablet ── */
+
+@media (max-width: 1023px) {
+  .book-banner {
+    min-height: 40rem;
+    padding: 5.2rem 2.4rem;
+  }
+
+  .book-banner-media img {
+    object-position: 76% 55%;
+  }
+
+  .book-banner-shade {
+    background:
+      linear-gradient(
+        90deg,
+        rgba(7, 13, 20, 0.88) 0%,
+        rgba(7, 13, 20, 0.62) 38%,
+        rgba(7, 13, 20, 0.1) 62%,
+        transparent 74%
+      ),
+      linear-gradient(180deg, transparent 70%, rgba(7, 13, 20, 0.35) 100%);
+  }
+
+  .book-banner-copy {
+    max-width: 38rem;
+  }
+
+  .book-banner-title {
+    font-size: clamp(3.4rem, 4.6vw, 4.4rem);
+  }
+
+  .book-banner-lead {
+    font-size: 1.5rem;
+  }
+}
+
+/* ── Mobile: copy on the night sky, scene below ── */
+
+@media (max-width: 767px) {
+  .book-banner {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .book-banner-trust {
-    align-self: flex-start;
-  }
-}
-
-@media (max-width: 900px) {
-  .book-banner {
     min-height: 0;
+    padding: 4.8rem 0 0;
   }
 
-  .book-banner-frame {
-    padding: 4.5rem 1.8rem 1.6rem;
-    gap: 3rem;
+  .book-banner-inner {
+    padding: 0 1.8rem;
   }
 
-  .book-banner-main {
-    padding-top: 0;
+  .book-banner-media {
+    position: relative;
+    inset: auto;
+    order: 2;
+    margin-top: -2rem;
+    aspect-ratio: 4 / 3;
   }
 
-  .book-banner-features {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .book-banner-media img {
+    object-position: 80% 60%;
   }
 
-  .book-banner-trust {
-    width: 100%;
-    justify-content: space-between;
+  .book-banner-shade {
+    background: linear-gradient(
+      180deg,
+      #0a121a 0%,
+      #0a121a 52%,
+      rgba(10, 18, 26, 0) 70%
+    );
+  }
+
+  .book-banner-eyebrow {
+    font-size: 1.1rem;
+    letter-spacing: 0.14em;
+  }
+
+  .book-banner-title {
+    font-size: clamp(3.2rem, 9vw, 4rem);
+  }
+
+  .book-banner-lead {
+    margin: 1.2rem 0 2.2rem;
+    font-size: 1.45rem;
   }
 }
 
 @media (max-width: 480px) {
-  .book-banner-title {
-    max-width: none;
-    font-size: 3.5rem;
-  }
-
-  .book-banner-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .book-banner-cta,
-  .book-banner-secondary {
+  .book-banner-cta {
     width: 100%;
     justify-content: center;
-  }
-
-  .book-banner-features {
-    grid-template-columns: 1fr;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .book-banner-cta {
+  .book-banner-cta,
+  .book-banner-cta svg {
     transition: none;
+  }
+
+  .book-banner-cta:hover,
+  .book-banner-cta:hover svg {
+    translate: none;
   }
 }
