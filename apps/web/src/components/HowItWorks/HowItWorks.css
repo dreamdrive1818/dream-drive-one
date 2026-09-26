@@ -777,20 +777,14 @@
   );
 }
 
-/* ── Footer: CTA + trust ── */
+/* ── Footer: CTA ── */
 
 .hiw-footer {
   position: relative;
   z-index: 3;
   display: flex;
-  align-items: center;
-  gap: 2.4rem;
+  justify-content: center;
   margin-top: 2.4rem;
-  padding: 1.4rem 1.6rem 1.4rem 1.4rem;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  border-radius: 22px;
-  box-shadow: 0 14px 34px -24px rgba(15, 23, 42, 0.3);
 }
 
 .hiw-cta {
@@ -840,56 +834,6 @@
   outline-offset: 3px;
 }
 
-.hiw-trust-list {
-  flex: 1;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.hiw-trust-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  min-width: 0;
-  padding: 0.2rem 1.4rem;
-  border-left: 1px solid #e2e8f0;
-}
-
-.hiw-trust-icon {
-  flex-shrink: 0;
-  width: 3.6rem;
-  height: 3.6rem;
-  border-radius: 11px;
-  display: inline-grid;
-  place-items: center;
-  font-size: 1.35rem;
-  color: var(--hiw-teal);
-  background: #edf7f6;
-}
-
-.hiw-trust-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.hiw-trust-copy strong {
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--hiw-ink);
-}
-
-.hiw-trust-copy span {
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: var(--hiw-muted);
-}
-
 /* ── Laptop 1024–1199: same journey, lighter scenery ── */
 
 @media (max-width: 1199px) {
@@ -919,17 +863,7 @@
   }
 
   .hiw-footer {
-    flex-direction: column;
-    align-items: stretch;
     margin-top: 5.6rem;
-  }
-
-  .hiw-cta {
-    align-self: center;
-  }
-
-  .hiw-trust-item:first-child {
-    border-left: 0;
   }
 }
 
@@ -1128,15 +1062,6 @@
   .hiw-footer {
     margin-top: 4rem;
   }
-
-  .hiw-trust-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.4rem 0;
-  }
-
-  .hiw-trust-item:nth-child(odd) {
-    border-left: 0;
-  }
 }
 
 /* ── Mobile < 768: single-sided road ── */
@@ -1215,23 +1140,8 @@
     width: min(100%, 17rem);
   }
 
-  .hiw-footer {
-    padding: 1.6rem;
-    gap: 1.8rem;
-  }
-
   .hiw-cta {
-    align-self: stretch;
-  }
-
-  .hiw-trust-list {
-    grid-template-columns: 1fr;
-    gap: 1.2rem;
-  }
-
-  .hiw-trust-item {
-    border-left: 0;
-    padding: 0;
+    width: 100%;
   }
 }
 

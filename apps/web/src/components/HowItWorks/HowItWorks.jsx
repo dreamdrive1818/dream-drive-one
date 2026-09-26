@@ -15,10 +15,6 @@ import {
   faCarOn,
   faCarSide,
   faArrowRight,
-  faShieldHalved,
-  faHeadset,
-  faTags,
-  faTruck,
   faLock,
   faCheck,
   faKey,
@@ -53,34 +49,6 @@ const STEPS = [
     title: "Return",
     description: "Bring it back at the end of your rental. That’s it.",
     icon: faCarSide,
-  },
-];
-
-/** Non-numeric trust items from existing project copy — no fake counts. */
-const TRUST_ITEMS = [
-  {
-    id: "cars",
-    icon: faShieldHalved,
-    title: "Well-maintained cars",
-    text: "Clean rides ready for your trip.",
-  },
-  {
-    id: "support",
-    icon: faHeadset,
-    title: "24×7 support",
-    text: "Help when you need it.",
-  },
-  {
-    id: "pricing",
-    icon: faTags,
-    title: "Clear pricing",
-    text: "What you see is what you pay.",
-  },
-  {
-    id: "delivery",
-    icon: faTruck,
-    title: "Doorstep delivery",
-    text: "Available in Ranchi.",
   },
 ];
 
@@ -792,20 +760,6 @@ const HowItWorks = () => {
               Start Your Journey
               <FontAwesomeIcon icon={faArrowRight} />
             </button>
-
-            <ul className="hiw-trust-list">
-              {TRUST_ITEMS.map((item) => (
-                <li key={item.id} className="hiw-trust-item">
-                  <span className="hiw-trust-icon" aria-hidden="true">
-                    <FontAwesomeIcon icon={item.icon} />
-                  </span>
-                  <div className="hiw-trust-copy">
-                    <strong>{item.title}</strong>
-                    <span>{item.text}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
           </motion.div>
         </div>
 

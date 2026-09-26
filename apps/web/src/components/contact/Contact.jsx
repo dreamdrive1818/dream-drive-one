@@ -1,10 +1,13 @@
 import React, { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPhone,
   faEnvelope,
   faLocationDot,
   faPaperPlane,
+  faArrowRight,
+  faDiamondTurnRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import { toast } from "react-toastify";
@@ -13,8 +16,32 @@ import api from "../../api/http";
 import { trackWhatsApp } from "../../utils/trackLead";
 import "./Contact.css";
 
+const MAP_EMBED =
+  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d925.1829202262528!2d85.34634826958784!3d23.367233098683375!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39f4e180305de8db%3A0x8cc1b7f92cd87634!2sDream%20Drive%20Self%20Drive%20Car%20Rental%20Ranchi!5e1!3m2!1sen!2sin!4v1751471918474!5m2!1sen!2sin";
+const MAP_DIRECTIONS =
+  "https://www.google.com/maps/search/?api=1&query=Dream%20Drive%20Self%20Drive%20Car%20Rental%20Ranchi";
+
+const EASE = [0.22, 1, 0.36, 1];
+
+const fadeUp = (y, delay = 0) => ({
+  hidden: { opacity: 0, y },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE, delay } },
+});
+
+const eyebrowIn = fadeUp(8, 0.05);
+const titleIn = fadeUp(16, 0.12);
+const leadIn = fadeUp(10, 0.2);
+const cardIn = fadeUp(24, 0.24);
+
+const methodsIn = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08, delayChildren: 0.42 } },
+};
+const methodIn = fadeUp(12);
+
 const Contact = () => {
   const { webinfo } = useLocalContext();
+  const reduceMotion = useReducedMotion();
   const [formData, setFormData] = useState({
     first: "",
     last: "",
@@ -25,13 +52,41 @@ const Contact = () => {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const phoneDisplay = webinfo?.phone || "+91 70611 12181";
-  const phoneHref = webinfo?.phonecall
-    ? `tel:${webinfo.phonecall}`
-    : "tel:+917061112181";
-  const waHref = `https://wa.me/${webinfo?.phonecall || "917061112181"}`;
+  const phoneDisplay = webinfo?.phone?.trim() || "+91 70611 12181";
+  const phoneDigits = String(webinfo?.phonecall || "917061112181").replace(
+    /\D/g,
+    ""
+  );
+  const phoneHref = `tel:+${phoneDigits}`;
+  const waHref = `https://wa.me/${phoneDigits}`;
   const email = webinfo?.email || "Dreamdrive1818@gmail.com";
   const address = webinfo?.address || "Ranchi, Jharkhand, Pin - 834001";
+
+  const methods = [
+    {
+      key: "call",
+      icon: faPhone,
+      label: "Call us",
+      value: phoneDisplay,
+      href: phoneHref,
+    },
+    {
+      key: "whatsapp",
+      icon: faWhatsapp,
+      label: "WhatsApp",
+      value: "Chat with our team",
+      href: waHref,
+      external: true,
+      onClick: () => trackWhatsApp(),
+    },
+    {
+      key: "email",
+      icon: faEnvelope,
+      label: "Email",
+      value: email,
+      href: `mailto:${email}`,
+    },
+  ];
 
   const handleChange = (e) => {
     setFormData((prev) => ({
@@ -74,65 +129,103 @@ const Contact = () => {
     }
   };
 
+  const reveal = reduceMotion
+    ? { initial: "show", animate: "show" }
+    : {
+        initial: "hidden",
+        whileInView: "show",
+        viewport: { once: true, amount: 0.15 },
+      };
+
   return (
-    <section className="dd-contact" aria-label="Contact us">
+    <motion.section
+      className="dd-contact"
+      aria-labelledby="dd-contact-title"
+      {...reveal}
+    >
       <div className="dd-contact-shell">
-        <header className="dd-contact-header">
-          <p className="dd-contact-kicker">Get in touch</p>
-          <h2 className="dd-contact-title">Talk to Dream Drive</h2>
-          <p className="dd-contact-lead">
-            Questions about cars, dates, or pickup in Ranchi? Reach out — we
-            usually reply the same day.
-          </p>
+        <header className="dd-contact-head">
+          <motion.p className="dd-contact-eyebrow" variants={eyebrowIn}>
+            Get in touch
+          </motion.p>
+          <motion.h2
+            id="dd-contact-title"
+            className="dd-contact-title"
+            variants={titleIn}
+          >
+            Talk to
+            <span>Dream Drive</span>
+          </motion.h2>
+          <motion.p className="dd-contact-lead" variants={leadIn}>
+            Questions about cars, dates, or pickup in Ranchi? Call, WhatsApp,
+            or send us a message.
+          </motion.p>
         </header>
 
-        <div className="dd-contact-panel">
-          <aside className="dd-contact-aside">
-            <div className="dd-contact-aside-bg" aria-hidden="true" />
-            <div className="dd-contact-aside-body">
-              <p className="dd-contact-aside-label">Direct lines</p>
+        <motion.div className="dd-contact-card" variants={cardIn}>
+          <aside className="dd-contact-info" aria-label="Contact details">
+            <h3 className="dd-contact-info-title">Reach us directly</h3>
 
-              <a className="dd-contact-row" href={phoneHref}>
-                <FontAwesomeIcon icon={faPhone} />
-                <span>
-                  <strong>Call</strong>
-                  <em>{phoneDisplay}</em>
-                </span>
-              </a>
+            <motion.ul className="dd-contact-methods" variants={methodsIn}>
+              {methods.map((m) => (
+                <motion.li key={m.key} variants={methodIn}>
+                  <a
+                    className={`dd-contact-method dd-contact-method--${m.key}`}
+                    href={m.href}
+                    {...(m.external
+                      ? { target: "_blank", rel: "noopener noreferrer" }
+                      : {})}
+                    onClick={m.onClick}
+                  >
+                    <span className="dd-contact-method-icon" aria-hidden="true">
+                      <FontAwesomeIcon icon={m.icon} />
+                    </span>
+                    <span className="dd-contact-method-text">
+                      <span className="dd-contact-method-label">{m.label}</span>
+                      <span className="dd-contact-method-value">{m.value}</span>
+                    </span>
+                    <span className="dd-contact-method-arrow" aria-hidden="true">
+                      <FontAwesomeIcon icon={faArrowRight} />
+                    </span>
+                  </a>
+                </motion.li>
+              ))}
+            </motion.ul>
 
-              <a className="dd-contact-row" href={`mailto:${email}`}>
-                <FontAwesomeIcon icon={faEnvelope} />
-                <span>
-                  <strong>Email</strong>
-                  <em>{email}</em>
-                </span>
-              </a>
-
-              <div className="dd-contact-row dd-contact-row--static">
+            <div className="dd-contact-visit">
+              <span className="dd-contact-visit-icon" aria-hidden="true">
                 <FontAwesomeIcon icon={faLocationDot} />
-                <span>
-                  <strong>Visit</strong>
-                  <em>{address}</em>
-                </span>
+              </span>
+              <div className="dd-contact-visit-text">
+                <p className="dd-contact-visit-label">Visit us</p>
+                <p className="dd-contact-visit-address">{address}</p>
+                <a
+                  className="dd-contact-visit-link"
+                  href={MAP_DIRECTIONS}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FontAwesomeIcon icon={faDiamondTurnRight} />
+                  Get directions
+                </a>
               </div>
+            </div>
 
-              <a
-                className="dd-contact-wa"
-                href={waHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackWhatsApp()}
-              >
-                <FontAwesomeIcon icon={faWhatsapp} />
-                WhatsApp us
-              </a>
+            <div className="dd-contact-map">
+              <iframe
+                src={MAP_EMBED}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Dream Drive office location"
+              />
             </div>
           </aside>
 
           <form className="dd-contact-form" onSubmit={handleSubmit} noValidate>
             <div className="dd-contact-form-top">
               <h3>Send a message</h3>
-              <p>Share email or phone so we can get back to you.</p>
+              <p>Share your email or phone so we can get back to you.</p>
             </div>
 
             <div className="dd-contact-fields">
@@ -158,7 +251,7 @@ const Contact = () => {
                   autoComplete="family-name"
                 />
               </label>
-              <label className="dd-contact-span">
+              <label>
                 <span>Email</span>
                 <input
                   type="email"
@@ -166,6 +259,7 @@ const Contact = () => {
                   value={formData.email}
                   onChange={handleChange}
                   autoComplete="email"
+                  placeholder="you@example.com"
                 />
               </label>
               <label>
@@ -176,10 +270,13 @@ const Contact = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   autoComplete="tel"
+                  placeholder="+91"
                 />
               </label>
-              <label>
-                <span>City</span>
+              <label className="dd-contact-span">
+                <span>
+                  City <em>(optional)</em>
+                </span>
                 <input
                   type="text"
                   name="city"
@@ -196,29 +293,28 @@ const Contact = () => {
                   value={formData.message}
                   onChange={handleChange}
                   required
-                  placeholder="Tell us what you need…"
+                  placeholder="Tell us which car, dates, or pickup you have in mind…"
                 />
               </label>
             </div>
 
-            <button type="submit" disabled={submitting}>
-              {submitting ? "Sending…" : "Submit message"}
-              <FontAwesomeIcon icon={faPaperPlane} />
-            </button>
+            <div className="dd-contact-form-foot">
+              <p className="dd-contact-form-note">
+                Email or phone is required.
+              </p>
+              <button
+                type="submit"
+                className="dd-contact-submit"
+                disabled={submitting}
+              >
+                {submitting ? "Sending…" : "Send message"}
+                <FontAwesomeIcon icon={faPaperPlane} />
+              </button>
+            </div>
           </form>
-        </div>
-
-        <div className="dd-contact-map">
-          <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d925.1829202262528!2d85.34634826958784!3d23.367233098683375!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39f4e180305de8db%3A0x8cc1b7f92cd87634!2sDream%20Drive%20Self%20Drive%20Car%20Rental%20Ranchi!5e1!3m2!1sen!2sin!4v1751471918474!5m2!1sen!2sin"
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            title="Dream Drive office location"
-          />
-        </div>
+        </motion.div>
       </div>
-    </section>
+    </motion.section>
   );
 };
 
