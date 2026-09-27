@@ -2,10 +2,6 @@
   "name": "@dream-drive/booking-service",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "start:dev": "nest start --watch",
-    "dev": "nest start --watch"
-  },
   "dependencies": {
     "@dream-drive/database": "file:../../packages/database",
     "@nestjs/common": "^11.0.0",
