@@ -2,10 +2,8 @@ import {
   defineRailway,
   github,
   group,
-  postgres,
   preserve,
   project,
-  redis,
   service,
 } from "railway/iac";
 
@@ -91,9 +89,6 @@ const apiSecrets = [
 export default defineRailway((ctx) => {
   const prod = ctx.environment === "production";
 
-  const db = postgres("postgres");
-  const cache = redis("redis");
-
   const apiWatch = watch("apps/api/**", "packages/**");
   const api = service("api", {
     source: source(),
@@ -108,9 +103,9 @@ export default defineRailway((ctx) => {
     env: {
       NODE_ENV: "production",
       NPM_CONFIG_PRODUCTION: "false",
-      DATABASE_URL: db.env.DATABASE_URL,
-      DIRECT_URL: db.env.DATABASE_URL,
-      REDIS_URL: cache.env.REDIS_URL,
+      DATABASE_URL: preserve(),
+      DIRECT_URL: preserve(),
+      REDIS_URL: preserve(),
       SESSION_SECRET: preserve(),
       INTERNAL_TOKEN: preserve(),
       DEV_AUTH_BYPASS: "false",
@@ -190,10 +185,6 @@ export default defineRailway((ctx) => {
   });
 
   return project("dream-drive", {
-    resources: [
-      group("Apps", [web, admin]),
-      group("Backend", [api, worker, socket]),
-      group("Data", [db, cache]),
-    ],
+    resources: [group("Apps", [web, admin, api, worker, socket])],
   });
 });

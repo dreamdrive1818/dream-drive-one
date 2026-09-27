@@ -4,10 +4,7 @@
   "private": true,
   "scripts": {
     "start:dev": "nest start --watch",
-    "build": "nest build",
-    "start:prod": "node dist/main",
-    "dev": "nest start --watch",
-    "start": "node dist/main"
+    "dev": "nest start --watch"
   },
   "dependencies": {
     "@dream-drive/database": "file:../../packages/database",
