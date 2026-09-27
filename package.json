@@ -4,8 +4,11 @@
   "private": true,
   "description": "Dream-Drive car rental platform — NestJS microservices, Next.js web/admin, Expo mobile",
   "workspaces": [
-    "apps/*",
-    "services/*",
+    "apps/admin",
+    "apps/api",
+    "apps/socket",
+    "apps/web",
+    "apps/worker",
     "packages/*"
   ],
   "scripts": {
