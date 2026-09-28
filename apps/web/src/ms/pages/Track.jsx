@@ -2,14 +2,34 @@
 
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { motion, useReducedMotion } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faArrowLeft,
   faArrowRight,
+  faBan,
+  faCalendarCheck,
   faCalendarDays,
   faCarSide,
-  faLocationDot,
-  faUser,
+  faCircleCheck,
+  faClock,
+  faCreditCard,
+  faFileSignature,
+  faFlagCheckered,
+  faHashtag,
+  faHeadset,
+  faIdCard,
   faIndianRupeeSign,
+  faKey,
+  faLocationDot,
+  faLock,
+  faMobileScreen,
+  faRoad,
+  faRotateLeft,
+  faRoute,
+  faShieldHalved,
+  faTriangleExclamation,
+  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import { api, getToken } from "../api";
 import { useAuth } from "../AuthContext";
@@ -30,22 +50,179 @@ const STEPS = [
   "COMPLETED",
 ];
 
+const STEP_META = {
+  HOLD: { label: "Car reserved", icon: faLock },
+  AWAITING_PAYMENT: { label: "Payment", icon: faCreditCard },
+  AWAITING_KYC: { label: "Documents (KYC)", icon: faIdCard },
+  AWAITING_SIGNATURE: { label: "Agreement", icon: faFileSignature },
+  CONFIRMED: { label: "Confirmed", icon: faCalendarCheck },
+  HANDOVER: { label: "Car handover", icon: faKey },
+  ONGOING: { label: "On trip", icon: faRoad },
+  RETURN_PENDING: { label: "Return", icon: faRotateLeft },
+  COMPLETED: { label: "Trip completed", icon: faFlagCheckered },
+  CANCELLED: { label: "Cancelled", icon: faBan },
+  NO_SHOW: { label: "No-show", icon: faTriangleExclamation },
+};
+
+const STATUS_COPY = {
+  DRAFT: ["Booking started", "This booking hasn't been completed yet."],
+  HOLD: ["Car reserved", "Your car is on hold. Complete payment to confirm the booking."],
+  AWAITING_PAYMENT: ["Waiting for payment", "Complete the payment to confirm your booking."],
+  AWAITING_KYC: ["Documents needed", "Upload your licence and ID so we can verify them."],
+  AWAITING_SIGNATURE: ["Agreement pending", "Sign the rental agreement to finish confirming."],
+  CONFIRMED: ["Booking confirmed", "You're all set. We'll see you at pickup."],
+  HANDOVER: ["Car handover", "Your car is being handed over."],
+  ONGOING: ["Trip in progress", "Enjoy the drive. Reach out if you need anything."],
+  RETURN_PENDING: ["Return pending", "The car return is being processed."],
+  COMPLETED: ["Trip completed", "Thanks for driving with Dream Drive."],
+  CANCELLED: ["Booking cancelled", "This booking was cancelled."],
+  NO_SHOW: ["Marked as no-show", "The car wasn't picked up within the grace period."],
+};
+
+const STATUS_TONE = {
+  DRAFT: "pending",
+  HOLD: "pending",
+  AWAITING_PAYMENT: "pending",
+  AWAITING_KYC: "pending",
+  AWAITING_SIGNATURE: "pending",
+  CONFIRMED: "confirmed",
+  HANDOVER: "confirmed",
+  ONGOING: "active",
+  RETURN_PENDING: "active",
+  COMPLETED: "done",
+  CANCELLED: "bad",
+  NO_SHOW: "bad",
+};
+
+const LOOKUP_STAGES = [
+  { icon: faCreditCard, tone: "amber", title: "Payment & documents", text: "See what's pending before pickup." },
+  { icon: faCalendarCheck, tone: "teal", title: "Confirmation", text: "Know the moment your booking is confirmed." },
+  { icon: faKey, tone: "blue", title: "Handover & trip", text: "Follow the car handover and your trip." },
+  { icon: faFlagCheckered, tone: "green", title: "Return", text: "Track the return until the trip is closed." },
+];
+
+const EASE = [0.22, 1, 0.36, 1];
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+};
+
+const rise = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
+};
+
 function labelStatus(status) {
-  return String(status || "").replace(/_/g, " ");
+  return STEP_META[status]?.label || String(status || "").replace(/_/g, " ").toLowerCase();
+}
+
+function formatWhen(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}),
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatStamp(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+}
+
+function formatDuration(start, end) {
+  const ms = new Date(end) - new Date(start);
+  if (!Number.isFinite(ms) || ms <= 0) return "";
+  const hours = Math.round(ms / 36e5);
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  const parts = [];
+  if (days) parts.push(`${days} day${days === 1 ? "" : "s"}`);
+  if (rest) parts.push(`${rest} hr${rest === 1 ? "" : "s"}`);
+  return parts.join(" ");
+}
+
+function Shell({ label, children, motionProps, narrow }) {
+  return (
+    <section className="track-page" aria-label={label}>
+      <div className="trk-bg" aria-hidden="true" />
+      <motion.div
+        className={`track-inner${narrow ? " track-inner--narrow" : ""}`}
+        variants={stagger}
+        {...motionProps}
+      >
+        {children}
+      </motion.div>
+    </section>
+  );
+}
+
+function AccessIntro({ eyebrow, title, highlight, lead }) {
+  return (
+    <motion.header className="trk-intro" variants={rise}>
+      <p className="trk-eyebrow">{eyebrow}</p>
+      <h1>
+        {title} <span>{highlight}</span>
+      </h1>
+      <p className="trk-lead">{lead}</p>
+    </motion.header>
+  );
+}
+
+function StagesCard() {
+  return (
+    <motion.aside className="trk-stages" variants={rise} aria-label="What you can track">
+      <div className="trk-stages-head">
+        <span className="trk-live">
+          <span className="trk-live-dot" aria-hidden="true" />
+          Live updates
+        </span>
+        <h2>What you&apos;ll see</h2>
+        <p>Your booking status refreshes on its own as things move along.</p>
+      </div>
+      <ol className="trk-stages-list">
+        {LOOKUP_STAGES.map((s) => (
+          <li key={s.title}>
+            <span className={`trk-tile trk-tile--${s.tone}`} aria-hidden="true">
+              <FontAwesomeIcon icon={s.icon} />
+            </span>
+            <span>
+              <strong>{s.title}</strong>
+              <small>{s.text}</small>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </motion.aside>
+  );
 }
 
 export default function Track() {
   const navigate = useNavigate();
   const { bookingId } = useParams();
   const { user, ready } = useAuth();
+  const reduceMotion = useReducedMotion();
   const [booking, setBooking] = useState(null);
   const [error, setError] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [otpTtl, setOtpTtl] = useState(0);
   const [busy, setBusy] = useState(false);
   const [guestUnlocked, setGuestUnlocked] = useState(false);
   const [publicIdInput, setPublicIdInput] = useState(bookingId || "");
+
+  const motionProps = reduceMotion
+    ? { initial: "show", animate: "show" }
+    : { initial: "hidden", animate: "show" };
 
   async function loadAsUser() {
     if (!bookingId) return;
@@ -88,14 +265,15 @@ export default function Track() {
   }, [booking?.id, booking?.publicId, bookingId, user]);
 
   async function sendOtp(e) {
-    e.preventDefault();
+    e?.preventDefault();
     setBusy(true);
     setError("");
     try {
-      await api("/v1/public/bookings/track/otp", {
+      const res = await api("/v1/public/bookings/track/otp", {
         method: "POST",
         body: { publicId: bookingId, phone },
       });
+      setOtpTtl(Number(res?.expiresInSec) || 0);
       setOtpSent(true);
     } catch (err) {
       setError(err.message);
@@ -124,115 +302,211 @@ export default function Track() {
 
   if (!bookingId) {
     return (
-      <section className="track-page" aria-label="Track booking">
-        <div className="track-inner track-inner--narrow">
-          <header className="track-header">
-            <p className="track-eyebrow">Track order</p>
-            <h1>Track your booking</h1>
-            <p className="track-lead">
-              Enter the booking ID from your confirmation (for example DD-XXXX).
-            </p>
-          </header>
+      <Shell label="Track booking" motionProps={motionProps}>
+        <div className="trk-access">
+          <div className="trk-access-main">
+            <AccessIntro
+              eyebrow="Track booking"
+              title="Where's my"
+              highlight="booking?"
+              lead="Enter the booking ID from your confirmation to see its live status, trip dates, and pickup details."
+            />
 
-          {error ? <p className="track-err">{error}</p> : null}
+            <motion.form
+              className="trk-form"
+              variants={rise}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const id = publicIdInput.trim();
+                if (!id) {
+                  setError("Enter a booking ID.");
+                  return;
+                }
+                navigate(`/track/${encodeURIComponent(id)}`);
+              }}
+            >
+              {error ? (
+                <p className="trk-alert" role="alert">
+                  <FontAwesomeIcon icon={faTriangleExclamation} />
+                  {error}
+                </p>
+              ) : null}
+              <label className="trk-field" htmlFor="trk-id">
+                <span>Booking ID</span>
+                <span className="trk-input">
+                  <FontAwesomeIcon icon={faHashtag} aria-hidden="true" />
+                  <input
+                    id="trk-id"
+                    value={publicIdInput}
+                    onChange={(e) => setPublicIdInput(e.target.value)}
+                    placeholder="DD-123456"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck="false"
+                  />
+                </span>
+              </label>
+              <button className="trk-btn trk-btn--primary" type="submit">
+                Track booking
+                <FontAwesomeIcon icon={faArrowRight} />
+              </button>
+              <p className="trk-form-note">
+                Find the ID in your booking confirmation. Signed in?{" "}
+                <Link to="/account/bookings">Open my bookings</Link>
+              </p>
+            </motion.form>
+          </div>
 
-          <form
-            className="track-panel"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const id = publicIdInput.trim();
-              if (!id) {
-                setError("Enter a booking ID.");
-                return;
-              }
-              navigate(`/track/${encodeURIComponent(id)}`);
-            }}
-          >
-            <label className="track-field">
-              <span>Booking ID</span>
-              <input
-                value={publicIdInput}
-                onChange={(e) => setPublicIdInput(e.target.value)}
-                placeholder="DD-123456"
-                autoComplete="off"
-              />
-            </label>
-            <button className="track-cta" type="submit">
-              Continue
-              <FontAwesomeIcon icon={faArrowRight} />
-            </button>
-            <p className="track-note">
-              Signed in? <Link to="/account/bookings">Open bookings</Link>
-            </p>
-          </form>
+          <StagesCard />
         </div>
-      </section>
+      </Shell>
     );
   }
 
   if (!booking && ready && !user && !guestUnlocked) {
     return (
-      <section className="track-page" aria-label="Verify booking access">
-        <div className="track-inner track-inner--narrow">
-          <header className="track-header">
-            <p className="track-eyebrow">Track order</p>
-            <h1>Verify to view</h1>
-            <p className="track-lead">
-              Enter the mobile number on booking <strong>{bookingId}</strong> to
-              continue.
-            </p>
-          </header>
+      <Shell label="Verify booking access" motionProps={motionProps}>
+        <div className="trk-access">
+          <div className="trk-access-main">
+            <AccessIntro
+              eyebrow="Track booking"
+              title="Verify it's"
+              highlight="you"
+              lead="For your privacy, confirm the mobile number used on this booking. We'll send a one-time code."
+            />
 
-          {error ? <p className="track-err">{error}</p> : null}
+            <motion.form
+              className="trk-form"
+              variants={rise}
+              onSubmit={otpSent ? verifyOtp : sendOtp}
+            >
+              <div className="trk-form-top">
+                <span className="trk-id-chip">
+                  <FontAwesomeIcon icon={faHashtag} aria-hidden="true" />
+                  {bookingId}
+                </span>
+                <ol className="trk-mini-steps" aria-label="Verification steps">
+                  <li className={otpSent ? "is-done" : "is-current"}>
+                    <span>{otpSent ? <FontAwesomeIcon icon={faCircleCheck} /> : 1}</span>
+                    Mobile
+                  </li>
+                  <li className={otpSent ? "is-current" : ""}>
+                    <span>2</span>
+                    Code
+                  </li>
+                </ol>
+              </div>
 
-          <form
-            className="track-panel"
-            onSubmit={otpSent ? verifyOtp : sendOtp}
-          >
-            <label className="track-field">
-              <span>Mobile number</span>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                inputMode="tel"
-                autoComplete="tel"
-              />
-            </label>
-            {otpSent ? (
-              <label className="track-field">
-                <span>OTP</span>
-                <input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                />
+              {error ? (
+                <p className="trk-alert" role="alert">
+                  <FontAwesomeIcon icon={faTriangleExclamation} />
+                  {error}
+                </p>
+              ) : null}
+
+              <label className="trk-field" htmlFor="trk-phone">
+                <span>Mobile number</span>
+                <span className={`trk-input${otpSent ? " is-locked" : ""}`}>
+                  <FontAwesomeIcon icon={faMobileScreen} aria-hidden="true" />
+                  <input
+                    id="trk-phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="Mobile number on the booking"
+                    readOnly={otpSent}
+                  />
+                  {otpSent ? (
+                    <button
+                      type="button"
+                      className="trk-input-action"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setCode("");
+                        setError("");
+                      }}
+                    >
+                      Change
+                    </button>
+                  ) : null}
+                </span>
               </label>
-            ) : null}
-            <button className="track-cta" type="submit" disabled={busy}>
-              {busy ? "Please wait…" : otpSent ? "Verify & view" : "Send OTP"}
-              <FontAwesomeIcon icon={faArrowRight} />
-            </button>
-            <p className="track-note">
-              Already have an account?{" "}
-              <Link to={`/login?redirect=/track/${bookingId}`}>Sign in</Link>
-            </p>
-          </form>
+
+              {otpSent ? (
+                <label className="trk-field" htmlFor="trk-otp">
+                  <span>One-time code</span>
+                  <span className="trk-input trk-input--otp">
+                    <FontAwesomeIcon icon={faShieldHalved} aria-hidden="true" />
+                    <input
+                      id="trk-otp"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="••••••"
+                      maxLength={6}
+                      autoFocus
+                    />
+                  </span>
+                  <small className="trk-field-hint">
+                    Enter the 6-digit code we sent you
+                    {otpTtl ? `. It's valid for ${Math.round(otpTtl / 60)} minutes.` : "."}
+                  </small>
+                </label>
+              ) : null}
+
+              <button className="trk-btn trk-btn--primary" type="submit" disabled={busy}>
+                {busy ? "Please wait…" : otpSent ? "Verify & view booking" : "Send code"}
+                {!busy ? <FontAwesomeIcon icon={faArrowRight} /> : null}
+              </button>
+
+              {otpSent ? (
+                <button
+                  type="button"
+                  className="trk-link-btn"
+                  onClick={() => sendOtp()}
+                  disabled={busy}
+                >
+                  Didn&apos;t get it? Resend code
+                </button>
+              ) : null}
+
+              <p className="trk-form-note">
+                Have an account?{" "}
+                <Link to={`/login?redirect=/track/${bookingId}`}>Sign in instead</Link>
+                {" · "}
+                <Link to="/track">Different booking</Link>
+              </p>
+            </motion.form>
+          </div>
+
+          <StagesCard />
         </div>
-      </section>
+      </Shell>
     );
   }
 
   if (error && !booking) {
     return (
-      <section className="track-page">
-        <div className="track-inner track-inner--narrow">
-          <p className="track-err">{error}</p>
-          <Link className="track-back" to="/track">
-            ← Try another booking ID
-          </Link>
-        </div>
-      </section>
+      <Shell label="Booking not available" motionProps={motionProps} narrow>
+        <motion.div className="trk-empty" variants={rise}>
+          <span className="trk-tile trk-tile--red trk-tile--lg" aria-hidden="true">
+            <FontAwesomeIcon icon={faTriangleExclamation} />
+          </span>
+          <h1>We couldn&apos;t open this booking</h1>
+          <p>{error}</p>
+          <div className="trk-empty-actions">
+            <Link className="trk-btn trk-btn--primary" to="/track">
+              <FontAwesomeIcon icon={faArrowLeft} />
+              Try another booking ID
+            </Link>
+            <Link className="trk-btn trk-btn--outline" to="/contact">
+              Contact support
+            </Link>
+          </div>
+        </motion.div>
+      </Shell>
     );
   }
 
@@ -242,6 +516,8 @@ export default function Track() {
 
   const driver = booking.driverAssignment?.driver;
   const statusIndex = STEPS.indexOf(booking.status);
+  const history = booking.history || [];
+  const terminated = ["CANCELLED", "NO_SHOW"].includes(booking.status);
   const visibleSteps = STEPS.filter((step) => {
     if (
       booking.rentalType !== "SELF_DRIVE" &&
@@ -249,127 +525,214 @@ export default function Track() {
     ) {
       return false;
     }
+    if (terminated) return history.some((h) => h.to === step);
     return true;
   });
+  const terminalHist = terminated ? history.find((h) => h.to === booking.status) : null;
+  const tone = STATUS_TONE[booking.status] || "pending";
+  const [statusTitle, statusText] = STATUS_COPY[booking.status] || [labelStatus(booking.status), ""];
+  const currentVisible = visibleSteps.indexOf(booking.status);
+  const progress = terminated
+    ? 0
+    : Math.round(((Math.max(currentVisible, 0) + 1) / visibleSteps.length) * 100);
+  const rentalLabel = RENTAL_TYPE_LABELS[booking.rentalType] || booking.rentalType;
+  const duration = formatDuration(booking.startsAt, booking.endsAt);
+  const pickup = booking.pickupBranch;
+  const drop = booking.dropBranch;
+
+  const details = [
+    booking.tourPackage?.name
+      ? { icon: faRoute, label: "Tour package", value: booking.tourPackage.name }
+      : null,
+    pickup?.name
+      ? {
+          icon: faLocationDot,
+          label: "Pickup",
+          value: [pickup.name, pickup.city?.name].filter(Boolean).join(", "),
+        }
+      : null,
+    drop?.name && drop.id !== pickup?.id
+      ? {
+          icon: faFlagCheckered,
+          label: "Drop",
+          value: [drop.name, drop.city?.name].filter(Boolean).join(", "),
+        }
+      : null,
+    booking.vehicle?.registration
+      ? { icon: faCarSide, label: "Vehicle", value: booking.vehicle.registration }
+      : null,
+    driver
+      ? {
+          icon: faUser,
+          label: "Driver",
+          value: driver.fullName,
+          extra: driver.phone ? (
+            <a href={`tel:${driver.phone}`} className="trk-detail-link">
+              {driver.phone}
+            </a>
+          ) : null,
+        }
+      : null,
+    { icon: faIndianRupeeSign, label: "Booking amount", value: formatInr(booking.amountPaise) },
+  ].filter(Boolean);
 
   return (
-    <section className="track-page" aria-label="Booking status">
-      <div className="track-inner">
-        <header className="track-header track-header--left">
-          <p className="track-eyebrow">Tracking</p>
-          <h1>{booking.publicId}</h1>
-          <p className="track-lead">
-            {RENTAL_TYPE_LABELS[booking.rentalType] || booking.rentalType}
+    <Shell label="Booking status" motionProps={motionProps}>
+      <motion.div className="trk-topbar" variants={rise}>
+        <Link to="/track" className="trk-back">
+          <FontAwesomeIcon icon={faArrowLeft} />
+          Track another booking
+        </Link>
+        <span className="trk-live">
+          <span className="trk-live-dot" aria-hidden="true" />
+          Live updates
+        </span>
+      </motion.div>
+
+      <motion.header className={`trk-status trk-status--${tone}`} variants={rise}>
+        <div className="trk-status-main">
+          <p className="trk-status-kicker">
+            <span>{rentalLabel}</span>
+            <span aria-hidden="true">•</span>
+            <span>Booking {booking.publicId}</span>
           </p>
-          <span className="track-status">{labelStatus(booking.status)}</span>
-        </header>
+          <h1>
+            <span className="trk-status-icon" aria-hidden="true">
+              <FontAwesomeIcon icon={STEP_META[booking.status]?.icon || faClock} />
+            </span>
+            {statusTitle}
+          </h1>
+          {statusText ? <p className="trk-status-text">{statusText}</p> : null}
+        </div>
 
-        {error ? <p className="track-err">{error}</p> : null}
+        {!terminated ? (
+          <div className="trk-progress" aria-label={`Progress ${progress}%`}>
+            <div className="trk-progress-head">
+              <span>
+                Step {Math.max(currentVisible, 0) + 1} of {visibleSteps.length}
+              </span>
+              <strong>{progress}%</strong>
+            </div>
+            <div className="trk-progress-bar">
+              <span style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        ) : null}
+      </motion.header>
 
-        <div className="track-layout">
-          <div className="track-summary">
-            <h2>Booking details</h2>
-            <ul className="track-facts">
-              <li>
-                <FontAwesomeIcon icon={faCalendarDays} />
-                <div>
-                  <strong>When</strong>
-                  <span>
-                    {new Date(booking.startsAt).toLocaleString("en-IN")} →{" "}
-                    {new Date(booking.endsAt).toLocaleString("en-IN")}
+      <div className="trk-grid">
+        <motion.section className="trk-card" variants={rise} aria-labelledby="trk-timeline-title">
+          <div className="trk-card-head">
+            <h2 id="trk-timeline-title">Booking timeline</h2>
+            <span className={`trk-pill trk-pill--${tone}`}>{labelStatus(booking.status)}</span>
+          </div>
+          <ol className="trk-timeline">
+            {visibleSteps.map((step) => {
+              const stepIdx = STEPS.indexOf(step);
+              const hist = history.find((h) => h.to === step);
+              const current = booking.status === step;
+              const done = statusIndex >= stepIdx || Boolean(hist);
+              return (
+                <li
+                  key={step}
+                  className={["trk-step", done ? "is-done" : "", current ? "is-current" : ""]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <span className="trk-step-marker" aria-hidden="true">
+                    <FontAwesomeIcon icon={done && !current ? faCircleCheck : STEP_META[step].icon} />
                   </span>
+                  <div className="trk-step-body">
+                    <div className="trk-step-row">
+                      <strong>{STEP_META[step].label}</strong>
+                      {hist?.createdAt ? <time>{formatStamp(hist.createdAt)}</time> : null}
+                      {current && !hist?.createdAt ? <em>Current</em> : null}
+                    </div>
+                    {hist?.reason ? <p>{hist.reason}</p> : null}
+                  </div>
+                </li>
+              );
+            })}
+            {terminated ? (
+              <li className="trk-step is-done is-current is-bad">
+                <span className="trk-step-marker" aria-hidden="true">
+                  <FontAwesomeIcon icon={STEP_META[booking.status].icon} />
+                </span>
+                <div className="trk-step-body">
+                  <div className="trk-step-row">
+                    <strong>{STEP_META[booking.status].label}</strong>
+                    {terminalHist?.createdAt ? <time>{formatStamp(terminalHist.createdAt)}</time> : null}
+                  </div>
+                  {terminalHist?.reason ? <p>{terminalHist.reason}</p> : null}
                 </div>
               </li>
-              <li>
-                <FontAwesomeIcon icon={faIndianRupeeSign} />
-                <div>
-                  <strong>Amount</strong>
-                  <span>{formatInr(booking.amountPaise)}</span>
+            ) : null}
+          </ol>
+        </motion.section>
+
+        <div className="trk-side">
+          <motion.section className="trk-card" variants={rise} aria-labelledby="trk-trip-title">
+            <div className="trk-card-head">
+              <h2 id="trk-trip-title">Trip details</h2>
+            </div>
+
+            <div className="trk-dates">
+              <div>
+                <span className="trk-dates-label">
+                  <FontAwesomeIcon icon={faCalendarDays} />
+                  Starts
+                </span>
+                <strong>{formatWhen(booking.startsAt)}</strong>
+              </div>
+              <span className="trk-dates-line" aria-hidden="true">
+                {duration ? <em>{duration}</em> : null}
+              </span>
+              <div>
+                <span className="trk-dates-label">
+                  <FontAwesomeIcon icon={faFlagCheckered} />
+                  Ends
+                </span>
+                <strong>{formatWhen(booking.endsAt)}</strong>
+              </div>
+            </div>
+
+            <dl className="trk-details">
+              {details.map((d) => (
+                <div key={d.label}>
+                  <dt>
+                    <FontAwesomeIcon icon={d.icon} />
+                    {d.label}
+                  </dt>
+                  <dd>
+                    {d.value}
+                    {d.extra ? <span>{d.extra}</span> : null}
+                  </dd>
                 </div>
-              </li>
-              {booking.pickupBranch?.name ? (
-                <li>
-                  <FontAwesomeIcon icon={faLocationDot} />
-                  <div>
-                    <strong>Pickup</strong>
-                    <span>{booking.pickupBranch.name}</span>
-                  </div>
-                </li>
-              ) : null}
-              {driver ? (
-                <li>
-                  <FontAwesomeIcon icon={faUser} />
-                  <div>
-                    <strong>Driver</strong>
-                    <span>
-                      {driver.fullName}
-                      {driver.phone ? ` · ${driver.phone}` : ""}
-                    </span>
-                  </div>
-                </li>
-              ) : null}
-              {booking.vehicle?.registration ? (
-                <li>
-                  <FontAwesomeIcon icon={faCarSide} />
-                  <div>
-                    <strong>Vehicle</strong>
-                    <span>{booking.vehicle.registration}</span>
-                  </div>
-                </li>
-              ) : null}
-            </ul>
+              ))}
+            </dl>
 
             {user ? (
-              <Link
-                className="track-cta track-cta--ghost"
-                to={`/account/bookings/${booking.id}`}
-              >
-                Booking details
+              <Link className="trk-btn trk-btn--outline trk-btn--block" to={`/account/bookings/${booking.id}`}>
+                Open full booking
                 <FontAwesomeIcon icon={faArrowRight} />
               </Link>
             ) : null}
-          </div>
+          </motion.section>
 
-          <div className="track-timeline">
-            <h2>Timeline</h2>
-            <ol className="track-steps">
-              {visibleSteps.map((step) => {
-                const stepIdx = STEPS.indexOf(step);
-                const done =
-                  statusIndex >= stepIdx || booking.status === step;
-                const current = booking.status === step;
-                const hist = (booking.history || []).find((h) => h.to === step);
-                return (
-                  <li
-                    key={step}
-                    className={[
-                      "track-step",
-                      done ? "is-done" : "",
-                      current ? "is-current" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    <span className="track-step-dot" aria-hidden="true" />
-                    <div>
-                      <strong>{labelStatus(step)}</strong>
-                      {hist?.reason ? <p>{hist.reason}</p> : null}
-                    </div>
-                  </li>
-                );
-              })}
-              {["CANCELLED", "NO_SHOW"].includes(booking.status) ? (
-                <li className="track-step is-done is-current">
-                  <span className="track-step-dot" aria-hidden="true" />
-                  <div>
-                    <strong>{labelStatus(booking.status)}</strong>
-                  </div>
-                </li>
-              ) : null}
-            </ol>
-          </div>
+          <motion.aside className="trk-help" variants={rise}>
+            <span className="trk-tile trk-tile--light" aria-hidden="true">
+              <FontAwesomeIcon icon={faHeadset} />
+            </span>
+            <div>
+              <h2>Need help with this booking?</h2>
+              <p>Share your booking ID {booking.publicId} and we&apos;ll take it from there.</p>
+            </div>
+            <Link to="/contact" className="trk-btn trk-btn--light">
+              Contact us
+            </Link>
+          </motion.aside>
         </div>
       </div>
-    </section>
+    </Shell>
   );
 }
