@@ -1,21 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./AllBlogs.css";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useReducedMotion } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
+import { faArrowDown, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import { useAdminContext } from "../../context/AdminContext";
 import { Helmet } from "react-helmet-async";
 import { sortBlogsByDate } from "../../utils/sortBlogsByDate";
-import { useBlogContext } from "../../context/BlogContext";
 import { usePageSeoSuppression } from "../../utils/usePageSeoSuppression";
-import { BlogsListSkeleton } from "../Skeleton/Skeleton";
-
-const FALLBACK_COVERS = [
-  "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80",
-];
+import { GuideCard, GuidesShowcase } from "./Blogs";
 
 const toAbsolute = (base, path = "") => {
   if (!base) return "";
@@ -26,37 +20,19 @@ const toAbsolute = (base, path = "") => {
   }
 };
 
-function plainText(value, max = 140) {
-  const text = String(value || "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!text) return "Tips and trip ideas from Dream Drive.";
-  return text.length > max ? `${text.slice(0, max).trim()}…` : text;
-}
-
-function coverFor(blog, index) {
-  return (
-    blog.coverUrl ||
-    blog.imageBase64 ||
-    blog.imageLink ||
-    FALLBACK_COVERS[index % FALLBACK_COVERS.length]
-  );
-}
-
 const AllBlogs = () => {
   const [searchParams] = useSearchParams();
   const category = searchParams.get("category");
+  const isAll = !category || category === "all";
   const location = useLocation();
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
   usePageSeoSuppression(true);
 
   const { pageSeo, webinfo } = useLocalContext();
   const { fetchBlogs, fetchBlogsFromCategory, fetchCategoryById } =
     useAdminContext();
-  const { setSelectedUserBlog } = useBlogContext();
 
-  const [blogPosts, setBlogPosts] = useState([]);
   const [originalPosts, setOriginalPosts] = useState([]);
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
@@ -70,12 +46,10 @@ const AllBlogs = () => {
     const loadBlogs = async () => {
       setLoading(true);
       setOriginalPosts([]);
-      setBlogPosts([]);
       try {
-        const blogs =
-          !category || category === "all"
-            ? await fetchBlogs()
-            : await fetchBlogsFromCategory(category);
+        const blogs = isAll
+          ? await fetchBlogs()
+          : await fetchBlogsFromCategory(category);
 
         const formatted = blogs.map((blog) => ({
           ...blog,
@@ -102,22 +76,16 @@ const AllBlogs = () => {
       }
     };
     loadBlogs();
-  }, [category, fetchBlogs, fetchBlogsFromCategory]);
+  }, [category, isAll, fetchBlogs, fetchBlogsFromCategory]);
 
   useEffect(() => {
-    if (originalPosts.length === 0) {
-      setBlogPosts([]);
-      return;
-    }
-    const sorted = sortBlogsByDate(originalPosts, sortOrder);
-    setBlogPosts(sorted);
     setCurrentPage(1);
   }, [sortOrder, originalPosts]);
 
   useEffect(() => {
     const fetchSeo = async () => {
       try {
-        if (!category || category === "all") {
+        if (isAll) {
           setSeoTitle("Guides & trip ideas | Dream Drive");
           setSeoDescription(
             "Browse Dream Drive guides, checklists, and trip ideas for self-drive travel from Ranchi."
@@ -136,23 +104,37 @@ const AllBlogs = () => {
       }
     };
     fetchSeo();
-  }, [category, fetchCategoryById]);
+  }, [category, isAll, fetchCategoryById]);
 
-  const handleBlogClick = (blog) => {
-    setSelectedUserBlog(blog);
-    navigate(`/blogs/${blog.slug || blog.urlSlug}`);
+  const featured = useMemo(
+    () => sortBlogsByDate(originalPosts, "newest").slice(0, 2),
+    [originalPosts]
+  );
+
+  const morePosts = useMemo(() => {
+    const featuredIds = new Set(featured.map((b) => b.id));
+    return sortBlogsByDate(
+      originalPosts.filter((b) => !featuredIds.has(b.id)),
+      sortOrder
+    );
+  }, [originalPosts, featured, sortOrder]);
+
+  const scrollToMore = () => {
+    document
+      .getElementById("more-guides")
+      ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   };
 
   const handlePagination = (value) => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
     setCurrentPage(value);
+    scrollToMore();
   };
 
-  const paginatedPosts = blogPosts.slice(
+  const paginatedPosts = morePosts.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
-  const totalPages = Math.ceil(blogPosts.length / pageSize) || 1;
+  const totalPages = Math.ceil(morePosts.length / pageSize) || 1;
 
   const siteUrl = webinfo?.seo?.siteUrl || "https://yourdomain.com";
   const canonical = toAbsolute(
@@ -172,9 +154,15 @@ const AllBlogs = () => {
         ogImage: webinfo?.seo?.ogImage,
       };
 
-  if (loading) {
-    return <BlogsListSkeleton />;
-  }
+  const categoryTitle = !isAll && seoTitle ? seoTitle : null;
+
+  const cta = morePosts.length
+    ? { label: "More guides", icon: faArrowDown, onClick: scrollToMore }
+    : { label: "Browse our fleet", onClick: () => navigate("/fleet") };
+
+  const cardMotion = reduceMotion
+    ? { initial: "show", animate: "show" }
+    : { initial: "hidden", whileInView: "show", viewport: { once: true, amount: 0.2 } };
 
   return (
     <>
@@ -199,39 +187,50 @@ const AllBlogs = () => {
         ) : null}
       </Helmet>
 
-      <section className="blogs-page" aria-label="Blogs">
-        <div className="blogs-page-inner">
-          <header className="blogs-page-header">
-            <p className="blogs-page-eyebrow">Journal</p>
-            <h1>
-              {!category || category === "all"
-                ? "Guides & trip ideas"
-                : seoTitle}
-            </h1>
-            <p className="blogs-page-lead">
-              Routes, checklists, and weekend plans for self-drive days out of
-              Ranchi.
-            </p>
-          </header>
-
-          {blogPosts.length === 0 ? (
-            <div className="blogs-page-empty">
-              <h2>No blogs found</h2>
-              <p>
-                Nothing in this category yet. Check back soon or browse all
-                posts.
-              </p>
-              <button type="button" onClick={() => navigate("/blogs")}>
-                View all blogs
-              </button>
-            </div>
-          ) : (
+      <div className="blogs-page">
+        <GuidesShowcase
+          className="home-guides--page"
+          headingLevel="h1"
+          posts={featured}
+          loaded={!loading}
+          title={categoryTitle}
+          cta={!loading && originalPosts.length ? cta : null}
+          empty={
             <>
-              <div className="blogs-page-toolbar">
-                <p className="blogs-page-count">
-                  {blogPosts.length} post{blogPosts.length === 1 ? "" : "s"}
-                </p>
-                <label className="blogs-page-sort">
+              <p>
+                {isAll
+                  ? "Guides are on the way. Check back soon."
+                  : "Nothing in this category yet. Check back soon or browse all posts."}
+              </p>
+              {!isAll ? (
+                <button
+                  type="button"
+                  className="home-guides-cta"
+                  onClick={() => navigate("/blogs")}
+                >
+                  View all blogs
+                  <FontAwesomeIcon icon={faArrowRight} />
+                </button>
+              ) : null}
+            </>
+          }
+        />
+
+        {morePosts.length > 0 ? (
+          <section
+            id="more-guides"
+            className="blogs-more"
+            aria-labelledby="blogs-more-title"
+          >
+            <div className="blogs-more-inner">
+              <div className="blogs-more-toolbar">
+                <div>
+                  <h2 id="blogs-more-title">More guides</h2>
+                  <p>
+                    {morePosts.length} more post{morePosts.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <label className="blogs-more-sort">
                   <span>Sort</span>
                   <select
                     value={sortOrder}
@@ -243,58 +242,36 @@ const AllBlogs = () => {
                 </label>
               </div>
 
-              <div className="blogs-page-grid">
+              <div className="blogs-more-grid">
                 {paginatedPosts.map((blog, index) => (
-                  <article
+                  <GuideCard
                     key={blog.id}
-                    className="blogs-page-card"
-                    onClick={() => handleBlogClick(blog)}
-                  >
-                    <div className="blogs-page-media">
-                      <img
-                        src={coverFor(blog, index)}
-                        alt=""
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="blogs-page-body">
-                      <p className="blogs-page-meta">
-                        <span>{blog.formattedDate}</span>
-                        {blog.author ? <span>• {blog.author}</span> : null}
-                      </p>
-                      <h2>{blog.title}</h2>
-                      <p>
-                        {plainText(
-                          blog.excerpt || blog.content || blog.body
-                        )}
-                      </p>
-                      <span className="blogs-page-link">
-                        Read more
-                        <FontAwesomeIcon icon={faArrowRight} />
-                      </span>
-                    </div>
-                  </article>
+                    blog={blog}
+                    index={index}
+                    {...cardMotion}
+                  />
                 ))}
               </div>
 
               {totalPages > 1 ? (
-                <div className="blogs-page-pagination" aria-label="Pagination">
+                <nav className="blogs-more-pagination" aria-label="Pagination">
                   {Array.from({ length: totalPages }, (_, i) => (
                     <button
                       key={i}
                       type="button"
                       className={currentPage === i + 1 ? "is-active" : ""}
+                      aria-current={currentPage === i + 1 ? "page" : undefined}
                       onClick={() => handlePagination(i + 1)}
                     >
                       {i + 1}
                     </button>
                   ))}
-                </div>
+                </nav>
               ) : null}
-            </>
-          )}
-        </div>
-      </section>
+            </div>
+          </section>
+        ) : null}
+      </div>
     </>
   );
 };
