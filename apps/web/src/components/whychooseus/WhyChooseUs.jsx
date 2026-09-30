@@ -1,5 +1,11 @@
-import React from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import React, { useRef } from "react";
+import {
+  motion,
+  useInView,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChair,
@@ -25,7 +31,7 @@ const FEATURES = [
     tone: "mint",
     title: "Clean & Comfortable",
     text: "Choose from well-maintained cars that suit your style and needs.",
-    link: { d: "M262 118 C 330 116 380 132 446 182", start: [262, 118], end: [446, 182] },
+    link: { d: "M328 104 C 380 108 410 136 446 182", start: [328, 104], end: [446, 182] },
   },
   {
     id: "honest",
@@ -52,14 +58,34 @@ const FEATURES = [
     tone: "lavender",
     title: "24×7 Support",
     text: "Flexible packages, doorstep delivery, and support when you need it.",
-    link: { d: "M940 294 C 904 300 934 364 914 400", start: [940, 294], end: [914, 400] },
+    link: { d: "M930 300 C 896 308 930 364 914 400", start: [930, 300], end: [914, 400] },
   },
 ];
 
 const CAR_ASSET =
   "https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/maruti-suzuki-vitara-brezza-ldi-diesel-pearl-arctic-white-82811366-6pbqe-removebg-preview_pgoccl.png";
 
-const SCENIC_ASSET = "/success-hero-landscape.jpg";
+/** Concentric "map contour" rings for the section backdrop (viewBox 400 × 400). */
+const CONTOURS = [0, 1, 2, 3, 4, 5, 6].map((i) => ({
+  rx: 46 + i * 26,
+  ry: 32 + i * 21,
+  rotate: -18 + i * 5,
+}));
+
+const Contours = ({ className }) => (
+  <svg className={className} viewBox="0 0 400 400" aria-hidden="true">
+    {CONTOURS.map((c, i) => (
+      <ellipse
+        key={i}
+        cx="200"
+        cy="200"
+        rx={c.rx}
+        ry={c.ry}
+        transform={`rotate(${c.rotate} 200 200)`}
+      />
+    ))}
+  </svg>
+);
 
 const fadeUp = (y, delay) => ({
   hidden: { opacity: 0, y },
@@ -111,10 +137,29 @@ const nodeIn = {
   }),
 };
 
+const swashIn = {
+  hidden: { pathLength: 0, opacity: 0 },
+  show: {
+    pathLength: 1,
+    opacity: 1,
+    transition: { duration: 0.9, ease: "easeInOut", delay: 0.45 },
+  },
+};
+
 const WhyChoose = () => {
   const { webinfo } = useLocalContext();
   const reduceMotion = useReducedMotion();
   const brand = webinfo?.name || "Dream Drive";
+  const sectionRef = useRef(null);
+  const stageRef = useRef(null);
+  const stageInView = useInView(stageRef, { once: true, amount: 0.3 });
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+  const sceneryY = useTransform(scrollYProgress, [0, 1], ["-5%", "5%"]);
+  const carY = useTransform(scrollYProgress, [0, 1], ["2.5%", "-2.5%"]);
+  const showFlow = stageInView && !reduceMotion;
 
   const reveal = reduceMotion
     ? { initial: "show", animate: "show" }
@@ -126,10 +171,16 @@ const WhyChoose = () => {
 
   return (
     <motion.section
+      ref={sectionRef}
       className="why-choose"
       aria-labelledby="why-heading"
       {...reveal}
     >
+      <span className="why-orb why-orb--teal" aria-hidden="true" />
+      <span className="why-orb why-orb--amber" aria-hidden="true" />
+      <span className="why-grid" aria-hidden="true" />
+      <Contours className="why-contours why-contours--tl" />
+      <Contours className="why-contours why-contours--br" />
       <div className="why-choose-inner">
         <header className="why-head">
           <motion.p className="why-eyebrow" variants={eyebrowIn}>
@@ -140,7 +191,20 @@ const WhyChoose = () => {
           <motion.h2 id="why-heading" className="why-title" variants={titleIn}>
             <span className="why-title-line">Built Around Your</span>
             <span className="why-title-line why-title-line--accent">
-              Journey.
+              <span className="why-title-swash-wrap">
+                Journey.
+                <svg
+                  className="why-title-swash"
+                  viewBox="0 0 220 18"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <motion.path
+                    d="M4 13 C 52 4 118 3 216 9"
+                    variants={swashIn}
+                  />
+                </svg>
+              </span>
             </span>
           </motion.h2>
           <motion.p className="why-lead" variants={leadIn}>
@@ -148,28 +212,36 @@ const WhyChoose = () => {
           </motion.p>
         </header>
 
-        <div className="why-stage">
+        <div className="why-stage" ref={stageRef}>
           <div className="why-visual">
             <motion.div
               className="why-scenery"
               aria-hidden="true"
               variants={sceneryIn}
+              style={reduceMotion ? undefined : { y: sceneryY }}
             >
-              <span
-                className="why-scenery-mirror"
-                style={{ backgroundImage: `url(${SCENIC_ASSET})` }}
-              />
-              <span className="why-scenery-main">
-                <img src={SCENIC_ASSET} alt="" loading="lazy" />
-              </span>
+              <span className="why-halo" />
+              <svg className="why-rings" viewBox="0 0 100 100">
+                <circle className="why-ring why-ring--outer" cx="50" cy="50" r="49" />
+                <circle className="why-ring why-ring--inner" cx="50" cy="50" r="41" />
+              </svg>
+              <span className="why-podium" />
             </motion.div>
 
-            <motion.div className="why-car" variants={carIn}>
-              <span className="why-car-shadow" aria-hidden="true" />
-              <img src={CAR_ASSET} alt={`${brand} featured car`} loading="lazy" />
+            <motion.div className="why-car-track" style={reduceMotion ? undefined : { y: carY }}>
+              <motion.div className="why-car" variants={carIn}>
+                <span className="why-car-shadow" aria-hidden="true" />
+                <span className="why-car-body">
+                  <img src={CAR_ASSET} alt={`${brand} featured car`} loading="lazy" />
+                  <span
+                    className="why-car-shine"
+                    aria-hidden="true"
+                    style={{ "--why-car-mask": `url("${CAR_ASSET}")` }}
+                  />
+                </span>
+              </motion.div>
             </motion.div>
 
-            <span className="why-foreground" aria-hidden="true" />
           </div>
 
           <svg
@@ -185,6 +257,28 @@ const WhyChoose = () => {
                   variants={linkIn}
                   custom={order}
                 />
+                {showFlow ? (
+                  <circle className="why-link-pulse" r="3.4">
+                    <animateMotion
+                      path={item.link.d}
+                      dur="2.6s"
+                      begin={`${1.3 + order * 0.45}s`}
+                      repeatCount="indefinite"
+                      keyPoints="0;1"
+                      keyTimes="0;1"
+                      calcMode="spline"
+                      keySplines="0.45 0 0.55 1"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0;1;1;0"
+                      keyTimes="0;0.15;0.8;1"
+                      dur="2.6s"
+                      begin={`${1.3 + order * 0.45}s`}
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                ) : null}
                 <motion.circle
                   className="why-link-start"
                   cx={item.link.start[0]}
@@ -194,6 +288,13 @@ const WhyChoose = () => {
                   custom={0.46 + order * 0.07}
                 />
                 <motion.g variants={nodeIn} custom={0.92 + order * 0.07}>
+                  <circle
+                    className="why-link-ripple"
+                    cx={item.link.end[0]}
+                    cy={item.link.end[1]}
+                    r="9"
+                    style={{ animationDelay: `${1.6 + order * 0.45}s` }}
+                  />
                   <circle
                     className="why-link-halo"
                     cx={item.link.end[0]}
@@ -219,6 +320,9 @@ const WhyChoose = () => {
                 variants={pointIn}
                 custom={{ side: item.side, order }}
               >
+                <span className="why-point-num" aria-hidden="true">
+                  {String(order + 1).padStart(2, "0")}
+                </span>
                 <span className="why-point-icon" aria-hidden="true">
                   <span className="why-point-icon-core">
                     <FontAwesomeIcon icon={item.icon} />

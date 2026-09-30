@@ -125,12 +125,17 @@ body:has(.monsoon-promo-bar) .dd-header {
 .dd-header-drawer {
   position: fixed;
   inset: 0;
-  z-index: 3000;
-  background: #ffffff;
+  z-index: 11000;
+  background:
+    radial-gradient(ellipse 90% 45% at 100% 0%, rgba(20, 149, 156, 0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 40% at 0% 100%, rgba(252, 214, 110, 0.22) 0%, transparent 70%),
+    linear-gradient(180deg, #eef8f7 0%, #f8fcfb 55%, #ffffff 100%);
   color: var(--text-dark);
   padding: 2.4rem;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  font-family: var(--font-family-main);
   animation: ddHeaderDrawerIn 0.25s ease;
 }
 
@@ -149,7 +154,8 @@ body:has(.monsoon-promo-bar) .dd-header {
 
 .dd-header-close {
   border: 0;
-  background: #f1f5f9;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
   color: var(--text-dark);
   width: 4rem;
   height: 4rem;
@@ -162,20 +168,29 @@ body:has(.monsoon-promo-bar) .dd-header {
   margin: 2rem 0;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  padding: 0.6rem 1.6rem;
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(14, 124, 134, 0.1);
+  box-shadow: 0 18px 40px -26px rgba(15, 23, 42, 0.3);
 }
 
 .dd-header-drawer-nav button {
   border: 0;
+  border-bottom: 1px solid rgba(14, 124, 134, 0.1);
   background: transparent;
   color: var(--text-dark);
   text-align: left;
   font-family: var(--font-family-display);
-  font-size: 2.4rem;
+  font-size: 2.2rem;
   font-weight: 700;
-  padding: 0.8rem 0;
+  padding: 1.1rem 0;
   cursor: pointer;
   transition: color 0.2s ease;
+}
+
+.dd-header-drawer-nav button:last-child {
+  border-bottom: 0;
 }
 
 .dd-header-drawer-nav button:hover {

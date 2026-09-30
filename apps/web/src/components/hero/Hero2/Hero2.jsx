@@ -469,7 +469,7 @@ const Hero2 = () => {
                 <span className="hero2-v2-sep" aria-hidden="true" />
               ) : null}
               <motion.div
-                className="hero2-v2-field"
+                className={`hero2-v2-field hero2-v2-field--${field.id.replace("hero2-", "")}`}
                 initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{

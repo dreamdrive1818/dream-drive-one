@@ -149,6 +149,34 @@
   scale: 1.04;
 }
 
+.home-guides-media--label::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 20, 36, 0.05) 0%, rgba(10, 20, 36, 0.2) 40%, rgba(10, 20, 36, 0.72) 100%);
+  pointer-events: none;
+}
+
+.home-guides-media-label {
+  position: absolute;
+  left: 1.6rem;
+  right: 1.6rem;
+  bottom: 1.3rem;
+  z-index: 1;
+  font-family: var(--font-family-display);
+  font-size: clamp(2rem, 2.2vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(10, 20, 36, 0.35);
+}
+
+.home-guides-media--label .home-guides-chip {
+  z-index: 1;
+}
+
 .home-guides-chip {
   position: absolute;
   top: 1.2rem;

@@ -45,13 +45,33 @@ function plainText(value, max = 120) {
   return text.length > max ? `${text.slice(0, max).trim()}…` : text;
 }
 
+const PLACEHOLDER_COVER = /placehold\.co|placeholder\.com|dummyimage\.com/i;
+
+function topicCover(blog, index) {
+  const text = `${categoryFor(blog)} ${blog.title || ""}`.toLowerCase();
+  if (/checklist|tip|licen|document|guide to|how to/.test(text)) return FALLBACK_COVERS[2];
+  if (/weekend|trip|route|drive|road/.test(text)) return FALLBACK_COVERS[0];
+  return FALLBACK_COVERS[index % FALLBACK_COVERS.length];
+}
+
+function placeholderLabel(url, blog) {
+  try {
+    const text = new URL(url).searchParams.get("text");
+    if (text) return text.replace(/\+/g, " ").trim();
+  } catch {
+    // not a parseable URL; fall back to the title
+  }
+  return blog.title || "";
+}
+
+/** Real uploads are used as-is; placeholder covers get a photo with the label overlaid. */
 function coverFor(blog, index) {
-  return (
-    blog.coverUrl ||
-    blog.imageBase64 ||
-    blog.imageLink ||
-    FALLBACK_COVERS[index % FALLBACK_COVERS.length]
-  );
+  const uploaded = blog.coverUrl || blog.imageBase64 || blog.imageLink;
+  if (uploaded && !PLACEHOLDER_COVER.test(uploaded)) return { src: uploaded, label: "" };
+  return {
+    src: topicCover(blog, index),
+    label: uploaded ? placeholderLabel(uploaded, blog) : "",
+  };
 }
 
 function slugFor(blog) {
@@ -74,6 +94,7 @@ export function GuideCard({ blog, index, headingLevel = "h3", ...motionProps }) 
   const { setSelectedUserBlog } = useBlogContext();
   const navigate = useNavigate();
   const category = categoryFor(blog);
+  const cover = coverFor(blog, index);
   const Title = headingLevel;
 
   const open = (event) => {
@@ -90,8 +111,13 @@ export function GuideCard({ blog, index, headingLevel = "h3", ...motionProps }) 
       onClick={open}
       {...motionProps}
     >
-      <div className="home-guides-media">
-        <img src={coverFor(blog, index)} alt="" loading="lazy" />
+      <div className={`home-guides-media${cover.label ? " home-guides-media--label" : ""}`}>
+        <img src={cover.src} alt="" loading="lazy" />
+        {cover.label ? (
+          <span className="home-guides-media-label" aria-hidden="true">
+            {cover.label}
+          </span>
+        ) : null}
         {category ? (
           <span className={`home-guides-chip ${index % 2 ? "home-guides-chip--dark" : ""}`}>
             <FontAwesomeIcon icon={chipIcon(blog)} />

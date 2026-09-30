@@ -354,13 +354,14 @@
   margin-bottom: 8px;
   color: #aeb6c5;
   font-size: 28px;
+  background: var(--bg);
 }
 
 .fleet-class-pic img {
   max-width: 100%;
   max-height: 64px;
   object-fit: contain;
-  filter: drop-shadow(0 6px 10px rgba(26, 43, 86, 0.12));
+  mix-blend-mode: multiply;
 }
 
 .fleet-class-pic em {
@@ -430,13 +431,7 @@
   height: 104px;
   object-fit: contain;
   object-position: center;
-}
-
-.fleet-class-pic img {
-  max-width: 100%;
-  max-height: 64px;
-  object-fit: contain;
-  filter: drop-shadow(0 6px 10px rgba(26, 43, 86, 0.12));
+  mix-blend-mode: multiply;
 }
 
 .fleet-row-info h3 {
@@ -899,6 +894,12 @@
 
   .fleet-shell {
     padding-bottom: 2.4rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .fleet-intro-title {
+    font-size: clamp(3.2rem, 9vw, 4rem);
   }
 }
 

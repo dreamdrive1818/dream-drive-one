@@ -834,6 +834,357 @@
   outline-offset: 3px;
 }
 
+/* ── Ambient + journey motion ── */
+
+.hiw-clouds {
+  position: absolute;
+  inset: 0 0 55%;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hiw-cloud {
+  position: absolute;
+  left: 0;
+  height: 4.2rem;
+  border-radius: 999px;
+  background: #ffffff;
+  filter: blur(5px) drop-shadow(0 6px 10px rgba(120, 160, 170, 0.25));
+  opacity: 0.85;
+  animation: hiw-cloud-drift linear infinite;
+}
+
+.hiw-cloud::before,
+.hiw-cloud::after {
+  content: "";
+  position: absolute;
+  bottom: 30%;
+  border-radius: 999px;
+  background: inherit;
+}
+
+.hiw-cloud::before {
+  left: 18%;
+  width: 42%;
+  height: 150%;
+}
+
+.hiw-cloud::after {
+  left: 48%;
+  width: 34%;
+  height: 120%;
+}
+
+.hiw-cloud--1 {
+  top: 46%;
+  width: 16rem;
+  animation-duration: 70s;
+  animation-delay: -12s;
+}
+
+.hiw-cloud--2 {
+  top: 72%;
+  width: 11rem;
+  opacity: 0.55;
+  animation-duration: 95s;
+  animation-delay: -58s;
+}
+
+.hiw-cloud--3 {
+  top: 30%;
+  width: 20rem;
+  opacity: 0.5;
+  animation-duration: 120s;
+  animation-delay: -30s;
+}
+
+@keyframes hiw-cloud-drift {
+  from {
+    translate: -24rem 0;
+  }
+  to {
+    translate: 100vw 0;
+  }
+}
+
+.hiw-road-dash {
+  animation: hiw-dash-flow 1.4s linear infinite;
+}
+
+@keyframes hiw-dash-flow {
+  to {
+    stroke-dashoffset: -30;
+  }
+}
+
+.hiw-rider {
+  position: absolute;
+  z-index: 3;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  will-change: left, top;
+}
+
+.hiw-rider-glow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 5.6cqw;
+  height: 5.6cqw;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(127, 214, 204, 0.55) 0%, transparent 68%);
+  animation: hiw-rider-glow 1.8s ease-in-out infinite;
+}
+
+.hiw-rider-badge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 2.8cqw;
+  height: 2.8cqw;
+  min-width: 2.6rem;
+  min-height: 2.6rem;
+  margin: -1.4cqw 0 0 -1.4cqw;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #14959c;
+  color: #0e7c86;
+  font-size: 1.15cqw;
+  box-shadow:
+    0 0 0 0.35cqw rgba(127, 214, 204, 0.35),
+    0 8px 16px -6px rgba(15, 23, 42, 0.45);
+}
+
+@keyframes hiw-rider-glow {
+  50% {
+    scale: 1.25;
+    opacity: 0.6;
+  }
+}
+
+.hiw-step.is-current .hiw-pin::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  border: 2px solid var(--hiw-teal);
+  pointer-events: none;
+  animation: hiw-pin-pulse 1.8s ease-out infinite;
+}
+
+@keyframes hiw-pin-pulse {
+  0% {
+    scale: 1;
+    opacity: 0.7;
+  }
+  100% {
+    scale: 2.1;
+    opacity: 0;
+  }
+}
+
+.hiw-visual--parked img {
+  animation: hiw-idle-bob 4.8s ease-in-out infinite;
+}
+
+.hiw-visual--pay[data-active] .hiw-phone {
+  animation: hiw-float 4s ease-in-out infinite;
+}
+
+.hiw-visual--pay[data-active] .hiw-phone-coin {
+  animation: hiw-coin-flip 3.2s ease-in-out 0.4s infinite;
+}
+
+.hiw-visual--doc[data-active] .hiw-doc-sign path {
+  stroke-dasharray: 1;
+  animation: hiw-sign 4.5s ease-in-out infinite;
+}
+
+.hiw-visual--doc[data-active] .hiw-doc {
+  animation: hiw-float 5s ease-in-out -1.2s infinite;
+}
+
+.hiw-visual--doc[data-active] .hiw-doc-check,
+.hiw-visual--return[data-active] .hiw-return-check,
+.hiw-visual--pay[data-active] .hiw-phone-pay svg {
+  animation: hiw-pop 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.hiw-visual--return[data-active] .hiw-return-key svg {
+  transform-origin: 30% 30%;
+  animation: hiw-key-swing 2.8s ease-in-out infinite;
+}
+
+.hiw-car[data-active] img {
+  animation: hiw-car-idle 0.9s ease-in-out infinite;
+}
+
+.hiw-car-puffs {
+  position: absolute;
+  left: 76%;
+  bottom: 22%;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+
+.hiw-car[data-active] .hiw-car-puffs {
+  opacity: 1;
+}
+
+.hiw-car-puffs span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.1cqw;
+  height: 1.1cqw;
+  border-radius: 50%;
+  background: rgba(203, 213, 225, 0.9);
+  filter: blur(1px);
+  animation: hiw-puff 1.8s ease-out infinite;
+}
+
+.hiw-car-puffs span:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.hiw-car-puffs span:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+@keyframes hiw-idle-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -3px;
+  }
+}
+
+@keyframes hiw-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -0.6cqw;
+  }
+}
+
+@keyframes hiw-coin-flip {
+  0%,
+  55%,
+  100% {
+    transform: rotateY(0deg);
+  }
+  80% {
+    transform: rotateY(360deg);
+  }
+}
+
+@keyframes hiw-sign {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  45%,
+  88% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes hiw-pop {
+  0% {
+    scale: 0.4;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+@keyframes hiw-key-swing {
+  0%,
+  60%,
+  100% {
+    rotate: 0deg;
+  }
+  70% {
+    rotate: -18deg;
+  }
+  82% {
+    rotate: 12deg;
+  }
+  92% {
+    rotate: -5deg;
+  }
+}
+
+@keyframes hiw-car-idle {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 1px;
+  }
+}
+
+@keyframes hiw-puff {
+  0% {
+    translate: 0 0;
+    scale: 0.4;
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    translate: 3.2cqw -1.4cqw;
+    scale: 2.4;
+    opacity: 0;
+  }
+}
+
+.hiw-cta {
+  position: relative;
+  overflow: hidden;
+}
+
+.hiw-cta-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 65%
+  );
+  translate: -100% 0;
+  animation: hiw-cta-shine 3.6s ease-in-out 1s infinite;
+  pointer-events: none;
+}
+
+@keyframes hiw-cta-shine {
+  0% {
+    translate: -100% 0;
+  }
+  40%,
+  100% {
+    translate: 100% 0;
+  }
+}
+
 /* ── Laptop 1024–1199: same journey, lighter scenery ── */
 
 @media (max-width: 1199px) {
@@ -952,11 +1303,23 @@
     stroke-width: 17;
   }
 
+  .hiw-clouds {
+    inset: 0 0 auto;
+    height: 34rem;
+  }
+
   .hiw-seg-dash {
     stroke: rgba(255, 255, 255, 0.85);
     stroke-width: 1.5;
     stroke-dasharray: 7 7;
     stroke-linecap: butt !important;
+    animation: hiw-seg-flow 1s linear infinite;
+  }
+
+  @keyframes hiw-seg-flow {
+    to {
+      stroke-dashoffset: -14;
+    }
   }
 
   .hiw-step.is-reached .hiw-seg-dash {
@@ -1165,6 +1528,22 @@
     translate: none;
     scale: none;
     rotate: none;
+  }
+
+  .hiw-cloud,
+  .hiw-road-dash,
+  .hiw-seg-dash,
+  .hiw-step.is-current .hiw-pin::after,
+  .hiw-visual *,
+  .hiw-car img,
+  .hiw-car-puffs span {
+    animation: none !important;
+  }
+
+  .hiw-car-puffs,
+  .hiw-cta-shine,
+  .hiw-step.is-current .hiw-pin::after {
+    display: none;
   }
 }
 

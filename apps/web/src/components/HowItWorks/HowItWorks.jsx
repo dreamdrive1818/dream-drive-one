@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   motion,
+  useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
   useScroll,
@@ -197,7 +198,12 @@ const HowItWorks = () => {
   const isDesktop = useIsDesktop();
   const sectionRef = useRef(null);
   const sceneRef = useRef(null);
+  const roadMeasureRef = useRef(null);
   const [reached, setReached] = useState(0);
+  const riderX = useMotionValue("0%");
+  const riderY = useMotionValue("0%");
+  const riderOpacity = useMotionValue(0);
+  const riderRotate = useMotionValue(0);
 
   const { scrollYProgress: sectionProgress } = useScroll({
     target: sectionRef,
@@ -215,12 +221,37 @@ const HowItWorks = () => {
     setReached(STEP_AT.filter((f) => v >= f - 0.012).length);
   };
 
+  const syncRider = (v) => {
+    const path = roadMeasureRef.current;
+    if (!path) return;
+    const total = path.getTotalLength();
+    const at = Math.min(Math.max(v, 0), 1) * total;
+    const p = path.getPointAtLength(at);
+    const ahead = path.getPointAtLength(Math.min(at + 6, total));
+    const angle = (Math.atan2(ahead.y - p.y, ahead.x - p.x) * 180) / Math.PI;
+    const edgeFade = Math.min(
+      Math.max((p.x - 20) / 80, 0),
+      Math.max((VIEW_W - 20 - p.x) / 80, 0),
+      1
+    );
+    riderX.set(pctX(p.x));
+    riderY.set(pctY(p.y));
+    riderRotate.set(Math.max(-24, Math.min(24, angle)));
+    riderOpacity.set(v > 0.004 ? edgeFade : 0);
+  };
+
   useMotionValueEvent(journey, "change", (v) => {
-    if (isDesktop && !reduceMotion) syncReached(v);
+    if (isDesktop && !reduceMotion) {
+      syncReached(v);
+      syncRider(v);
+    }
   });
 
   useEffect(() => {
-    if (isDesktop && !reduceMotion) syncReached(journey.get());
+    if (isDesktop && !reduceMotion) {
+      syncReached(journey.get());
+      syncRider(journey.get());
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDesktop, reduceMotion]);
 
@@ -395,6 +426,11 @@ const HowItWorks = () => {
         {...reveal}
       >
         <div className="hiw-sky" aria-hidden="true" />
+        <div className="hiw-clouds" aria-hidden="true">
+          <span className="hiw-cloud hiw-cloud--1" />
+          <span className="hiw-cloud hiw-cloud--2" />
+          <span className="hiw-cloud hiw-cloud--3" />
+        </div>
 
         <motion.div
           className="hiw-mountains"
@@ -554,7 +590,21 @@ const HowItWorks = () => {
                   style={{ pathLength: reduceMotion ? 1 : journey }}
                 />
               </motion.g>
+              <path ref={roadMeasureRef} d={ROAD_D} fill="none" stroke="none" />
             </svg>
+
+            {isDesktop && !reduceMotion ? (
+              <motion.span
+                className="hiw-rider"
+                aria-hidden="true"
+                style={{ left: riderX, top: riderY, opacity: riderOpacity }}
+              >
+                <span className="hiw-rider-glow" />
+                <motion.span className="hiw-rider-badge" style={{ rotate: riderRotate }}>
+                  <FontAwesomeIcon icon={faCarSide} />
+                </motion.span>
+              </motion.span>
+            ) : null}
 
             <motion.div
               className="hiw-visual hiw-visual--parked"
@@ -599,7 +649,7 @@ const HowItWorks = () => {
                 <span className="hiw-doc-line" />
                 <span className="hiw-doc-line hiw-doc-line--short" />
                 <svg viewBox="0 0 80 28" className="hiw-doc-sign">
-                  <path d="M4 20 C 12 4 18 4 16 18 C 15 26 24 8 30 12 C 34 15 32 22 38 18 C 44 14 48 10 54 16 C 58 20 64 14 76 12" />
+                  <path pathLength="1" d="M4 20 C 12 4 18 4 16 18 C 15 26 24 8 30 12 C 34 15 32 22 38 18 C 44 14 48 10 54 16 C 58 20 64 14 76 12" />
                 </svg>
               </span>
               <span className="hiw-doc-check">
@@ -618,6 +668,11 @@ const HowItWorks = () => {
                 data-active={activeCount >= 4 || undefined}
               >
                 <span className="hiw-car-shadow" />
+                <span className="hiw-car-puffs">
+                  <span />
+                  <span />
+                  <span />
+                </span>
                 <img src={DRIVE_CAR_ASSET} alt="" loading="lazy" />
               </motion.div>
             </div>
@@ -757,6 +812,7 @@ const HowItWorks = () => {
               className="hiw-cta"
               onClick={() => navigate("/fleet")}
             >
+              <span className="hiw-cta-shine" aria-hidden="true" />
               Start Your Journey
               <FontAwesomeIcon icon={faArrowRight} />
             </button>

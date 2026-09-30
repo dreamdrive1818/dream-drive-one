@@ -515,6 +515,10 @@
     padding: 5.6rem 1.8rem 6rem;
   }
 
+  .dd-contact-title {
+    font-size: clamp(3.2rem, 9vw, 4rem);
+  }
+
   .dd-contact-lead {
     font-size: 1.45rem;
   }
