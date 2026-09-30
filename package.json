@@ -27,9 +27,13 @@
     "db:seed": "npm run seed --workspace=@dream-drive/database",
     "docker:up": "docker compose up -d"
   },
-  "overrides": {
+  "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
+  },
+  "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom"
   },
   "devDependencies": {
     "railway": "^3.11.0",
