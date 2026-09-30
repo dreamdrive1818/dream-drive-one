@@ -142,7 +142,9 @@ export default function Shell({ children }) {
     setOpsScope(nextCity, nextBranch);
   }
 
-  if (path === "/login") return children;
+  if (path === "/login" || path === "/500" || path === "/404" || path === "/_error") {
+    return children;
+  }
 
   return (
     <div className="shell">
