@@ -125,6 +125,13 @@ const transmissionLabel = (value) => {
   return raw;
 };
 
+/** Crops empty margins from uploaded photos so class thumbnails fill the same space. */
+const trimmedThumb = (url) =>
+  String(url || "").replace(
+    /(res\.cloudinary\.com\/[^/]+\/image\/upload\/)(?!e_trim)/,
+    "$1e_trim:25/"
+  );
+
 const isPlaceholderUrl = (url) =>
   /placehold\.co|placeholder|via\.placeholder|dummyimage|picsum\.photos/i.test(
     String(url || "")
@@ -564,7 +571,7 @@ const FleetCarousel = () => {
                         <span className="fleet-class-pic">
                           {thumb ? (
                             <img
-                              src={thumb}
+                              src={trimmedThumb(thumb)}
                               alt=""
                               onError={() => markImageBroken(thumb)}
                             />

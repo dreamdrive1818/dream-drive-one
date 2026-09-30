@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import "./Header.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -125,7 +126,7 @@ const Header = () => {
         </button>
       </div>
 
-      {isMobileMenuOpen ? (
+      {isMobileMenuOpen ? createPortal(
         <div className="dd-header-drawer" role="dialog" aria-modal="true">
           <div className="dd-header-drawer-top">
             <img src={`${webinfo.logo}`} alt="" className="dd-header-drawer-logo" />
@@ -171,7 +172,8 @@ const Header = () => {
             <FontAwesomeIcon icon={faWhatsapp} />
             Chat on WhatsApp
           </a>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </header>
   );

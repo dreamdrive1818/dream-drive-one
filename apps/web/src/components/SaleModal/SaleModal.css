@@ -65,21 +65,93 @@
   display: block;
 }
 
-.sale-modal__media-fallback {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  padding: 1.8rem 2rem;
+.sale-modal__media--offer {
+  aspect-ratio: 1248 / 644;
+  container-type: inline-size;
+  background: #f0f7fb;
 }
 
-.sale-modal__media-fallback span {
+.sale-modal__media--offer img {
+  transform: translateX(14%);
+}
+
+.sale-modal__media--offer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(240, 247, 251, 1) 0%, rgba(240, 247, 251, 0.94) 34%, rgba(240, 247, 251, 0) 56%),
+    linear-gradient(0deg, rgba(240, 247, 251, 0.75) 0%, rgba(240, 247, 251, 0) 32%);
+  pointer-events: none;
+}
+
+.sale-modal__offer {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2.6cqw;
+  padding: 0 0 0 6.4cqw;
+}
+
+.sale-modal__offer-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.6cqw;
+  padding: 1.5cqw 3.4cqw 1.5cqw 2.8cqw;
+  border-radius: 999px 0.6rem 0.6rem 999px;
+  background: #fcd66e;
+  color: #5a3a00;
+  font-size: max(1rem, 2.7cqw);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 6px 14px rgba(232, 154, 44, 0.28);
+}
+
+.sale-modal__offer-tag::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 1.3cqw;
+  width: 1cqw;
+  height: 1cqw;
+  border-radius: 50%;
+  background: #fff6dc;
+  transform: translateY(-50%);
+}
+
+.sale-modal__offer-title {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
   font-family: var(--font-family-display);
-  font-size: clamp(2.8rem, 6vw, 3.6rem);
+  font-size: max(2.6rem, 9.6cqw);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  color: #0f1b3d;
+}
+
+.sale-modal__offer-title span {
+  color: #0e7c86;
+}
+
+.sale-modal__offer-drops {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.4cqw;
+  font-size: max(1rem, 2.9cqw);
   font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  color: rgba(255, 255, 255, 0.92);
+  color: #516074;
+}
+
+.sale-modal__offer-drops svg {
+  color: #2f7fe0;
 }
 
 .sale-modal__body {
@@ -186,5 +258,9 @@
 
   .sale-modal__media {
     aspect-ratio: 4 / 3;
+  }
+
+  .sale-modal__media--offer {
+    aspect-ratio: 1248 / 644;
   }
 }

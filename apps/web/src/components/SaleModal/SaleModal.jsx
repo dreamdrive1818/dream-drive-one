@@ -1,11 +1,17 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faXmark, faArrowRight } from "@fortawesome/free-solid-svg-icons";
+import {
+  faXmark,
+  faArrowRight,
+  faTag,
+  faCloudShowersHeavy,
+} from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import "./SaleModal.css";
 
 const SESSION_KEY = "dreamdrive_sale_modal_dismissed";
+const PLACEHOLDER_IMAGE = /placehold\.co|placeholder\.com|dummyimage\.com/i;
 
 const SaleModal = () => {
   const [open, setOpen] = useState(false);
@@ -48,6 +54,8 @@ const SaleModal = () => {
   const body =
     promoBanner.body || "Save on selected self-drive cars this season.";
   const cta = promoBanner.ctaText || "See deals";
+  const customImage =
+    promoBanner.imageUrl && !PLACEHOLDER_IMAGE.test(promoBanner.imageUrl);
 
   return (
     <div className="sale-modal-overlay" onClick={dismiss} role="presentation">
@@ -67,18 +75,35 @@ const SaleModal = () => {
           <FontAwesomeIcon icon={faXmark} />
         </button>
 
-        <div className="sale-modal__media" aria-hidden="true">
-          {promoBanner.imageUrl ? (
+        <div
+          className={`sale-modal__media${customImage ? "" : " sale-modal__media--offer"}`}
+          aria-hidden="true"
+        >
+          {customImage ? (
             <img src={promoBanner.imageUrl} alt="" />
           ) : (
-            <div className="sale-modal__media-fallback">
-              <span>Dream Drive</span>
-            </div>
+            <>
+              <img src="/sale-offer-scene.jpg" alt="" width="1248" height="644" />
+              <div className="sale-modal__offer">
+                <span className="sale-modal__offer-tag">
+                  <FontAwesomeIcon icon={faTag} />
+                  Limited-time offer
+                </span>
+                <p className="sale-modal__offer-title">
+                  Monsoon
+                  <span>Deals</span>
+                </p>
+                <span className="sale-modal__offer-drops">
+                  <FontAwesomeIcon icon={faCloudShowersHeavy} />
+                  Rain or shine
+                </span>
+              </div>
+            </>
           )}
         </div>
 
         <div className="sale-modal__body">
-          <p className="sale-modal__eyebrow">Limited-time offer</p>
+          {customImage ? <p className="sale-modal__eyebrow">Limited-time offer</p> : null}
           <h2 id="sale-modal-title" className="sale-modal__title">
             {title}
           </h2>
