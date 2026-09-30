@@ -27,6 +27,10 @@
     "db:seed": "npm run seed --workspace=@dream-drive/database",
     "docker:up": "docker compose up -d"
   },
+  "overrides": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
   "devDependencies": {
     "railway": "^3.11.0",
     "turbo": "^2.5.4",

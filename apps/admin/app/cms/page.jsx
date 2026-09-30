@@ -19,6 +19,15 @@ const EMPTY_PAGE = {
 
 const EMPTY_TESTIMONIAL = { name: "", body: "", city: "", rating: 5, photoUrl: "", active: true };
 
+// Labels shown in the settings form (order matters)
+const SETTING_FIELDS = [
+  { key: "siteName", label: "Site Name",  type: "text" },
+  { key: "phone",    label: "Phone",      type: "text" },
+  { key: "whatsapp", label: "WhatsApp",   type: "text" },
+  { key: "email",    label: "Email",      type: "email" },
+  { key: "address",  label: "Address",    type: "textarea" },
+];
+
 export default function CmsPage() {
   const [tab, setTab] = useState("pages");
   const [pages, setPages] = useState([]);
@@ -26,13 +35,27 @@ export default function CmsPage() {
   const [pageForm, setPageForm] = useState(EMPTY_PAGE);
   const [editingId, setEditingId] = useState("");
   const [testimonialForm, setTestimonialForm] = useState(EMPTY_TESTIMONIAL);
+  const [settings, setSettings] = useState({});
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [settingsMsg, setSettingsMsg] = useState("");
 
   function load() {
     api("/v1/admin/cms/pages").then(setPages).catch((e) => setError(e.message));
     api("/v1/admin/cms/testimonials").then(setTestimonials).catch(() => {});
   }
-  useEffect(load, []);
+
+  function loadSettings() {
+    api("/v1/admin/cms/settings")
+      .then((rows) => {
+        const map = {};
+        rows.forEach((r) => { map[r.key] = r.value; });
+        setSettings(map);
+      })
+      .catch(() => {});
+  }
+
+  useEffect(() => { load(); loadSettings(); }, []);
 
   function editPage(row) {
     setEditingId(row.id);
@@ -86,14 +109,67 @@ export default function CmsPage() {
     }
   }
 
+  async function saveSettings(e) {
+    e.preventDefault();
+    setSettingsSaving(true);
+    setSettingsMsg("");
+    setError("");
+    try {
+      await api("/v1/admin/cms/settings", { method: "PATCH", body: settings });
+      setSettingsMsg("Saved ✓");
+      loadSettings();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
+
   return (
     <div>
       <h2>CMS</h2>
       <div className="tabs">
+        <button className={tab === "settings" ? "active" : ""} type="button" onClick={() => setTab("settings")}>Site Settings</button>
         <button className={tab === "pages" ? "active" : ""} type="button" onClick={() => setTab("pages")}>Pages & SEO</button>
         <button className={tab === "testimonials" ? "active" : ""} type="button" onClick={() => setTab("testimonials")}>Testimonials</button>
       </div>
       {error && <p className="err">{error}</p>}
+
+      {tab === "settings" && (
+        <div className="stack">
+          <form className="card" onSubmit={saveSettings}>
+            <h3>Site Contact Information</h3>
+            <p style={{ color: "#888", fontSize: 13 }}>
+              These values are served via <code>GET /v1/public/config</code> and used across the website and emails.
+              Changes take effect immediately — no redeploy needed.
+            </p>
+            {SETTING_FIELDS.map(({ key, label, type }) => (
+              <label key={key}>
+                {label}
+                {type === "textarea" ? (
+                  <textarea
+                    value={settings[key] ?? ""}
+                    rows={3}
+                    onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+                  />
+                ) : (
+                  <input
+                    type={type}
+                    value={settings[key] ?? ""}
+                    onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+                  />
+                )}
+              </label>
+            ))}
+            <div className="row" style={{ alignItems: "center", gap: 12 }}>
+              <button type="submit" disabled={settingsSaving}>
+                {settingsSaving ? "Saving…" : "Save settings"}
+              </button>
+              {settingsMsg && <span style={{ color: "green" }}>{settingsMsg}</span>}
+            </div>
+          </form>
+        </div>
+      )}
 
       {tab === "pages" && (
         <div className="stack">

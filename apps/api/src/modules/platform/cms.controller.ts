@@ -30,6 +30,21 @@ export class CmsController {
     return this.cms.publicConfig();
   }
 
+  // -------------------------------------------------------------------------
+  // Admin: Site Settings (contact info, etc.)
+  // -------------------------------------------------------------------------
+  @Get("v1/admin/cms/settings")
+  adminGetSettings(@Req() req: Request) {
+    requireRoles(req, "SUPER_ADMIN");
+    return this.cms.adminGetSettings();
+  }
+
+  @Patch("v1/admin/cms/settings")
+  adminUpdateSettings(@Req() req: Request, @Body() body: Record<string, string>) {
+    const actor = requireRoles(req, "SUPER_ADMIN");
+    return this.cms.adminUpdateSettings(body, actor.id);
+  }
+
   @Get("v1/public/home")
   home() {
     return this.cms.home();

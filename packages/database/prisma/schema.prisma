@@ -1358,3 +1358,15 @@ model NotificationLog {
   @@index([status, nextRetryAt])
   @@index([template, ref])
 }
+
+// ---------------------------------------------------------------------------
+// Site Settings — key/value store for business contact info and other
+// admin-editable settings that don't belong in .env (infrastructure secrets).
+// ---------------------------------------------------------------------------
+model SiteSetting {
+  key       String   @id          // e.g. "siteName", "phone", "email"
+  value     String
+  label     String?               // human-readable label shown in admin UI
+  group     String   @default("contact") // "contact" | "seo" | "social" etc.
+  updatedAt DateTime @updatedAt
+}
