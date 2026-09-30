@@ -1,0 +1,395 @@
+[
+  {
+    "id": "19kgAYuUzWk0NxWb89HH",
+    "name": "Maruti Swift 2025",
+    "price": "1400",
+    "available": "Available",
+    "displayOrder": 4,
+    "images": [
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750170218/image_l9f2ll.png",
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750170422/D9EF6A0D83E64B66845A983BC63843ED_hnqaqh.webp"
+    ],
+    "twentyFourHrWeekday": "1800",
+    "twentyFourHrWeekend": "2000",
+    "securityDeposit": "5000",
+    "details": {
+      "extraHr": "200/ hr",
+      "extraKm": "1km/5 rs",
+      "kilometer": "200/ 24 hrs",
+      "fuel": "Petrol",
+      "luggage": "2",
+      "type": "Hatchback",
+      "seats": "5",
+      "mt": "YES"
+    }
+  },
+  {
+    "id": "AUEArLgDSNPmbQv56kes",
+    "name": "Tata Tigor",
+    "price": "1800",
+    "salePrice": "2200",
+    "available": "Available",
+    "displayOrder": 8,
+    "images": [
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871183/dreamdrive/cars/ozc29hdy0oszmrpr8pow.png",
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871184/dreamdrive/cars/csn4kpjdziybnlf2mc2k.webp"
+    ],
+    "twentyFourHrWeekday": "",
+    "twentyFourHrWeekend": "",
+    "securityDeposit": "",
+    "details": {
+      "type": "Sedan",
+      "seats": "5",
+      "fuel": "Petrol",
+      "mt": "",
+      "luggage": "",
+      "kilometer": "",
+      "extraKm": "",
+      "extraHr": ""
+    }
+  },
+  {
+    "id": "IwyTo1bJv2U3bg98icjS",
+    "name": "Renault Kiger 2025",
+    "price": "1500",
+    "available": "Not Available",
+    "displayOrder": 6,
+    "images": [
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750168855/image_csl2do.png",
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750168914/renault-kiger_600x400-removebg-preview_mconpn.png"
+    ],
+    "twentyFourHrWeekday": "",
+    "twentyFourHrWeekend": "",
+    "securityDeposit": "",
+    "details": {
+      "luggage": "3",
+      "kilometer": "280",
+      "extraKm": "5",
+      "seats": "5",
+      "mt": "YES",
+      "fuel": "Petrol",
+      "type": "Compact SUV",
+      "extraHr": "200"
+    }
+  },
+  {
+    "id": "LmF5DkvxxMwlyxeguxhb",
+    "name": "Kia Sonet",
+    "price": "2800",
+    "salePrice": "3200",
+    "available": "Available",
+    "displayOrder": 7,
+    "images": [
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871303/dreamdrive/cars/anwzbb3zwziux8hekbnj.png",
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871335/dreamdrive/cars/wrofrqepszukhdzxqcwf.jpg"
+    ],
+    "twentyFourHrWeekday": "",
+    "twentyFourHrWeekend": "",
+    "securityDeposit": "",
+    "details": {
+      "type": "Compact SUV",
+      "seats": "5",
+      "fuel": "Petrol",
+      "mt": "",
+      "luggage": "",
+      "kilometer": "",
+      "extraKm": "",
+      "extraHr": ""
+    }
+  },
+  {
+    "id": "Mu5qtNm0yQ8eaoCsXChb",
+    "name": "Maruti FRONX 2025",
+    "price": "2400",
+    "salePrice": "2600",
+    "available": "Available",
+    "displayOrder": 5,
+    "images": [
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750171648/2025-Maruti-Fronx-2_ocppst.webp",
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750171676/m8-1024x576_waeujj.webp"
+    ],
+    "twentyFourHrWeekday": "3000",
+    "twentyFourHrWeekend": "3300",
+    "securityDeposit": "6000",
+    "details": {
+      "type": "Compact SUV",
+      "luggage": "2",
+      "kilometer": "400",
+      "mt": "YES",
+      "seats": "5",
+      "fuel": "Petrol",
+      "extraKm": "200",
+      "extraHr": "200"
+    }
+  },
+  {
+    "id": "Pb9LTvYIrKvSGpH6jJz0",
+    "name": "Hyundai i20 Asta IVT 2024",
+    "price": "1500",
+    "available": "Available",
+    "displayOrder": 4,
+    "images": [
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750169101/test_QkNB2Ri_axzqkj.png",
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750169164/227_typhoon-silver_868b96_mtsenn.jpg"
+    ],
+    "twentyFourHrWeekday": "2700",
+    "twentyFourHrWeekend": "3000",
+    "securityDeposit": "5000",
+    "details": {
+      "luggage": "2",
+      "fuel": "Petrol",
+      "extraKm": "6",
+      "seats": "5",
+      "kilometer": "280",
+      "extraHr": "200",
+      "type": "Hatchback",
+      "mt": "No"
+    }
+  },
+  {
+    "id": "RmJcM9QD91sGOGpHfdAs",
+    "name": "Mahindra Thar",
+    "price": "5000",
+    "salePrice": "6000",
+    "available": "Available",
+    "displayOrder": 10,
+    "images": [
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871169/dreamdrive/cars/futlvrluoqcbsczgphhf.webp",
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871170/dreamdrive/cars/cuyhhguyqrnpr5kbrywg.webp"
+    ],
+    "twentyFourHrWeekday": "",
+    "twentyFourHrWeekend": "",
+    "securityDeposit": "",
+    "details": {
+      "type": "SUV",
+      "seats": "4",
+      "fuel": "Petrol",
+      "mt": "",
+      "luggage": "",
+      "kilometer": "",
+      "extraKm": "",
+      "extraHr": ""
+    }
+  },
+  {
+    "id": "S344JRZGZclLV4fkRk5j",
+    "name": "Mahindra Thar LXT Diesel Manual 2026",
+    "price": "5000",
+    "salePrice": "6000",
+    "available": "Available",
+    "displayOrder": 12,
+    "images": [
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1790235557/dreamdrive/cars/wqbcom6hwv1dbcdwzhhc.jpg",
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1790235559/dreamdrive/cars/plyh7a0upaa7zdlhvx2m.jpg"
+    ],
+    "twentyFourHrWeekday": "5000",
+    "twentyFourHrWeekend": "6000",
+    "securityDeposit": "10000",
+    "details": {
+      "kilometer": "250",
+      "extraKm": "20",
+      "extraHr": "400",
+      "type": "SUV",
+      "seats": "4",
+      "luggage": "2",
+      "fuel": "Diesel",
+      "mt": "YES"
+    }
+  },
+  {
+    "id": "UVUV5L9XgzgNEWx0Yn6Q",
+    "name": "Maruti Swift Dzire VXI Petrol Manual 2026",
+    "price": "2200",
+    "salePrice": "2500",
+    "available": "Available",
+    "displayOrder": 14,
+    "images": [
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1790236292/dreamdrive/cars/fbxcwglno2km6oichpvy.jpg",
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1790236295/dreamdrive/cars/jo3peubtrpyliyvccl5h.jpg"
+    ],
+    "twentyFourHrWeekday": "2200",
+    "twentyFourHrWeekend": "2500",
+    "securityDeposit": "5000",
+    "details": {
+      "kilometer": "250",
+      "extraKm": "10",
+      "extraHr": "180",
+      "type": "Sedan",
+      "seats": "5",
+      "luggage": "3",
+      "fuel": "Petrol",
+      "mt": "YES"
+    }
+  },
+  {
+    "id": "V0habTYVs9goldvOcj44",
+    "name": "Maruti Brezza VXI Petrol Manual 2026",
+    "price": "2500",
+    "salePrice": "2800",
+    "available": "Available",
+    "displayOrder": 13,
+    "images": [
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1790236367/dreamdrive/cars/h8xapndbxlqnod6y876p.jpg",
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1790236369/dreamdrive/cars/dqzggv5c5qvmikodzr7c.jpg"
+    ],
+    "twentyFourHrWeekday": "2500",
+    "twentyFourHrWeekend": "2800",
+    "securityDeposit": "5000",
+    "details": {
+      "kilometer": "250",
+      "extraKm": "12",
+      "extraHr": "200",
+      "type": "SUV",
+      "seats": "5",
+      "luggage": "2",
+      "fuel": "Petrol",
+      "mt": "YES"
+    }
+  },
+  {
+    "id": "Z6A76KYERAddUK2WOQgA",
+    "name": "Maruti Ertiga ZXI 2025",
+    "price": "2000",
+    "available": "Available",
+    "displayOrder": 3,
+    "images": [
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750170513/image_qpzmoh.png"
+    ],
+    "twentyFourHrWeekday": "3000",
+    "twentyFourHrWeekend": "3500",
+    "securityDeposit": "6000",
+    "details": {
+      "mt": "YES",
+      "kilometer": "300",
+      "seats": "7",
+      "extraKm": "Rs5/per KM",
+      "luggage": "3",
+      "extraHr": "200/per hr",
+      "type": "MUV",
+      "fuel": "Petrol"
+    }
+  },
+  {
+    "id": "iWEEhW4sHefxYeOOr2W9",
+    "name": "Hyundai i10",
+    "price": "1800",
+    "salePrice": "2000",
+    "available": "Available",
+    "displayOrder": 9,
+    "images": [
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871176/dreamdrive/cars/ame0ukw6nrffzvywxwom.webp",
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871177/dreamdrive/cars/swswvkjdqskmlnr97sh4.png"
+    ],
+    "twentyFourHrWeekday": "",
+    "twentyFourHrWeekend": "",
+    "securityDeposit": "",
+    "details": {
+      "type": "Hatchback",
+      "seats": "5",
+      "fuel": "Petrol",
+      "mt": "",
+      "luggage": "",
+      "kilometer": "",
+      "extraKm": "",
+      "extraHr": ""
+    }
+  },
+  {
+    "id": "mLYY0kkyTtsklqkzrc74",
+    "name": "Hyundai Aura SX 2025",
+    "price": "2200",
+    "salePrice": "2400",
+    "available": "Not Available",
+    "displayOrder": 6,
+    "images": [
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750171453/hyundai-aura-car-500x500_aujaju.png",
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750171407/image_zpyz8f.png"
+    ],
+    "twentyFourHrWeekday": "",
+    "twentyFourHrWeekend": "",
+    "securityDeposit": "",
+    "details": {
+      "mt": "YES",
+      "type": "Sedan",
+      "seats": "5",
+      "luggage": "2",
+      "extraHr": "200",
+      "extraKm": "350",
+      "fuel": "Petrol",
+      "kilometer": "300"
+    }
+  },
+  {
+    "id": "o91EehhVIs2XrgA4AmCT",
+    "name": "Maruti Suzuki Baleno",
+    "price": "2200",
+    "salePrice": "2400",
+    "available": "Available",
+    "displayOrder": 11,
+    "images": [
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871151/dreamdrive/cars/umy34vjzcely44qwxnft.png",
+      "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871161/dreamdrive/cars/bviirbufyylr3pp9mubs.jpg"
+    ],
+    "twentyFourHrWeekday": "",
+    "twentyFourHrWeekend": "",
+    "securityDeposit": "",
+    "details": {
+      "type": "Hatchback",
+      "seats": "5",
+      "fuel": "Petrol",
+      "mt": "",
+      "luggage": "",
+      "kilometer": "",
+      "extraKm": "",
+      "extraHr": ""
+    }
+  },
+  {
+    "id": "p8wSNprqpV6ZM3EeyjXT",
+    "name": "Maruti Suzuki Vitara Brezza",
+    "price": "1800",
+    "available": "Available",
+    "displayOrder": 5,
+    "images": [
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/maruti-suzuki-vitara-brezza-ldi-diesel-pearl-arctic-white-82811366-6pbqe-removebg-preview_pgoccl.png",
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/9o6ai5a_1440049-removebg-preview_qif9uf.png"
+    ],
+    "twentyFourHrWeekday": "2500",
+    "twentyFourHrWeekend": "3000",
+    "securityDeposit": "6000",
+    "details": {
+      "extraKm": "RS 5/KM",
+      "luggage": "2",
+      "mt": "YES",
+      "type": "Compact SUV",
+      "extraHr": "200/per hrs",
+      "seats": "5",
+      "kilometer": "200/24 hrs",
+      "fuel": "Petrol"
+    }
+  },
+  {
+    "id": "rHWNUwG3y0uMbpwEcaUV",
+    "name": "Tata Nexon Dark Edition 2023",
+    "price": "1800",
+    "available": "Available",
+    "displayOrder": 1,
+    "images": [
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750169522/tatanexon_376404_atlasblack_base-removebg-preview_fapxv9.png",
+      "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750168799/tata-nexon-right-front-three-quarter2-removebg-preview_lad5vy_gfkhzv.png"
+    ],
+    "twentyFourHrWeekday": "3000",
+    "twentyFourHrWeekend": "3300",
+    "securityDeposit": "5000",
+    "details": {
+      "fuel": "Petrol",
+      "luggage": "3",
+      "type": "SUV",
+      "seats": "5",
+      "extraKm": "5",
+      "kilometer": "300",
+      "mt": "YES",
+      "extraHr": "200"
+    }
+  }
+]

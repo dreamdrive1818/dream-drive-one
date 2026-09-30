@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { readFileSync } from "fs";
 import { PrismaClient, RentalType, RoleName } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -169,12 +170,93 @@ async function main() {
     data: { phone: "9876543210" },
   }).catch(() => undefined);
 
-  const cars = [
-    { slug: "swift", name: "Maruti Swift", type: "hatchback", seats: 5, fuel: "petrol", transmission: "manual", daily: 180000, deposit: 500000 },
-    { slug: "nexon", name: "Tata Nexon", type: "suv", seats: 5, fuel: "petrol", transmission: "automatic", daily: 280000, deposit: 800000 },
-    { slug: "innova", name: "Toyota Innova Crysta", type: "mpv", seats: 7, fuel: "diesel", transmission: "automatic", daily: 450000, deposit: 1500000 },
-    { slug: "thar", name: "Mahindra Thar", type: "suv", seats: 4, fuel: "diesel", transmission: "manual", daily: 400000, deposit: 1500000 },
-  ];
+  type StaticCar = {
+    id: string;
+    name: string;
+    price?: string;
+    available?: string;
+    displayOrder?: number | null;
+    images?: string[];
+    twentyFourHrWeekday?: string;
+    securityDeposit?: string;
+    details?: {
+      extraKm?: string;
+      extraHr?: string;
+      type?: string;
+      seats?: string;
+      fuel?: string;
+      mt?: string;
+    };
+  };
+
+  function slugify(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  function rupeesToPaise(value: unknown): number | null {
+    if (value == null || value === "") return null;
+    const match = String(value).replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    return Math.round(amount * 100);
+  }
+
+  function carType(value: string | undefined) {
+    const type = String(value || "").toLowerCase();
+    if (type.includes("muv") || type.includes("mpv")) return "mpv";
+    if (type.includes("sedan")) return "sedan";
+    if (type.includes("hatch")) return "hatchback";
+    if (type.includes("suv")) return "suv";
+    return "suv";
+  }
+
+  const staticCars = (JSON.parse(
+    readFileSync(new URL("./data/static-cars.json", import.meta.url), "utf8")
+  ) as StaticCar[])
+    .slice()
+    .sort(
+      (a, b) =>
+        (a.displayOrder ?? 999) - (b.displayOrder ?? 999) || a.name.localeCompare(b.name)
+    );
+
+  const cars = staticCars.map((car, index) => {
+    const daily =
+      rupeesToPaise(car.twentyFourHrWeekday) ?? rupeesToPaise(car.price) ?? 180000;
+    const starting = rupeesToPaise(car.price);
+    const under12 =
+      starting != null && starting < daily ? starting : Math.round(daily * 0.55);
+    const extraKmRaw = rupeesToPaise(car.details?.extraKm);
+    const extraKm =
+      extraKmRaw != null && extraKmRaw <= 8000 ? extraKmRaw : 500;
+    const extraHrRaw = rupeesToPaise(car.details?.extraHr);
+    const hourly = extraHrRaw != null && extraHrRaw <= 200000 ? extraHrRaw : null;
+    const yearMatch = car.name.match(/\b(20\d{2})\b/);
+    const mt = String(car.details?.mt || "").trim().toLowerCase();
+    return {
+      slug: slugify(car.name),
+      name: car.name,
+      type: carType(car.details?.type),
+      seats: Number(car.details?.seats) || 5,
+      fuel: String(car.details?.fuel || "petrol").toLowerCase(),
+      transmission: mt === "no" || mt === "automatic" || mt === "auto" ? "automatic" : "manual",
+      daily,
+      under12,
+      hourly,
+      extraKm,
+      deposit: rupeesToPaise(car.securityDeposit) ?? 0,
+      images: (car.images || []).filter((url) => typeof url === "string" && url.startsWith("http")),
+      displayOrder: car.displayOrder ?? index + 1,
+      published: String(car.available || "Available").toLowerCase() !== "not available",
+      featured:
+        String(car.available || "").toLowerCase() !== "not available" &&
+        (car.displayOrder ?? 999) <= 5,
+      year: yearMatch ? Number(yearMatch[1]) : 2024,
+    };
+  });
 
   const cityFleets = [
     { city: ranchi, branch: ranchiHq, rto: "JH01", slugSuffix: "" },
@@ -190,14 +272,15 @@ async function main() {
       const model = await prisma.carModel.upsert({
         where: { slug: modelSlug },
         update: {
-          published: true,
-          featured: car.slug !== "thar",
+          published: car.published,
+          featured: car.featured,
           cityId: fleet.city.id,
           name: car.name,
           type: car.type,
           seats: car.seats,
           fuel: car.fuel,
           transmission: car.transmission,
+          displayOrder: car.displayOrder,
         },
         create: {
           slug: modelSlug,
@@ -207,50 +290,49 @@ async function main() {
           fuel: car.fuel,
           transmission: car.transmission,
           cityId: fleet.city.id,
-          published: true,
-          featured: car.slug !== "thar",
-          displayOrder: index + 1,
-          images: {
-            create: [
-              {
-                url: `https://placehold.co/800x500/111/fff?text=${encodeURIComponent(car.name)}`,
-                sortOrder: 0,
-              },
-            ],
-          },
+          published: car.published,
+          featured: car.featured,
+          displayOrder: car.displayOrder,
         },
+      });
+
+      const imageUrls = car.images.length
+        ? car.images
+        : [`https://placehold.co/800x500/111/fff?text=${encodeURIComponent(car.name)}`];
+      await prisma.carImage.deleteMany({ where: { carModelId: model.id } });
+      await prisma.carImage.createMany({
+        data: imageUrls.map((url, sortOrder) => ({ carModelId: model.id, url, sortOrder })),
       });
 
       const types: RentalType[] = ["SELF_DRIVE", "WITH_DRIVER_LOCAL", "WITH_DRIVER_INTERCITY"];
       for (const rentalType of types) {
+        const dailyPaise =
+          rentalType === "WITH_DRIVER_LOCAL" ? Math.round(car.daily * 1.2) : car.daily;
+        const pricing = {
+          dailyPaise,
+          under12Paise:
+            rentalType === "WITH_DRIVER_LOCAL" ? Math.round(car.under12 * 1.2) : car.under12,
+          hourlyPaise: rentalType === "WITH_DRIVER_LOCAL" ? car.hourly ?? Math.round(car.daily / 8) : car.hourly,
+          extraKmPaise: car.extraKm,
+          depositPaise: rentalType === "SELF_DRIVE" ? car.deposit : 0,
+        };
         const existing = await prisma.pricingRule.findFirst({
           where: { carModelId: model.id, rentalType },
         });
         if (!existing) {
           await prisma.pricingRule.create({
-            data: {
-              carModelId: model.id,
-              rentalType,
-              dailyPaise: rentalType === "WITH_DRIVER_LOCAL" ? Math.round(car.daily * 1.2) : car.daily,
-              under12Paise: Math.round(
-                (rentalType === "WITH_DRIVER_LOCAL" ? car.daily * 1.2 : car.daily) * 0.55
-              ),
-              hourlyPaise: rentalType === "WITH_DRIVER_LOCAL" ? Math.round(car.daily / 8) : null,
-              extraKmPaise: 1200,
-              depositPaise: rentalType === "SELF_DRIVE" ? car.deposit : 0,
-            },
+            data: { carModelId: model.id, rentalType, ...pricing },
           });
-        } else if (existing.under12Paise == null) {
+        } else {
           await prisma.pricingRule.update({
             where: { id: existing.id },
-            data: {
-              under12Paise: Math.round(existing.dailyPaise * 0.55),
-            },
+            data: pricing,
           });
         }
       }
 
-      const reg = `${fleet.rto}${car.slug.slice(0, 2).toUpperCase()}1001`;
+      const reg = `${fleet.rto}DD${String(index + 1).padStart(4, "0")}`;
+      const vehicleStatus = car.published ? "AVAILABLE" : "BLOCKED";
       let vehicle = await prisma.vehicle.findUnique({ where: { registration: reg } });
       if (!vehicle) {
         vehicle = await prisma.vehicle.create({
@@ -258,10 +340,12 @@ async function main() {
             registration: reg,
             carModelId: model.id,
             branchId: fleet.branch.id,
-            year: 2023 + (index % 2),
+            ownerType: "COMPANY",
+            partnerId: null,
+            year: car.year,
             color: index % 2 === 0 ? "white" : "silver",
             odometerKm: 8000 + index * 1500,
-            status: "AVAILABLE",
+            status: vehicleStatus,
           },
         });
       } else {
@@ -270,7 +354,10 @@ async function main() {
           data: {
             carModelId: model.id,
             branchId: fleet.branch.id,
-            status: vehicle.status === "SOLD" ? "AVAILABLE" : vehicle.status,
+            ownerType: "COMPANY",
+            partnerId: null,
+            year: car.year,
+            status: vehicle.status === "SOLD" ? "SOLD" : vehicleStatus,
           },
         });
       }
@@ -305,17 +392,37 @@ async function main() {
     }
   }
 
-  // Demo calendar: one blocked vehicle + a few date blocks (available / unavailable / blocked)
-  const ranchiThar = seededVehicles.find((v) => v.citySlug === "ranchi" && v.carSlug === "thar");
-  if (ranchiThar) {
-    await prisma.vehicle.update({
-      where: { id: ranchiThar.id },
-      data: { status: "BLOCKED" },
-    });
-  }
-  const ranchiSwift = seededVehicles.find((v) => v.citySlug === "ranchi" && v.carSlug === "swift");
-  const jsrNexon = seededVehicles.find((v) => v.citySlug === "jamshedpur" && v.carSlug === "nexon");
-  const kolInnova = seededVehicles.find((v) => v.citySlug === "kolkata" && v.carSlug === "innova");
+  const retiredSlugs = [
+    "swift",
+    "nexon",
+    "innova",
+    "thar",
+    "swift-jamshedpur",
+    "nexon-jamshedpur",
+    "innova-jamshedpur",
+    "thar-jamshedpur",
+    "swift-kolkata",
+    "nexon-kolkata",
+    "innova-kolkata",
+    "thar-kolkata",
+  ];
+  await prisma.carModel.updateMany({
+    where: { slug: { in: retiredSlugs } },
+    data: { published: false, featured: false },
+  });
+  await prisma.vehicle.updateMany({
+    where: { carModel: { slug: { in: retiredSlugs } }, status: { not: "ON_TRIP" } },
+    data: { ownerType: "COMPANY", partnerId: null, status: "BLOCKED" },
+  });
+
+  // Demo calendar windows on company-owned fleet cars
+  const ranchiSwift = seededVehicles.find((v) => v.citySlug === "ranchi" && v.carSlug === "maruti-swift-2025");
+  const jsrNexon = seededVehicles.find(
+    (v) => v.citySlug === "jamshedpur" && v.carSlug === "tata-nexon-dark-edition-2023"
+  );
+  const kolErtiga = seededVehicles.find(
+    (v) => v.citySlug === "kolkata" && v.carSlug === "maruti-ertiga-zxi-2025"
+  );
   const now = new Date();
   const dayUtc = (offsetDays: number, hour = 0) =>
     new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offsetDays, hour, 0, 0));
@@ -332,8 +439,8 @@ async function main() {
       endsAt: dayUtc(9, 0),
       reason: "MANUAL:partner-hold",
     },
-    kolInnova && {
-      vehicleId: kolInnova.id,
+    kolErtiga && {
+      vehicleId: kolErtiga.id,
       startsAt: dayUtc(10, 0),
       endsAt: dayUtc(12, 0),
       reason: "MANUAL:maintenance",

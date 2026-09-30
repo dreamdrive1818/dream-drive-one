@@ -245,18 +245,83 @@ function presentCategory(row: {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Default site-settings seeded from .env on first boot (env values are the
+// historical source-of-truth; after the first DB write the DB takes over).
+// ---------------------------------------------------------------------------
+const SETTING_DEFAULTS: Record<string, { label: string; group: string; value: string }> = {
+  siteName:  { label: "Site name",     group: "contact", value: process.env.PUBLIC_SITE_NAME  || "Dream Drive" },
+  phone:     { label: "Phone",         group: "contact", value: process.env.PUBLIC_PHONE      || "+91-994-202-7772" },
+  whatsapp:  { label: "WhatsApp",      group: "contact", value: process.env.PUBLIC_WHATSAPP   || "919942027772" },
+  email:     { label: "Email",         group: "contact", value: process.env.PUBLIC_EMAIL       || "Dreamdrive1818@gmail.com" },
+  address:   { label: "Address",       group: "contact", value: process.env.PUBLIC_ADDRESS     || "105 Jagriti Bhawan, near Adarsh Nagar, Bariatu, Ranchi - 834009 Jharkhand" },
+};
+
 @Injectable()
 export class CmsService {
-  publicConfig() {
+  // -------------------------------------------------------------------------
+  // Ensure every default key exists in the DB (runs on first call only;
+  // subsequent calls are a single SELECT).
+  // -------------------------------------------------------------------------
+  private async seedSettings() {
+    for (const [key, meta] of Object.entries(SETTING_DEFAULTS)) {
+      await prisma.siteSetting.upsert({
+        where:  { key },
+        create: { key, value: meta.value, label: meta.label, group: meta.group },
+        update: {},           // never overwrite an admin-edited value
+      });
+    }
+  }
+
+  async publicConfig() {
+    await this.seedSettings();
+    const rows = await prisma.siteSetting.findMany({ where: { group: "contact" } });
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     return {
-      siteName: process.env.PUBLIC_SITE_NAME || "Dream Drive",
-      phone: process.env.PUBLIC_PHONE || "+91-994-202-7772",
-      whatsapp: process.env.PUBLIC_WHATSAPP || "919942027772",
-      email: process.env.PUBLIC_EMAIL || "Dreamdrive1818@gmail.com",
-      address:
-        process.env.PUBLIC_ADDRESS ||
-        "105 Jagriti Bhawan, near Adarsh Nagar, Bariatu, Ranchi - 834009 Jharkhand",
+      siteName: map.siteName || SETTING_DEFAULTS.siteName.value,
+      phone:    map.phone    || SETTING_DEFAULTS.phone.value,
+      whatsapp: map.whatsapp || SETTING_DEFAULTS.whatsapp.value,
+      email:    map.email    || SETTING_DEFAULTS.email.value,
+      address:  map.address  || SETTING_DEFAULTS.address.value,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Admin: list all settings grouped by group
+  // -------------------------------------------------------------------------
+  async adminGetSettings() {
+    await this.seedSettings();
+    const rows = await prisma.siteSetting.findMany({ orderBy: [{ group: "asc" }, { key: "asc" }] });
+    return rows.map((r) => ({
+      key:      r.key,
+      value:    r.value,
+      label:    r.label ?? r.key,
+      group:    r.group,
+      updatedAt: r.updatedAt,
+    }));
+  }
+
+  // -------------------------------------------------------------------------
+  // Admin: upsert one or many settings at once
+  //   body = { siteName: "Dream Drive", phone: "+91-…", … }
+  // -------------------------------------------------------------------------
+  async adminUpdateSettings(body: Record<string, string>, actorId?: string) {
+    const ops = Object.entries(body).map(([key, value]) => {
+      const meta = SETTING_DEFAULTS[key];
+      return prisma.siteSetting.upsert({
+        where:  { key },
+        create: {
+          key,
+          value:  String(value ?? ""),
+          label:  meta?.label ?? key,
+          group:  meta?.group ?? "contact",
+        },
+        update: { value: String(value ?? "") },
+      });
+    });
+    await Promise.all(ops);
+    await this.audit(actorId, "cms.settings.update", undefined, body as unknown as import("@prisma/client").Prisma.InputJsonValue);
+    return this.adminGetSettings();
   }
 
   async home() {

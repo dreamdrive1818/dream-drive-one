@@ -5,7 +5,7 @@
   "description": "Dream-Drive HTTP API — all domain modules in one NestJS process",
   "scripts": {
     "start:dev": "nest start --watch",
-    "build": "nest build",
+    "build": "node ../../packages/database/prisma-run.js generate && nest build",
     "start:prod": "node dist/main",
     "lint": "echo \"lint api\"",
     "dev": "nest start --watch",
