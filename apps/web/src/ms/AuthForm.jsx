@@ -3,11 +3,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { firebaseAuthMessage, isLocalDev } from "./authUtils";
+import { signInWithGoogle } from "./firebaseAuth";
 import { useLocalContext } from "../context/LocalContext";
 import "./pages/Login.css";
 
 const OTP_RESEND_SECONDS = 60;
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 const FACEBOOK_APP_ID = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "";
 
 /**
@@ -77,17 +77,6 @@ export default function AuthForm({
       "password";
     setMode(next);
   }, [initialMode, canPassword, canOtp, canRegister]);
-
-  useEffect(() => {
-    if (!canGoogle || !GOOGLE_CLIENT_ID || typeof window === "undefined") return undefined;
-    if (document.getElementById("dd-google-gsi")) return undefined;
-    const script = document.createElement("script");
-    script.id = "dd-google-gsi";
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    document.head.appendChild(script);
-    return undefined;
-  }, [canGoogle]);
 
   useEffect(() => {
     if (!canFacebook || !FACEBOOK_APP_ID || typeof window === "undefined") return undefined;
@@ -303,34 +292,24 @@ export default function AuthForm({
   }
 
   async function handleGoogle() {
-    if (!GOOGLE_CLIENT_ID) {
-      setError("Google sign-in is not configured yet.");
-      return;
-    }
-    if (!window.google?.accounts?.id) {
-      setError("Google Sign-In is still loading. Try again in a moment.");
-      return;
-    }
     resetMessages();
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: async (response) => {
-        setLoading(true);
-        try {
-          await loginGoogle(response.credential);
-          finish();
-        } catch (err) {
-          setError(firebaseAuthMessage(err));
-        } finally {
-          setLoading(false);
-        }
-      },
-    });
-    window.google.accounts.id.prompt((notification) => {
-      if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
-        setError("Google sign-in was blocked. Check popup settings and try again.");
+    setLoading(true);
+    try {
+      const idToken = await signInWithGoogle();
+      await loginGoogle(idToken);
+      finish();
+    } catch (err) {
+      const code = err?.code || "";
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        setError("Google sign-in was cancelled.");
+      } else if (code === "auth/popup-blocked") {
+        setError("The browser blocked the Google window. Allow popups for this site and try again.");
+      } else {
+        setError(firebaseAuthMessage(err));
       }
-    });
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleFacebook() {
