@@ -89,11 +89,14 @@ export async function verifyGoogleOrFirebaseIdToken(idToken: string): Promise<{
   if (!res.ok || !data.sub || !data.email) {
     throw new UnauthorizedException(data.error_description || "Invalid Google token");
   }
-  const allowedAud = [
-    process.env.FIREBASE_PROJECT_ID,
-    process.env.GOOGLE_OAUTH_CLIENT_ID,
-  ].filter(Boolean);
+  const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+  const allowedAud = [process.env.FIREBASE_PROJECT_ID, googleClientId].filter(Boolean);
   if (data.aud && allowedAud.length && !allowedAud.includes(data.aud)) {
+    if (!googleClientId) {
+      throw new UnauthorizedException(
+        "Google sign-in is not configured on the API. Set GOOGLE_OAUTH_CLIENT_ID to the same Web client ID as the website."
+      );
+    }
     throw new UnauthorizedException("Token audience is not this project");
   }
   if (data.email_verified === "false" || data.email_verified === false) {
