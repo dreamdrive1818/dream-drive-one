@@ -79,13 +79,14 @@ body.auth-shell .fade-in-bottom {
   overflow: hidden;
 }
 
-.customer-login-nav {
-  position: absolute;
-  top: 2.2rem;
-  left: 2.2rem;
-  z-index: 6;
+.customer-login-panel-nav {
   display: flex;
   gap: 0.8rem;
+  width: min(460px, 100%);
+  margin: 0 auto;
+  padding: 0.2rem 0 0.8rem;
+  flex-shrink: 0;
+  z-index: 4;
 }
 
 .customer-login-nav-btn {
@@ -94,23 +95,21 @@ body.auth-shell .fade-in-bottom {
   gap: 0.6rem;
   padding: 0.85rem 1.5rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  background: rgba(8, 20, 28, 0.46);
+  border: 1px solid rgba(11, 31, 42, 0.12);
+  background: #0b1f2a;
   color: #f7fbfb;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   font-size: 1.35rem;
   font-weight: 650;
   font-family: inherit;
   line-height: 1;
   cursor: pointer;
   text-decoration: none;
+  box-shadow: 0 4px 14px rgba(11, 31, 42, 0.16);
   transition: background 0.18s, transform 0.18s, border-color 0.18s;
 }
 
 .customer-login-nav-btn:hover {
-  background: rgba(8, 20, 28, 0.68);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: #163040;
   transform: translateY(-1px);
 }
 
@@ -217,18 +216,29 @@ body.auth-shell .fade-in-bottom {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  padding: 3.2rem 2.4rem 4rem;
+  padding: 1.6rem 2.4rem 0;
   background:
     radial-gradient(ellipse at top right, rgba(14, 124, 134, 0.08), transparent 42%),
     #f5f9f8;
-  overflow: auto;
+  overflow: hidden;
   animation: customer-login-fade-up 0.55s ease both;
+}
+
+.customer-login-panel-scroll {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+  padding: 0.4rem 0 4rem;
 }
 
 .customer-login-page--full .customer-login-shell {
   width: min(460px, 100%);
+  margin-block: auto;
   animation: customer-login-fade-up 0.65s ease 0.08s both;
 }
 
@@ -434,6 +444,34 @@ body.auth-shell .fade-in-bottom {
   box-shadow: 0 0 0 3px rgba(14, 124, 134, 0.15);
 }
 
+.customer-login-field input.is-invalid {
+  border-color: #d92d20;
+  background: #fff8f7;
+}
+
+.customer-login-field input.is-invalid:focus {
+  border-color: #d92d20;
+  box-shadow: 0 0 0 3px rgba(217, 45, 32, 0.16);
+}
+
+.customer-login-field-error {
+  margin: 0.55rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+  color: #b42318;
+}
+
+.customer-login-field input::placeholder {
+  color: #5a6d75;
+  opacity: 1;
+}
+
+.customer-login-field-hint {
+  margin: 0.5rem 0 0;
+  font-size: 1.25rem;
+  color: #3e545c;
+}
+
 .customer-login-password-toggle {
   position: absolute;
   right: 0.8rem;
@@ -471,7 +509,9 @@ body.auth-shell .fade-in-bottom {
 }
 
 .customer-login-submit:disabled {
-  opacity: 0.55;
+  background: #7aa8ad;
+  color: #fff;
+  opacity: 1;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -769,15 +809,20 @@ body.auth-shell .fade-in-bottom {
     padding: 3.2rem 2.4rem 2.6rem;
   }
 
-  .customer-login-nav {
-    top: 1.4rem;
-    left: 1.4rem;
+  .customer-login-panel {
+    overflow: visible;
+    padding: 1.6rem 1.6rem 4rem;
+  }
+
+  .customer-login-panel-scroll {
+    overflow: visible;
+    flex: none;
+    padding: 0;
   }
 
   .customer-login-nav-btn {
     padding: 0.75rem 1.25rem;
     font-size: 1.25rem;
-    background: rgba(8, 20, 28, 0.62);
   }
 
   .customer-login-visual-bg {
@@ -834,11 +879,6 @@ body.auth-shell .fade-in-bottom {
 
   .customer-login-shell--compact .customer-login-subtitle {
     display: none;
-  }
-
-  .customer-login-nav {
-    top: 1rem;
-    left: 1rem;
   }
 
   .customer-login-page--full .customer-login-visual {

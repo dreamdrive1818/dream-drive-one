@@ -692,14 +692,12 @@ export class IdentityService {
       await this.audit({ actorId: user.id, action: "auth.login", entityId: user.id, ip });
       return { token: fb.idToken, user };
     } catch (err) {
-      if (this.isPasswordCredentialFailure(err)) {
-        const existing = await prisma.user.findUnique({
-          where: { email: email.toLowerCase().trim() },
-          select: { id: true },
-        });
-        if (!existing) {
-          throw new UnauthorizedException("EMAIL_NOT_FOUND");
-        }
+      const existing = await prisma.user.findUnique({
+        where: { email: email.toLowerCase().trim() },
+        select: { id: true },
+      });
+      if (!existing) {
+        throw new UnauthorizedException("EMAIL_NOT_FOUND");
       }
       throw err;
     }

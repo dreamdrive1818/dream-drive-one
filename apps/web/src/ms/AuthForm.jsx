@@ -42,9 +42,12 @@ export default function AuthForm({
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
@@ -136,6 +139,7 @@ export default function AuthForm({
   function resetMessages() {
     setError("");
     setInfo("");
+    setFieldErrors({});
   }
 
   function finish() {
@@ -143,13 +147,34 @@ export default function AuthForm({
     onSuccess?.();
   }
 
+  function flattenAuthError(err) {
+    const parts = [];
+    const walk = (value) => {
+      if (!value) return;
+      if (typeof value === "string") {
+        parts.push(value);
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+        return;
+      }
+      if (typeof value === "object") {
+        walk(value.message);
+        walk(value.error);
+        walk(value.code);
+      }
+    };
+    walk(err?.message);
+    walk(err?.data);
+    walk(err?.code);
+    return parts.join(" ");
+  }
+
   /** True when the server says this email has no registered account. */
   function isUserNotFoundError(err) {
     const code = err?.code || "";
-    const msg = [err?.message, err?.data?.message]
-      .flat()
-      .filter(Boolean)
-      .join(" ");
+    const msg = flattenAuthError(err);
     return (
       code === "auth/user-not-found" ||
       /EMAIL_NOT_FOUND|auth\/user-not-found|No account found with this email/i.test(
@@ -159,28 +184,40 @@ export default function AuthForm({
   }
 
   function bounceToCreateAccount() {
+    if (!canRegister) {
+      setError("No account found with that email.");
+      return;
+    }
     setMode("register");
     setOtpSent(false);
     setOtpCode("");
     setResendSeconds(0);
     setTabHighlight(true);
+    setError("");
     setInfo("No account found with that email — create one below to get started.");
+    setFieldErrors({});
+  }
+
+  function loginEmailError() {
+    return validateEmail(email);
   }
 
   async function handlePasswordSubmit(e) {
     e.preventDefault();
     resetMessages();
+    const emailErr = loginEmailError();
+    if (emailErr) {
+      setFieldErrors({ email: emailErr });
+      setError(emailErr);
+      return;
+    }
     setLoading(true);
     try {
       await loginWithEmailPassword(email, password);
       finish();
     } catch (err) {
-      if (isUserNotFoundError(err)) {
-        if (canRegister) bounceToCreateAccount();
-        else setError("No account found with that email.");
-      } else {
-        setError(firebaseAuthMessage(err));
-      }
+      if (isUserNotFoundError(err)) bounceToCreateAccount();
+      else setError(firebaseAuthMessage(err));
     } finally {
       setLoading(false);
     }
@@ -189,6 +226,12 @@ export default function AuthForm({
   async function handleOtpSend(e) {
     e?.preventDefault();
     resetMessages();
+    const emailErr = loginEmailError();
+    if (emailErr) {
+      setFieldErrors({ email: emailErr });
+      setError(emailErr);
+      return;
+    }
     setLoading(true);
     try {
       await sendOtp(email);
@@ -196,7 +239,8 @@ export default function AuthForm({
       setResendSeconds(OTP_RESEND_SECONDS);
       setInfo("We sent a verification code to your email.");
     } catch (err) {
-      setError(err.message || "Could not send verification code.");
+      if (isUserNotFoundError(err)) bounceToCreateAccount();
+      else setError(err.message || "Could not send verification code.");
     } finally {
       setLoading(false);
     }
@@ -233,14 +277,23 @@ export default function AuthForm({
   async function handleRegisterSubmit(e) {
     e.preventDefault();
     resetMessages();
-    const mobile = normalizeIndianMobile(phone);
-    if (!/^[6-9]\d{9}$/.test(mobile)) {
-      setError("Enter a valid 10-digit Indian mobile number.");
+    const nextErrors = {
+      fullName: validateFullName(fullName),
+      email: validateEmail(email),
+      phone: validateMobile(phone),
+      password: validatePassword(password),
+      confirmPassword: validateConfirmPassword(password, confirmPassword),
+    };
+    const first = Object.values(nextErrors).find(Boolean);
+    if (first) {
+      setFieldErrors(nextErrors);
+      setError(first);
       return;
     }
+    const mobile = normalizeIndianMobile(phone);
     setLoading(true);
     try {
-      await register(email, password, fullName, mobile);
+      await register(email.trim().toLowerCase(), password, fullName.trim(), mobile);
       finish();
     } catch (err) {
       setError(firebaseAuthMessage(err));
@@ -462,12 +515,17 @@ export default function AuthForm({
                   id={`${idPrefix}-email`}
                   type="email"
                   autoComplete="email"
+                  inputMode="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="you@gmail.com"
                   required
                   disabled={loading}
+                  className={fieldErrors.email ? "is-invalid" : ""}
                 />
+                {fieldErrors.email ? (
+                  <p className="customer-login-field-error">{fieldErrors.email}</p>
+                ) : null}
               </div>
 
               <div className="customer-login-field">
@@ -498,10 +556,20 @@ export default function AuthForm({
               <button
                 type="submit"
                 className="customer-login-submit"
-                disabled={loading || !email.trim() || !password}
+                disabled={loading}
               >
                 {loading ? "Signing in…" : "Sign in"}
               </button>
+              {canRegister ? (
+                <button
+                  type="button"
+                  className="customer-login-link-btn"
+                  onClick={switchToRegister}
+                  disabled={loading}
+                >
+                  Don’t have an account? Create account
+                </button>
+              ) : null}
             </form>
           ) : mode === "register" && canRegister ? (
             <form onSubmit={handleRegisterSubmit} noValidate>
@@ -517,7 +585,11 @@ export default function AuthForm({
                   placeholder="Your name"
                   required
                   disabled={loading}
+                  className={fieldErrors.fullName ? "is-invalid" : ""}
                 />
+                {fieldErrors.fullName ? (
+                  <p className="customer-login-field-error">{fieldErrors.fullName}</p>
+                ) : null}
               </div>
               <div className="customer-login-field">
                 <label htmlFor={`${idPrefix}-register-email`}>Email</label>
@@ -525,12 +597,17 @@ export default function AuthForm({
                   id={`${idPrefix}-register-email`}
                   type="email"
                   autoComplete="email"
+                  inputMode="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="you@gmail.com"
                   required
                   disabled={loading}
+                  className={fieldErrors.email ? "is-invalid" : ""}
                 />
+                {fieldErrors.email ? (
+                  <p className="customer-login-field-error">{fieldErrors.email}</p>
+                ) : null}
               </div>
               <div className="customer-login-field">
                 <label htmlFor={`${idPrefix}-register-phone`}>Mobile</label>
@@ -540,33 +617,96 @@ export default function AuthForm({
                   inputMode="numeric"
                   autoComplete="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(formatMobileInput(e.target.value))}
                   placeholder="10-digit mobile"
                   required
+                  maxLength={14}
                   disabled={loading}
+                  className={fieldErrors.phone ? "is-invalid" : ""}
                 />
+                {fieldErrors.phone ? (
+                  <p className="customer-login-field-error">{fieldErrors.phone}</p>
+                ) : (
+                  <p className="customer-login-field-hint">10-digit Indian number, starting with 6–9.</p>
+                )}
               </div>
               <div className="customer-login-field">
                 <label htmlFor={`${idPrefix}-register-password`}>Password</label>
-                <input
-                  id={`${idPrefix}-register-password`}
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  required
-                  minLength={8}
-                  disabled={loading}
-                />
+                <div className="customer-login-input-wrap">
+                  <input
+                    id={`${idPrefix}-register-password`}
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    required
+                    minLength={8}
+                    disabled={loading}
+                    className={fieldErrors.password ? "is-invalid" : ""}
+                  />
+                  <button
+                    type="button"
+                    className="customer-login-password-toggle"
+                    onClick={() => setShowPassword((v) => !v)}
+                    disabled={loading}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+                {fieldErrors.password ? (
+                  <p className="customer-login-field-error">{fieldErrors.password}</p>
+                ) : null}
+              </div>
+              <div className="customer-login-field">
+                <label htmlFor={`${idPrefix}-register-confirm`}>Confirm password</label>
+                <div className="customer-login-input-wrap">
+                  <input
+                    id={`${idPrefix}-register-confirm`}
+                    type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter your password"
+                    required
+                    minLength={8}
+                    disabled={loading}
+                    className={fieldErrors.confirmPassword ? "is-invalid" : ""}
+                  />
+                  <button
+                    type="button"
+                    className="customer-login-password-toggle"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    disabled={loading}
+                    aria-label={
+                      showConfirmPassword ? "Hide confirm password" : "Show confirm password"
+                    }
+                  >
+                    {showConfirmPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+                {fieldErrors.confirmPassword ? (
+                  <p className="customer-login-field-error">{fieldErrors.confirmPassword}</p>
+                ) : null}
               </div>
               <button
                 type="submit"
                 className="customer-login-submit"
-                disabled={loading || !email.trim() || !password || !fullName.trim() || !phone.trim()}
+                disabled={loading}
               >
                 {loading ? "Creating account…" : "Create account"}
               </button>
+              {canPassword ? (
+                <button
+                  type="button"
+                  className="customer-login-link-btn"
+                  onClick={switchToPassword}
+                  disabled={loading}
+                >
+                  Already have an account? Sign in
+                </button>
+              ) : null}
             </form>
           ) : mode === "otp" && canOtp ? (
             <form onSubmit={otpSent ? handleOtpVerify : handleOtpSend} noValidate>
@@ -578,10 +718,14 @@ export default function AuthForm({
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="you@gmail.com"
                   required
                   disabled={loading || otpSent}
+                  className={fieldErrors.email ? "is-invalid" : ""}
                 />
+                {fieldErrors.email ? (
+                  <p className="customer-login-field-error">{fieldErrors.email}</p>
+                ) : null}
               </div>
 
               {otpSent ? (
@@ -655,6 +799,16 @@ export default function AuthForm({
                     Sign in with password instead
                   </button>
                   ) : null}
+                  {canRegister ? (
+                  <button
+                    type="button"
+                    className="customer-login-link-btn"
+                    onClick={switchToRegister}
+                    disabled={loading}
+                  >
+                    Don’t have an account? Create account
+                  </button>
+                  ) : null}
                 </>
               )}
             </form>
@@ -709,6 +863,58 @@ function normalizeIndianMobile(raw) {
   if (mobile.length === 12 && mobile.startsWith("91")) mobile = mobile.slice(2);
   if (mobile.length === 11 && mobile.startsWith("0")) mobile = mobile.slice(1);
   return mobile;
+}
+
+function formatMobileInput(raw) {
+  return String(raw || "").replace(/[^\d+\s-]/g, "").slice(0, 14);
+}
+
+function validateFullName(raw) {
+  const name = String(raw || "").trim();
+  if (name.length < 2) return "Enter your full name.";
+  if (!/^[a-zA-Z][a-zA-Z .'-]{1,79}$/.test(name)) {
+    return "Name can only include letters, spaces, and hyphens.";
+  }
+  return "";
+}
+
+function validateEmail(raw) {
+  const email = String(raw || "").trim().toLowerCase();
+  if (!email) return "Enter your email address.";
+  if (/[+]{2,}|\s/.test(String(raw || "")) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return "Enter a valid email (for example name@gmail.com).";
+  }
+  if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(email)) {
+    return "Enter a valid email (for example name@gmail.com).";
+  }
+  const domain = email.split("@")[1] || "";
+  if (/gmial\.com|gmal\.com|gmail\.con|gamil\.com|yahooo\.|hotmial\./i.test(domain)) {
+    return "Check the email spelling (did you mean gmail.com?).";
+  }
+  return "";
+}
+
+function validateMobile(raw) {
+  const value = String(raw || "").trim();
+  if (!value) return "Enter your 10-digit mobile number.";
+  if (/[a-zA-Z@]/.test(value)) return "Mobile must be a number, not an email.";
+  const mobile = normalizeIndianMobile(value);
+  if (!/^[6-9]\d{9}$/.test(mobile)) {
+    return "Enter a valid 10-digit Indian mobile number.";
+  }
+  return "";
+}
+
+function validatePassword(raw) {
+  if (!raw) return "Enter a password.";
+  if (raw.length < 8) return "Password must be at least 8 characters.";
+  return "";
+}
+
+function validateConfirmPassword(password, confirm) {
+  if (!confirm) return "Re-enter your password to confirm.";
+  if (password !== confirm) return "Passwords do not match.";
+  return "";
 }
 
 function GoogleIcon() {
