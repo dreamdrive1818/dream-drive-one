@@ -262,29 +262,20 @@ export class NotifyEngine {
       console.log(`[notify:${channel}:skipped] to=${maskRecipient(to)} subject=${subject}`);
       return { ok: false, skipped: true, error: `${channel} channel not configured` };
     }
-    if (!process.env.GMAIL_USER) {
+    const mail = mailTransport();
+    if (!mail) {
       console.log(`[notify:dev] to=${to} subject=${subject} body=${body.slice(0, 500)}`);
       return { ok: true, mocked: true };
     }
+    if ("error" in mail) return { ok: false, error: mail.error };
     try {
       const nodemailer = require("nodemailer") as {
         createTransport: (opts: unknown) => { sendMail: (opts: unknown) => Promise<unknown> };
       };
-      const transport = nodemailer.createTransport({
-        service: "gmail",
-        auth: process.env.GMAIL_REFRESH_TOKEN
-          ? {
-              type: "OAuth2",
-              user: process.env.GMAIL_USER,
-              clientId: process.env.GMAIL_CLIENT_ID,
-              clientSecret: process.env.GMAIL_CLIENT_SECRET,
-              refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-            }
-          : { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-      });
+      const transport = nodemailer.createTransport(mail.transport);
       const html = looksLikeHtml(body) ? body : wrapPlain(body);
       await transport.sendMail({
-        from: `DreamDrive <${process.env.GMAIL_USER}>`,
+        from: mail.from,
         to,
         subject,
         html,
@@ -297,6 +288,52 @@ export class NotifyEngine {
       return { ok: false, error };
     }
   }
+}
+
+/** Hostinger SMTP when SMTP_HOST is set; otherwise the existing Gmail transport. */
+function mailTransport():
+  | { from: string; transport: Record<string, unknown> }
+  | { error: string }
+  | null {
+  const host = process.env.SMTP_HOST?.trim();
+  if (host) {
+    const user = process.env.SMTP_USER?.trim();
+    const pass = process.env.SMTP_PASS?.trim();
+    if (!user || !pass) {
+      return { error: "SMTP_USER and SMTP_PASS are required when SMTP_HOST is set" };
+    }
+    const port = Number(process.env.SMTP_PORT || 465);
+    const secure = process.env.SMTP_SECURE
+      ? process.env.SMTP_SECURE !== "false"
+      : port === 465;
+    return {
+      from: process.env.MAIL_FROM?.trim() || `Dream Drive <${user}>`,
+      transport: {
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+      },
+    };
+  }
+
+  const gmailUser = process.env.GMAIL_USER?.trim();
+  if (!gmailUser) return null;
+  return {
+    from: `Dream Drive <${gmailUser}>`,
+    transport: {
+      service: "gmail",
+      auth: process.env.GMAIL_REFRESH_TOKEN
+        ? {
+            type: "OAuth2",
+            user: gmailUser,
+            clientId: process.env.GMAIL_CLIENT_ID,
+            clientSecret: process.env.GMAIL_CLIENT_SECRET,
+            refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+          }
+        : { user: gmailUser, pass: process.env.GMAIL_APP_PASSWORD },
+    },
+  };
 }
 
 function stringifyData(data: Record<string, string>) {

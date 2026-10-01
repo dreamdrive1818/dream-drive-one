@@ -67,16 +67,6 @@ export default function Login() {
 
   return (
     <div className="customer-login-page customer-login-page--full">
-      <nav className="customer-login-nav" aria-label="Login page">
-        <button type="button" className="customer-login-nav-btn" onClick={goBack}>
-          <span aria-hidden="true">←</span>
-          Back
-        </button>
-        <button type="button" className="customer-login-nav-btn" onClick={goHome}>
-          Home
-        </button>
-      </nav>
-
       <aside className="customer-login-visual" aria-hidden="true">
         <img
           src={VISUAL_STAGE}
@@ -95,7 +85,18 @@ export default function Login() {
       </aside>
 
       <section className="customer-login-panel">
-        <AuthForm idPrefix="page-auth" onSuccess={completeLogin} />
+        <nav className="customer-login-panel-nav" aria-label="Login page">
+          <button type="button" className="customer-login-nav-btn" onClick={goBack}>
+            <span aria-hidden="true">←</span>
+            Back
+          </button>
+          <button type="button" className="customer-login-nav-btn" onClick={goHome}>
+            Home
+          </button>
+        </nav>
+        <div className="customer-login-panel-scroll">
+          <AuthForm idPrefix="page-auth" onSuccess={completeLogin} />
+        </div>
       </section>
     </div>
   );
