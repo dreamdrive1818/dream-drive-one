@@ -9,8 +9,15 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { remember } from "../../lib/cache";
 import { uploadToCloudinary } from "../../lib/cloudinary";
 import { upsertPublicLead } from "../../lib/leads";
+import {
+  AUTH_SETTING_DEFAULTS,
+  assertAtLeastOneSignIn,
+  getAuthSettings,
+  invalidateAuthSettingsCache,
+} from "../../lib/auth-settings";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MEDIA_MAX_BYTES = 8 * 1024 * 1024;
@@ -73,6 +80,15 @@ function date(value: unknown) {
   const d = new Date(String(value));
   if (Number.isNaN(d.getTime())) throw new BadRequestException("invalid date");
   return d;
+}
+
+function parseToggle(value: unknown): boolean | undefined {
+  if (value == null || value === "") return undefined;
+  if (typeof value === "boolean") return value;
+  const raw = String(value).toLowerCase().trim();
+  if (raw === "true" || raw === "1" || raw === "on") return true;
+  if (raw === "false" || raw === "0" || raw === "off") return false;
+  return undefined;
 }
 
 function formatDate(value: Date | null | undefined) {
@@ -255,6 +271,7 @@ const SETTING_DEFAULTS: Record<string, { label: string; group: string; value: st
   whatsapp:  { label: "WhatsApp",      group: "contact", value: process.env.PUBLIC_WHATSAPP   || "919942027772" },
   email:     { label: "Email",         group: "contact", value: process.env.PUBLIC_EMAIL       || "Dreamdrive1818@gmail.com" },
   address:   { label: "Address",       group: "contact", value: process.env.PUBLIC_ADDRESS     || "105 Jagriti Bhawan, near Adarsh Nagar, Bariatu, Ranchi - 834009 Jharkhand" },
+  ...AUTH_SETTING_DEFAULTS,
 };
 
 @Injectable()
@@ -275,7 +292,10 @@ export class CmsService {
 
   async publicConfig() {
     await this.seedSettings();
-    const rows = await prisma.siteSetting.findMany({ where: { group: "contact" } });
+    const [rows, auth] = await Promise.all([
+      prisma.siteSetting.findMany({ where: { group: "contact" } }),
+      getAuthSettings(),
+    ]);
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     return {
       siteName: map.siteName || SETTING_DEFAULTS.siteName.value,
@@ -283,6 +303,7 @@ export class CmsService {
       whatsapp: map.whatsapp || SETTING_DEFAULTS.whatsapp.value,
       email:    map.email    || SETTING_DEFAULTS.email.value,
       address:  map.address  || SETTING_DEFAULTS.address.value,
+      auth,
     };
   }
 
@@ -306,6 +327,14 @@ export class CmsService {
   //   body = { siteName: "Dream Drive", phone: "+91-…", … }
   // -------------------------------------------------------------------------
   async adminUpdateSettings(body: Record<string, string>, actorId?: string) {
+    await this.seedSettings();
+    const currentAuth = await getAuthSettings();
+    assertAtLeastOneSignIn({
+      password: parseToggle(body["auth.password"]) ?? currentAuth.password,
+      otp: parseToggle(body["auth.otp"]) ?? currentAuth.otp,
+      google: parseToggle(body["auth.google"]) ?? currentAuth.google,
+      facebook: parseToggle(body["auth.facebook"]) ?? currentAuth.facebook,
+    });
     const ops = Object.entries(body).map(([key, value]) => {
       const meta = SETTING_DEFAULTS[key];
       return prisma.siteSetting.upsert({
@@ -316,17 +345,25 @@ export class CmsService {
           label:  meta?.label ?? key,
           group:  meta?.group ?? "contact",
         },
-        update: { value: String(value ?? "") },
+        update: {
+          value: String(value ?? ""),
+          ...(meta ? { label: meta.label, group: meta.group } : {}),
+        },
       });
     });
     await Promise.all(ops);
+    await invalidateAuthSettingsCache();
     await this.audit(actorId, "cms.settings.update", undefined, body as unknown as import("@prisma/client").Prisma.InputJsonValue);
     return this.adminGetSettings();
   }
 
   async home() {
+    return remember("dd:home", 60, () => this.homeUncached());
+  }
+
+  private async homeUncached() {
     const now = new Date();
-    const [page, banners, blogs, testimonials, fleet] = await Promise.all([
+    const [page, banners, blogs, testimonials, fleet, config] = await Promise.all([
       prisma.cmsPage.findFirst({
         where: { slug: "home", published: true },
         include: { metadata: true },
@@ -349,6 +386,7 @@ export class CmsService {
         orderBy: { displayOrder: "asc" },
         take: 8,
       }),
+      this.publicConfig(),
     ]);
     return {
       page: page ? presentPage(page) : null,
@@ -372,7 +410,7 @@ export class CmsService {
         images: car.images.map((img) => img.url),
         pricePaise: car.pricingRules[0]?.dailyPaise ?? 0,
       })),
-      config: this.publicConfig(),
+      config,
     };
   }
 

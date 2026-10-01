@@ -2,9 +2,51 @@
 
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck, faCopy } from "@fortawesome/free-solid-svg-icons";
 import { api, getToken } from "../../api";
 import { formatWhen, prettyStatus, rupees, statusTone } from "./format";
 import { Skeleton, SkeletonText } from "../../../components/Skeleton/Skeleton";
+
+async function copyToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const el = document.createElement("textarea");
+  el.value = text;
+  el.setAttribute("readonly", "");
+  el.style.position = "fixed";
+  el.style.opacity = "0";
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand("copy");
+  document.body.removeChild(el);
+}
+
+function trackingUrl(publicId) {
+  if (typeof window === "undefined") return `/track/${publicId}`;
+  return `${window.location.origin}/track/${publicId}`;
+}
+
+function orderDetailsText(booking) {
+  return [
+    `Dream Drive booking ${booking.publicId}`,
+    `Status: ${prettyStatus(booking.status)}`,
+    `Amount: ${rupees(booking.amountPaise)}`,
+    `Trip: ${formatWhen(booking.startsAt)} → ${formatWhen(booking.endsAt)}`,
+    booking.rentalType ? `Type: ${booking.rentalType.replace(/_/g, " ")}` : null,
+    booking.vehicle?.registration ? `Vehicle: ${booking.vehicle.registration}` : null,
+    booking.driverAssignment?.driver?.fullName
+      ? `Driver: ${booking.driverAssignment.driver.fullName}${
+          booking.driverAssignment.driver.phone ? ` (${booking.driverAssignment.driver.phone})` : ""
+        }`
+      : null,
+    `Track: ${trackingUrl(booking.publicId)}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
 export default function AccountBookingDetail() {
   const { id } = useParams();
@@ -14,6 +56,7 @@ export default function AccountBookingDetail() {
   const [rating, setRating] = useState(5);
   const [reviewBody, setReviewBody] = useState("");
   const [reviewInfo, setReviewInfo] = useState("");
+  const [copied, setCopied] = useState("");
 
   function load() {
     api(`/v1/bookings/${id}`)
@@ -22,6 +65,16 @@ export default function AccountBookingDetail() {
   }
 
   useEffect(load, [id]);
+
+  async function copyValue(text, key) {
+    try {
+      await copyToClipboard(text);
+      setCopied(key);
+      window.setTimeout(() => setCopied((current) => (current === key ? "" : current)), 2000);
+    } catch {
+      setCopied("");
+    }
+  }
 
   async function cancel() {
     if (!window.confirm("Cancel this booking?")) return;
@@ -92,7 +145,18 @@ export default function AccountBookingDetail() {
       <p className="account-hint">
         <Link to="/account/bookings">← All bookings</Link>
       </p>
-      <h1>{booking.publicId}</h1>
+      <div className="account-title-row">
+        <h1>{booking.publicId}</h1>
+        <button
+          type="button"
+          className="account-copy-btn"
+          onClick={() => copyValue(booking.publicId, "id")}
+          aria-label="Copy booking ID"
+        >
+          <FontAwesomeIcon icon={copied === "id" ? faCheck : faCopy} />
+          {copied === "id" ? "Copied" : "Copy ID"}
+        </button>
+      </div>
       <p className="account-lead">
         <span className={`account-pill ${statusTone(booking.status)}`}>{prettyStatus(booking.status)}</span>
         {" · "}
@@ -211,6 +275,14 @@ export default function AccountBookingDetail() {
           <Link className="account-btn ghost" to={`/track/${booking.publicId}`}>
             Open tracking
           </Link>
+          <button
+            type="button"
+            className="account-btn ghost"
+            onClick={() => copyValue(orderDetailsText(booking), "details")}
+          >
+            <FontAwesomeIcon icon={copied === "details" ? faCheck : faCopy} />
+            {copied === "details" ? "Copied details" : "Copy details"}
+          </button>
           <Link className="account-btn ghost" to="/account/tickets">
             Need help?
           </Link>

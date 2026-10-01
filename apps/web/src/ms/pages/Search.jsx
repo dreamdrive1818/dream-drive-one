@@ -471,7 +471,7 @@ export default function Search() {
                 </button>
 
                 <p className="fleet-search-count">
-                  {loading
+                  {loading || citiesLoading
                     ? "Loading results…"
                     : searched
                       ? `${sortedCars.length} car${
@@ -519,7 +519,7 @@ export default function Search() {
               </div>
             )}
 
-            {loading && (
+            {(loading || citiesLoading) && (
               <div
                 className="fleet-search-skeletons"
                 aria-live="polite"

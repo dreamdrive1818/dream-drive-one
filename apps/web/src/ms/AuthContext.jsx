@@ -22,7 +22,6 @@ export function AuthProvider({ children }) {
     if (nextUser) {
       setUser(nextUser);
       setReady(true);
-      return nextUser;
     }
     if (!getToken()) {
       setUser(null);
@@ -35,6 +34,7 @@ export function AuthProvider({ children }) {
       setUser(me);
       return me;
     } catch {
+      if (nextUser) return nextUser;
       setUser(null);
       setToken("");
       return null;
@@ -104,10 +104,10 @@ export function AuthProvider({ children }) {
   );
 
   const register = useCallback(
-    async (email, password, fullName) => {
+    async (email, password, fullName, phone) => {
       const data = await api("/v1/auth/register", {
         method: "POST",
-        body: { email, password, fullName },
+        body: { email, password, fullName, phone },
       });
       if (data?.error) throw new Error(data.error);
       const me = await applySession(data.token, data.user);
@@ -147,10 +147,17 @@ export function AuthProvider({ children }) {
 
   const loginDev = useCallback(
     async (email) => {
-      setToken(`dev:${email.trim().toLowerCase()}`);
+      const data = await api("/v1/auth/dev", {
+        method: "POST",
+        body: { email: email.trim().toLowerCase() },
+        retries: 3,
+      });
+      if (data?.error) throw new Error(data.error);
+      const me = await applySession(data.token, data.user);
+      if (me) return me;
       return requireSession(refresh);
     },
-    [refresh, requireSession]
+    [applySession, refresh, requireSession]
   );
 
   const sendOtp = useCallback(async (email) => {

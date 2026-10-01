@@ -6,6 +6,28 @@ const LocalContext = createContext();
 
 const EMPTY_BANNERS = { hero: [], strip: [], promo: [], side: [] };
 
+const DEFAULT_AUTH = {
+  password: true,
+  otp: true,
+  register: true,
+  google: true,
+  facebook: false,
+  otpCreatesAccount: true,
+  socialCreatesAccount: true,
+};
+
+function normalizeAuth(auth = {}) {
+  return {
+    password: auth.password !== false,
+    otp: auth.otp !== false,
+    register: auth.register !== false,
+    google: auth.google !== false,
+    facebook: Boolean(auth.facebook),
+    otpCreatesAccount: auth.otpCreatesAccount !== false,
+    socialCreatesAccount: auth.socialCreatesAccount !== false,
+  };
+}
+
 export const LocalProvider = ({ children }) => {
   const [currentTFN, setCurrentTFN] = useState({ intlFormat: "", localFormat: "" });
   const [cms, setCms] = useState({
@@ -15,7 +37,7 @@ export const LocalProvider = ({ children }) => {
     testimonials: [],
     fleet: [],
   });
-
+  const [auth, setAuth] = useState(DEFAULT_AUTH);
   const [webinfo, setwebinfo] = useState({
     name: "Dream Drive",
     phone: " ",
@@ -55,6 +77,7 @@ export const LocalProvider = ({ children }) => {
       email: data.email || prev.email,
       address: data.address || prev.address,
     }));
+    if (data.auth) setAuth(normalizeAuth(data.auth));
   }
 
   useEffect(() => {
@@ -125,12 +148,13 @@ export const LocalProvider = ({ children }) => {
       suppressSeo,
       setSuppressSeo,
       cms,
+      auth,
       heroBanner,
       stripBanner,
       promoBanner,
       campaignActive,
     }),
-    [webinfo, suppressSeo, cms, heroBanner, stripBanner, promoBanner, campaignActive]
+    [webinfo, suppressSeo, cms, auth, heroBanner, stripBanner, promoBanner, campaignActive]
   );
 
   return <LocalContext.Provider value={value}>{children}</LocalContext.Provider>;

@@ -27,7 +27,7 @@ const RENTAL_TYPES = [
   "ONE_WAY",
 ];
 
-export default function CarsPage() {
+export default function CarsPage({ hideTitle = false }) {
   const [rows, setRows] = useState([]);
   const [cities, setCities] = useState([]);
   const [form, setForm] = useState(EMPTY);
@@ -143,7 +143,7 @@ export default function CarsPage() {
 
   return (
     <div className="stack">
-      <h2>Car models</h2>
+      {!hideTitle && <h2>Car models</h2>}
       {error && <p className="err">{error}</p>}
 
       <form className="card" onSubmit={save}>

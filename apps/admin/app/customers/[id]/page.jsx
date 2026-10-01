@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { api } from "../../../lib/api";
+import { isStaff } from "../../../lib/rbac";
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
@@ -20,6 +22,10 @@ export default function CustomerDetailPage() {
     setError("");
     try {
       const row = await api(`/v1/admin/customers/${id}`);
+      if (isStaff(row.roles || [])) {
+        router.replace(`/staff/${id}`);
+        return;
+      }
       setData(row);
       setName(row.fullName || "");
       if (row?.wallet) setWallet(row.wallet);

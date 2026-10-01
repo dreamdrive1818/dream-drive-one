@@ -35,14 +35,9 @@
 
 .car-detail-gallery {
   position: sticky;
-  /* html font-size is 10px: clear sticky promo (~4.4rem) + header (~9.6rem) + gap */
-  top: 15.2rem;
+  top: calc(var(--dd-chrome-h, 9.6rem) + 0.8rem);
   align-self: start;
   z-index: 0;
-}
-
-body:not(:has(.monsoon-promo-bar)) .car-detail-gallery {
-  top: 10.8rem;
 }
 
 .car-detail-gallery-main {
@@ -156,11 +151,7 @@ body:not(:has(.monsoon-promo-bar)) .car-detail-gallery {
   box-shadow: var(--shadow-soft, 0 4px 10px rgba(0, 0, 0, 0.08));
   padding: 1.5rem;
   position: sticky;
-  top: 15.2rem;
-}
-
-body:not(:has(.monsoon-promo-bar)) .car-detail-panel {
-  top: 10.8rem;
+  top: calc(var(--dd-chrome-h, 9.6rem) + 0.8rem);
 }
 
 .car-detail-panel h2 {
@@ -725,6 +716,10 @@ body:not(:has(.monsoon-promo-bar)) .car-detail-panel {
 }
 
 @media (max-width: 560px) {
+  .car-detail-page {
+    padding: 1.4rem 1.2rem 4.4rem;
+  }
+
   .car-detail-others-head {
     align-items: flex-start;
     flex-direction: column;

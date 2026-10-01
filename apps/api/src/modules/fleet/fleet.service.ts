@@ -3,6 +3,7 @@ import { Prisma, VehicleStatus, BookingStatus } from "@prisma/client";
 import type { AuthUser } from "../../lib/auth";
 import { isSuper } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
+import { remember, invalidateCatalogCache } from "../../lib/cache";
 import { internalFetch, serviceUrls } from "../../lib/http";
 import {
   DRIVER_ASSIGNED_STATUSES,
@@ -26,11 +27,13 @@ import {
 @Injectable()
 export class FleetEngine {
   cities() {
-    return prisma.city.findMany({
-      where: { active: true },
-      include: { branches: { where: { active: true } } },
-      orderBy: { name: "asc" },
-    });
+    return remember("dd:cities", 180, () =>
+      prisma.city.findMany({
+        where: { active: true },
+        include: { branches: { where: { active: true } } },
+        orderBy: { name: "asc" },
+      })
+    );
   }
 
   adminCities(user: AuthUser) {
@@ -61,10 +64,12 @@ export class FleetEngine {
     const slug = slugify(body.slug || name);
     if (!name || !state || !slug) throw new BadRequestException("name, slug and state are required");
     try {
-      return await prisma.city.create({
+      const city = await prisma.city.create({
         data: { name, slug, state, active: body.active !== false },
         include: { branches: true },
       });
+      await invalidateCatalogCache();
+      return city;
     } catch (err) {
       this.rethrowUniqueSlug(err);
     }
@@ -152,10 +157,12 @@ export class FleetEngine {
     const name = String(body.name || "").trim();
     const address = String(body.address || "").trim();
     if (!name || !address) throw new BadRequestException("name and address are required");
-    return prisma.branch.create({
+    const created = await prisma.branch.create({
       data: { cityId, name, address, active: body.active !== false },
       include: { city: true },
     });
+    await invalidateCatalogCache();
+    return created;
   }
 
   async updateBranch(user: AuthUser, id: string, body: Record<string, unknown>) {

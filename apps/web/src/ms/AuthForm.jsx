@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { firebaseAuthMessage, isLocalDev } from "./authUtils";
+import { useLocalContext } from "../context/LocalContext";
 import "./pages/Login.css";
 
 const OTP_RESEND_SECONDS = 60;
@@ -28,11 +29,21 @@ export default function AuthForm({
     loginGoogle,
     loginFacebook,
   } = useAuth();
+  const { auth: authFlags } = useLocalContext() || {};
+  const canPassword = authFlags?.password !== false;
+  const canOtp = authFlags?.otp !== false;
+  const canRegister = authFlags?.register !== false;
+  const canGoogle = authFlags?.google !== false;
+  const canFacebook = Boolean(authFlags?.facebook);
+  const hasSocial = canGoogle || canFacebook;
+  const hasEmailAuth = canPassword || canOtp || canRegister;
+  const anySignIn = canPassword || canOtp || canGoogle || canFacebook;
 
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -40,21 +51,32 @@ export default function AuthForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [tabHighlight, setTabHighlight] = useState(false);
   const [devEmail, setDevEmail] = useState("customer@dreamdrive.test");
   const [showDevLogin, setShowDevLogin] = useState(false);
   const [fbReady, setFbReady] = useState(false);
   const succeed = useRef(false);
+  const registerNameRef = useRef(null);
 
   useEffect(() => {
     setShowDevLogin(isLocalDev());
   }, []);
 
   useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
+    const preferred = initialMode;
+    const next =
+      (preferred === "password" && canPassword && "password") ||
+      (preferred === "otp" && canOtp && "otp") ||
+      (preferred === "register" && canRegister && "register") ||
+      (canPassword && "password") ||
+      (canOtp && "otp") ||
+      (canRegister && "register") ||
+      "password";
+    setMode(next);
+  }, [initialMode, canPassword, canOtp, canRegister]);
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || typeof window === "undefined") return undefined;
+    if (!canGoogle || !GOOGLE_CLIENT_ID || typeof window === "undefined") return undefined;
     if (document.getElementById("dd-google-gsi")) return undefined;
     const script = document.createElement("script");
     script.id = "dd-google-gsi";
@@ -62,10 +84,10 @@ export default function AuthForm({
     script.async = true;
     document.head.appendChild(script);
     return undefined;
-  }, []);
+  }, [canGoogle]);
 
   useEffect(() => {
-    if (!FACEBOOK_APP_ID || typeof window === "undefined") return undefined;
+    if (!canFacebook || !FACEBOOK_APP_ID || typeof window === "undefined") return undefined;
 
     window.fbAsyncInit = function fbAsyncInit() {
       window.FB.init({
@@ -89,7 +111,7 @@ export default function AuthForm({
     script.defer = true;
     document.head.appendChild(script);
     return undefined;
-  }, []);
+  }, [canFacebook]);
 
   useEffect(() => {
     if (resendSeconds <= 0) return undefined;
@@ -98,6 +120,18 @@ export default function AuthForm({
     }, 1000);
     return () => clearInterval(timer);
   }, [resendSeconds]);
+
+  // Clear the tab-highlight pulse after animation completes
+  useEffect(() => {
+    if (!tabHighlight) return undefined;
+    const t = setTimeout(() => setTabHighlight(false), 1600);
+    return () => clearTimeout(t);
+  }, [tabHighlight]);
+
+  useEffect(() => {
+    if (mode !== "register" || !tabHighlight) return;
+    registerNameRef.current?.focus();
+  }, [mode, tabHighlight]);
 
   function resetMessages() {
     setError("");
@@ -109,6 +143,30 @@ export default function AuthForm({
     onSuccess?.();
   }
 
+  /** True when the server says this email has no registered account. */
+  function isUserNotFoundError(err) {
+    const code = err?.code || "";
+    const msg = [err?.message, err?.data?.message]
+      .flat()
+      .filter(Boolean)
+      .join(" ");
+    return (
+      code === "auth/user-not-found" ||
+      /EMAIL_NOT_FOUND|auth\/user-not-found|No account found with this email/i.test(
+        msg
+      )
+    );
+  }
+
+  function bounceToCreateAccount() {
+    setMode("register");
+    setOtpSent(false);
+    setOtpCode("");
+    setResendSeconds(0);
+    setTabHighlight(true);
+    setInfo("No account found with that email — create one below to get started.");
+  }
+
   async function handlePasswordSubmit(e) {
     e.preventDefault();
     resetMessages();
@@ -117,7 +175,12 @@ export default function AuthForm({
       await loginWithEmailPassword(email, password);
       finish();
     } catch (err) {
-      setError(firebaseAuthMessage(err));
+      if (isUserNotFoundError(err)) {
+        if (canRegister) bounceToCreateAccount();
+        else setError("No account found with that email.");
+      } else {
+        setError(firebaseAuthMessage(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -170,9 +233,14 @@ export default function AuthForm({
   async function handleRegisterSubmit(e) {
     e.preventDefault();
     resetMessages();
+    const mobile = normalizeIndianMobile(phone);
+    if (!/^[6-9]\d{9}$/.test(mobile)) {
+      setError("Enter a valid 10-digit Indian mobile number.");
+      return;
+    }
     setLoading(true);
     try {
-      await register(email, password, fullName);
+      await register(email, password, fullName, mobile);
       finish();
     } catch (err) {
       setError(firebaseAuthMessage(err));
@@ -296,8 +364,12 @@ export default function AuthForm({
         <p className="customer-login-subtitle">{lead}</p>
       </header>
 
-      <div className="customer-login-card">
+        <div className="customer-login-card">
+        {anySignIn ? (
+          <>
+        {hasSocial ? (
         <div className="customer-login-social">
+          {canGoogle ? (
           <button
             type="button"
             className="customer-login-social-btn customer-login-social-btn--google"
@@ -307,6 +379,8 @@ export default function AuthForm({
             <GoogleIcon />
             Continue with Google
           </button>
+          ) : null}
+          {canFacebook ? (
           <button
             type="button"
             className="customer-login-social-btn customer-login-social-btn--facebook"
@@ -316,13 +390,19 @@ export default function AuthForm({
             <FacebookIcon />
             Continue with Facebook
           </button>
+          ) : null}
         </div>
+        ) : null}
 
+        {hasSocial && hasEmailAuth ? (
         <div className="customer-login-divider" role="separator">
           <span>or continue with email</span>
         </div>
+        ) : null}
 
+        {hasEmailAuth && (Number(canPassword) + Number(canOtp) + Number(canRegister) > 1) ? (
         <div className="customer-login-tabs" role="tablist" aria-label="Sign-in method">
+          {canPassword ? (
           <button
             type="button"
             role="tab"
@@ -333,6 +413,8 @@ export default function AuthForm({
           >
             Password
           </button>
+          ) : null}
+          {canOtp ? (
           <button
             type="button"
             role="tab"
@@ -343,17 +425,21 @@ export default function AuthForm({
           >
             Email OTP
           </button>
+          ) : null}
+          {canRegister ? (
           <button
             type="button"
             role="tab"
             aria-selected={mode === "register"}
-            className={`customer-login-tab${mode === "register" ? " is-active" : ""}`}
+            className={`customer-login-tab${mode === "register" ? " is-active" : ""}${tabHighlight ? " is-highlight" : ""}`}
             onClick={switchToRegister}
             disabled={loading}
           >
             Create account
           </button>
+          ) : null}
         </div>
+        ) : null}
 
         {error && (
           <p className="customer-login-error" role="alert">
@@ -366,8 +452,9 @@ export default function AuthForm({
           </p>
         )}
 
+        {hasEmailAuth ? (
         <div key={mode} className="customer-login-form-stage">
-          {mode === "password" ? (
+          {mode === "password" && canPassword ? (
             <form onSubmit={handlePasswordSubmit} noValidate>
               <div className="customer-login-field">
                 <label htmlFor={`${idPrefix}-email`}>Email</label>
@@ -416,11 +503,12 @@ export default function AuthForm({
                 {loading ? "Signing in…" : "Sign in"}
               </button>
             </form>
-          ) : mode === "register" ? (
+          ) : mode === "register" && canRegister ? (
             <form onSubmit={handleRegisterSubmit} noValidate>
               <div className="customer-login-field">
                 <label htmlFor={`${idPrefix}-register-name`}>Full name</label>
                 <input
+                  ref={registerNameRef}
                   id={`${idPrefix}-register-name`}
                   type="text"
                   autoComplete="name"
@@ -445,6 +533,20 @@ export default function AuthForm({
                 />
               </div>
               <div className="customer-login-field">
+                <label htmlFor={`${idPrefix}-register-phone`}>Mobile</label>
+                <input
+                  id={`${idPrefix}-register-phone`}
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="10-digit mobile"
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="customer-login-field">
                 <label htmlFor={`${idPrefix}-register-password`}>Password</label>
                 <input
                   id={`${idPrefix}-register-password`}
@@ -461,12 +563,12 @@ export default function AuthForm({
               <button
                 type="submit"
                 className="customer-login-submit"
-                disabled={loading || !email.trim() || !password || !fullName.trim()}
+                disabled={loading || !email.trim() || !password || !fullName.trim() || !phone.trim()}
               >
                 {loading ? "Creating account…" : "Create account"}
               </button>
             </form>
-          ) : (
+          ) : mode === "otp" && canOtp ? (
             <form onSubmit={otpSent ? handleOtpVerify : handleOtpSend} noValidate>
               <div className="customer-login-field">
                 <label htmlFor={`${idPrefix}-otp-email`}>Email</label>
@@ -522,6 +624,7 @@ export default function AuthForm({
                       : "Resend verification code"}
                   </button>
 
+                  {canPassword ? (
                   <button
                     type="button"
                     className="customer-login-link-btn"
@@ -530,6 +633,7 @@ export default function AuthForm({
                   >
                     Sign in with password instead
                   </button>
+                  ) : null}
                 </>
               ) : (
                 <>
@@ -541,6 +645,7 @@ export default function AuthForm({
                     {loading ? "Sending…" : "Send verification code"}
                   </button>
 
+                  {canPassword ? (
                   <button
                     type="button"
                     className="customer-login-link-btn"
@@ -549,11 +654,19 @@ export default function AuthForm({
                   >
                     Sign in with password instead
                   </button>
+                  ) : null}
                 </>
               )}
             </form>
-          )}
+          ) : null}
         </div>
+        ) : null}
+          </>
+        ) : (
+          <p className="customer-login-info" role="status">
+            Customer sign-in is temporarily unavailable. Please try again later or call the branch.
+          </p>
+        )}
 
         {showDevLogin && !compact && (
           <details className="customer-login-dev" open>
@@ -588,6 +701,14 @@ export default function AuthForm({
       </div>
     </div>
   );
+}
+
+function normalizeIndianMobile(raw) {
+  const digits = String(raw || "").replace(/\D/g, "");
+  let mobile = digits;
+  if (mobile.length === 12 && mobile.startsWith("91")) mobile = mobile.slice(2);
+  if (mobile.length === 11 && mobile.startsWith("0")) mobile = mobile.slice(1);
+  return mobile;
 }
 
 function GoogleIcon() {

@@ -19,12 +19,53 @@ const NAV_LINKS = [
   { label: "FAQs", route: "/faq" },
 ];
 
+function userDisplayName(user) {
+  const full = String(user?.fullName || user?.profile?.fullName || "").trim();
+  if (full) return full;
+  const email = String(user?.email || "").trim();
+  if (email.includes("@")) return email.split("@")[0];
+  return "Account";
+}
+
+function userInitials(name) {
+  const parts = String(name)
+    .replace(/[._-]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return String(parts[0] || "U").slice(0, 2).toUpperCase();
+}
+
+function userFirstName(name) {
+  return String(name).trim().split(/\s+/)[0] || name;
+}
+
+function UserAvatar({ name, photoUrl }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const showPhoto = Boolean(photoUrl) && !imgFailed;
+  return (
+    <span className="dd-header-avatar" aria-hidden="true">
+      {showPhoto ? (
+        <img src={photoUrl} alt="" onError={() => setImgFailed(true)} />
+      ) : (
+        userInitials(name)
+      )}
+    </span>
+  );
+}
+
 const Header = () => {
   const navigate = useNavigate();
   const auth = useAuth();
   const authReady = Boolean(auth?.ready);
   const signedIn = Boolean(auth?.user);
-  const authLabel = !authReady ? "…" : signedIn ? "Account" : "Sign in";
+  const displayName = signedIn ? userDisplayName(auth.user) : "";
+  const firstName = signedIn ? userFirstName(displayName) : "";
+  const photoUrl = auth?.user?.photoUrl || auth?.user?.avatarUrl || auth?.user?.picture || "";
+  const authLabel = !authReady ? "…" : signedIn ? firstName : "Sign in";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { webinfo } = useLocalContext();
@@ -96,12 +137,14 @@ const Header = () => {
           </button>
           <button
             type="button"
-            className="dd-header-text"
+            className={`dd-header-text${signedIn ? " dd-header-account" : ""}`}
             onClick={goAuth}
             disabled={!authReady}
             aria-busy={!authReady}
+            title={signedIn ? displayName : "Sign in"}
           >
-            {authLabel}
+            {signedIn ? <UserAvatar name={displayName} photoUrl={photoUrl} /> : null}
+            <span className="dd-header-account-name">{authLabel}</span>
           </button>
           <a
             href={`https://wa.me/${phoneNumber}`}
@@ -155,8 +198,23 @@ const Header = () => {
             <button type="button" onClick={() => handleRoute("/contact")}>
               Contact
             </button>
-            <button type="button" onClick={goAuth} disabled={!authReady}>
-              {authLabel}
+            <button
+              type="button"
+              className={signedIn ? "dd-header-drawer-account" : undefined}
+              onClick={goAuth}
+              disabled={!authReady}
+            >
+              {signedIn ? <UserAvatar name={displayName} photoUrl={photoUrl} /> : null}
+              <span>
+                {signedIn ? (
+                  <>
+                    <strong>{displayName}</strong>
+                    <em>{auth.user?.email || "Account"}</em>
+                  </>
+                ) : (
+                  authLabel
+                )}
+              </span>
             </button>
           </nav>
           <a

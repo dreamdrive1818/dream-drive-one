@@ -19,6 +19,7 @@ import {
   clientIp,
   currentUser,
   requireRoles,
+  requireStaff,
 } from "../../lib/auth";
 import { internalFetch, serviceUrls } from "../../lib/http";
 
@@ -54,10 +55,27 @@ export class IdentityController {
     return this.identity.loginWithPassword(body.email, body.password, clientIp(req));
   }
 
+  @Post("v1/auth/staff-login")
+  staffLogin(
+    @Req() req: Request,
+    @Body() body: { email?: string; password?: string }
+  ) {
+    if (!body?.email || !body?.password) {
+      throw new BadRequestException("email and password required");
+    }
+    return this.identity.loginStaffWithPassword(body.email, body.password, clientIp(req));
+  }
+
+  @Post("v1/auth/dev")
+  devLogin(@Req() req: Request, @Body() body: { email?: string }) {
+    if (!body?.email) throw new BadRequestException("email required");
+    return this.identity.loginWithDevEmail(body.email, clientIp(req));
+  }
+
   @Post("v1/auth/register")
   register(
     @Req() req: Request,
-    @Body() body: { email?: string; password?: string; fullName?: string }
+    @Body() body: { email?: string; password?: string; fullName?: string; phone?: string }
   ) {
     if (!body?.email || !body?.password) {
       throw new BadRequestException("email and password required");
@@ -66,7 +84,8 @@ export class IdentityController {
       body.email,
       body.password,
       body.fullName,
-      clientIp(req)
+      clientIp(req),
+      body.phone
     );
   }
 
@@ -205,12 +224,14 @@ export class IdentityController {
     @Query("q") q?: string,
     @Query("take") take?: string,
     @Query("staff") staff?: string,
+    @Query("customers") customers?: string,
     @Query("role") role?: string
   ) {
     requireRoles(req, "SUPPORT", "SALES", "CITY_MANAGER", "SUPER_ADMIN");
     const actor = currentUser(req);
     return this.identity.listUsers(actor, q, take ? Number(take) : 100, {
       staff: staff === "1" || staff === "true",
+      customers: customers === "1" || customers === "true",
       role,
     });
   }
@@ -250,9 +271,13 @@ export class IdentityController {
     body: {
       email?: string;
       fullName?: string;
+      password?: string;
+      generatePassword?: boolean;
       roles?: RoleName[];
       cityId?: string;
       branchId?: string;
+      phone?: string;
+      salaryInr?: number | null;
     }
   ) {
     const actor = requireRoles(req, "SUPER_ADMIN", "CITY_MANAGER");
@@ -262,12 +287,32 @@ export class IdentityController {
       {
         email: body.email,
         fullName: body.fullName,
+        password: body.password,
+        generatePassword: body.generatePassword,
         roles: body.roles,
         cityId: body.cityId,
         branchId: body.branchId,
+        phone: body.phone,
+        salaryInr: body.salaryInr,
       },
       clientIp(req)
     );
+  }
+
+  @Get("v1/admin/staff/:id")
+  staffProfile(@Req() req: Request, @Param("id") id: string) {
+    const actor = requireStaff(req);
+    return this.identity.staffProfile(id, actor);
+  }
+
+  @Patch("v1/admin/staff/:id/hr")
+  updateStaffHr(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { phone?: string | null; salaryInr?: number | null }
+  ) {
+    const actor = requireRoles(req, "SUPER_ADMIN");
+    return this.identity.updateStaffHr(actor.id, id, body, clientIp(req));
   }
 
   @Patch("v1/admin/users/:id/roles")
@@ -295,6 +340,23 @@ export class IdentityController {
   disable(@Req() req: Request, @Param("id") id: string) {
     const actor = requireRoles(req, "SUPER_ADMIN");
     return this.identity.disable(actor.id, id, clientIp(req));
+  }
+
+  @Post("v1/admin/users/:id/enable")
+  enable(@Req() req: Request, @Param("id") id: string) {
+    const actor = requireRoles(req, "SUPER_ADMIN");
+    return this.identity.enable(actor.id, id, clientIp(req));
+  }
+
+  @Patch("v1/admin/users/:id/password")
+  setPassword(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { password?: string }
+  ) {
+    const actor = requireRoles(req, "SUPER_ADMIN");
+    if (!body?.password) throw new BadRequestException("password required");
+    return this.identity.setStaffPassword(actor.id, id, body.password, clientIp(req));
   }
 
   @Get("v1/admin/audit")

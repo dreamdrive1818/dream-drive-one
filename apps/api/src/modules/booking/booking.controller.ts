@@ -111,16 +111,25 @@ export class BookingController {
     return this.bookings.verifyTrackOtp(body.publicId, body.phone, body.code);
   }
 
+  @Get("v1/admin/bookings/calendar")
+  occupancyCalendar(@Req() req: Request, @Query("month") month?: string) {
+    const user = requireStaff(req);
+    return this.bookings.occupancyCalendar(user, month);
+  }
+
   @Get("v1/admin/bookings")
   adminList(
     @Req() req: Request,
     @Query("status") status?: BookingStatus,
     @Query("q") q?: string,
     @Query("from") from?: string,
-    @Query("to") to?: string
+    @Query("to") to?: string,
+    @Query("onDate") onDate?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string
   ) {
     const user = requireStaff(req);
-    return this.bookings.listAdmin(user, { status, q, from, to });
+    return this.bookings.listAdmin(user, { status, q, from, to, onDate, page, pageSize });
   }
 
   @Post("v1/admin/bookings")
@@ -130,6 +139,7 @@ export class BookingController {
     body: {
       userId?: string;
       customerEmail?: string;
+      customerName?: string;
       carModelId: string;
       rentalType: RentalType;
       startsAt: string;

@@ -1,10 +1,10 @@
 .whatsapp-popup {
   position: fixed;
-bottom: 3%;
-right: 9%;
-  z-index: 9999;
+  right: max(1.6rem, env(safe-area-inset-right));
+  bottom: calc(1.6rem + 5.6rem + 1rem + env(safe-area-inset-bottom));
+  z-index: 9998;
+  display: flex;
   animation: fadeInUp 0.6s ease;
-  display: none;
 }
 
 .whatsapp-button {
@@ -17,7 +17,7 @@ right: 9%;
 }
 
 .whatsapp-button:hover {
-  transform: scale(1.1);
+  transform: scale(1.08);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
 }
 
@@ -37,10 +37,18 @@ right: 9%;
   }
 }
 
+@media (max-width: 480px) {
+  .whatsapp-popup {
+    right: max(1.4rem, env(safe-area-inset-right));
+    bottom: calc(1.4rem + 5.6rem + 0.8rem + env(safe-area-inset-bottom));
+  }
 
-@media screen and (max-width: 768px) {
-    .whatsapp-popup{
-        bottom: 16%;
-        right: 8%;
-    }
+  .whatsapp-button {
+    padding: 10px;
+  }
+
+  .whatsapp-button img {
+    width: 28px;
+    height: 28px;
+  }
 }

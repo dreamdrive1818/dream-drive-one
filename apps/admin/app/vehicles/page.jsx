@@ -31,7 +31,7 @@ function expiryLabel(expiresAt) {
   return `${days}d`;
 }
 
-export default function VehiclesPage() {
+export default function VehiclesPage({ hideTitle = false }) {
   const [tab, setTab] = useState("vehicles");
   const [rows, setRows] = useState([]);
   const [models, setModels] = useState([]);
@@ -237,15 +237,17 @@ export default function VehiclesPage() {
 
   return (
     <div className="stack">
-      <h2>Vehicles</h2>
+      {!hideTitle && <h2>Vehicles</h2>}
+      {!hideTitle && (
       <p className="muted">
         Physical cars (plates), not marketing models. Insurance must cover a booking before assignment.
       </p>
+      )}
       {error && <p className="err">{error}</p>}
 
       <div className="tabs">
         <button className={tab === "vehicles" ? "active" : ""} onClick={() => setTab("vehicles")}>
-          Fleet
+          Units
         </button>
         <button className={tab === "expiries" ? "active" : ""} onClick={() => setTab("expiries")}>
           Expiries{expiryCount ? ` (${expiryCount})` : ""}

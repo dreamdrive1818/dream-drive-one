@@ -28,6 +28,66 @@ const SETTING_FIELDS = [
   { key: "address",  label: "Address",    type: "textarea" },
 ];
 
+const AUTH_SIGNIN_FIELDS = [
+  {
+    key: "auth.password",
+    label: "Email + password",
+    want: "on",
+    hint: "Keep on. Returning customers who already have a password.",
+    defaultOn: true,
+  },
+  {
+    key: "auth.otp",
+    label: "Email OTP",
+    want: "on",
+    hint: "Keep on. Fast passwordless login — 6-digit code to email.",
+    defaultOn: true,
+  },
+  {
+    key: "auth.google",
+    label: "Continue with Google",
+    want: "on",
+    hint: "Keep on. Best conversion for new users in India.",
+    defaultOn: true,
+  },
+  {
+    key: "auth.facebook",
+    label: "Continue with Facebook",
+    want: "off",
+    hint: "Leave off unless a Facebook app is configured. Usage is low.",
+    defaultOn: false,
+  },
+];
+
+const AUTH_OTHER_FIELDS = [
+  {
+    key: "auth.register",
+    label: "Create account (email + password)",
+    want: "on",
+    hint: "Keep on so new customers can sign up without Google. Staff invite is not affected.",
+    defaultOn: true,
+  },
+  {
+    key: "auth.otpCreatesAccount",
+    label: "OTP can create new accounts",
+    want: "on",
+    hint: "On: first email OTP also signs them up. Off: OTP is login-only.",
+    defaultOn: true,
+  },
+  {
+    key: "auth.socialCreatesAccount",
+    label: "Google / Facebook can create new accounts",
+    want: "on",
+    hint: "On: first social login creates the customer. Off: social is login-only.",
+    defaultOn: true,
+  },
+];
+
+function isSettingOn(value, fallback) {
+  if (value == null || value === "") return fallback;
+  return value === "true" || value === "1" || value === "on";
+}
+
 export default function CmsPage() {
   const [tab, setTab] = useState("pages");
   const [pages, setPages] = useState([]);
@@ -125,15 +185,79 @@ export default function CmsPage() {
     }
   }
 
+  function toggleAuth(key, fallback) {
+    const next = !isSettingOn(settings[key], fallback);
+    setSettings({ ...settings, [key]: next ? "true" : "false" });
+  }
+
+  function AuthToggle({ field }) {
+    const on = isSettingOn(settings[field.key], field.defaultOn);
+    return (
+      <label className="auth-toggle">
+        <span className="auth-toggle-copy">
+          <span className="auth-toggle-title">
+            {field.label}
+            <span className={`auth-want auth-want--${field.want}`}>
+              {field.want === "on" ? "Recommended on" : "Recommended off"}
+            </span>
+          </span>
+          <span className="auth-toggle-hint">{field.hint}</span>
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          className={`switch${on ? " is-on" : ""}`}
+          onClick={() => toggleAuth(field.key, field.defaultOn)}
+        >
+          <span className="switch-knob" />
+        </button>
+      </label>
+    );
+  }
+
   return (
     <div>
       <h2>CMS</h2>
       <div className="tabs">
+        <button className={tab === "auth" ? "active" : ""} type="button" onClick={() => setTab("auth")}>Sign-in</button>
         <button className={tab === "settings" ? "active" : ""} type="button" onClick={() => setTab("settings")}>Site Settings</button>
         <button className={tab === "pages" ? "active" : ""} type="button" onClick={() => setTab("pages")}>Pages & SEO</button>
         <button className={tab === "testimonials" ? "active" : ""} type="button" onClick={() => setTab("testimonials")}>Testimonials</button>
       </div>
       {error && <p className="err">{error}</p>}
+
+      {tab === "auth" && (
+        <div className="stack">
+          <form className="card" onSubmit={saveSettings}>
+            <h3>Customer sign-in</h3>
+            <p className="muted">
+              Turns methods on or off for the public website and app. Staff login in this admin panel is never affected.
+              Keep at least one sign-in method on.
+            </p>
+            <div className="auth-toggle-list">
+              {AUTH_SIGNIN_FIELDS.map((field) => (
+                <AuthToggle key={field.key} field={field} />
+              ))}
+            </div>
+            <h3 style={{ marginTop: 22 }}>Sign-up options</h3>
+            <p className="muted">
+              Separate from sign-in. You can allow Google login for existing customers while blocking new registrations.
+            </p>
+            <div className="auth-toggle-list">
+              {AUTH_OTHER_FIELDS.map((field) => (
+                <AuthToggle key={field.key} field={field} />
+              ))}
+            </div>
+            <div className="row" style={{ alignItems: "center", gap: 12, marginTop: 8 }}>
+              <button type="submit" disabled={settingsSaving}>
+                {settingsSaving ? "Saving…" : "Save sign-in settings"}
+              </button>
+              {settingsMsg && <span style={{ color: "green" }}>{settingsMsg}</span>}
+            </div>
+          </form>
+        </div>
+      )}
 
       {tab === "settings" && (
         <div className="stack">

@@ -416,6 +416,16 @@
   color: #64748b;
 }
 
+.dd-contact-form-note--err {
+  color: #b42318;
+  font-weight: 600;
+}
+
+.dd-contact-form-note--ok {
+  color: #0a5f66;
+  font-weight: 600;
+}
+
 .dd-contact-submit {
   display: inline-flex;
   align-items: center;
@@ -512,7 +522,7 @@
 
 @media (max-width: 767px) {
   .dd-contact {
-    padding: 5.6rem 1.8rem 6rem;
+    padding: 4.4rem 1.4rem 5rem;
   }
 
   .dd-contact-title {

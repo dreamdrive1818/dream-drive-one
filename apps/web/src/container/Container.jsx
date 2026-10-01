@@ -65,6 +65,7 @@ const AppRoute = () => {
   const isAdminPage = location.pathname.includes("admin");
   const isAuthPage = location.pathname === "/login";
   const { campaignActive } = useLocalContext();
+  const chromeRef = useRef(null);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -87,6 +88,24 @@ const AppRoute = () => {
     };
   }, [isAdminPage, isAuthPage, campaignActive]);
 
+  useEffect(() => {
+    const el = chromeRef.current;
+    if (!el) {
+      document.documentElement.style.removeProperty("--dd-chrome-h");
+      return undefined;
+    }
+    const sync = () => {
+      document.documentElement.style.setProperty("--dd-chrome-h", `${el.offsetHeight}px`);
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty("--dd-chrome-h");
+    };
+  }, [isAdminPage, isAuthPage, campaignActive]);
+
   return (
     <>
       <ScrollToTop />
@@ -94,10 +113,13 @@ const AppRoute = () => {
       {!isAdminPage && !isAuthPage && <Numberattach />}
       {!isAdminPage && !isAuthPage && <WhatsAppPopup />}
       {!isAdminPage && !isAuthPage && <ContactPopup />}
-      {!isAdminPage && !isAuthPage && <MonsoonPromoBar />}
       {!isAdminPage && !isAuthPage && <SaleModal />}
-
-      {!isAdminPage && !isAuthPage && <Header />}
+      {!isAdminPage && !isAuthPage && (
+        <div className="dd-chrome" ref={chromeRef}>
+          <MonsoonPromoBar />
+          <Header />
+        </div>
+      )}
       {!isAdminPage && (
         <main className={`route-container${isAuthPage ? " route-container--auth" : ""}`}>
           {loading ? (

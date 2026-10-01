@@ -247,7 +247,11 @@ export default function Checkout() {
         await api(`/v1/quotes/${quoteId}/apply-offer`, { method: "POST", body: { code } }).catch(() => {});
       }
       const booking = await api("/v1/bookings", { method: "POST", body: { quoteId } });
-      navigate(`/checkout/pay?booking=${encodeURIComponent(booking.publicId || booking.id)}`);
+      const bookingRef = booking.publicId || booking.id;
+      if (!bookingRef) {
+        throw new Error("Booking could not be created. Please try again.");
+      }
+      navigate(`/checkout/pay?booking=${encodeURIComponent(bookingRef)}`);
     } catch (err) {
       setError(err.message);
     } finally {

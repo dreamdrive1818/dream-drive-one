@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { randomBytes } from "crypto";
 import { prisma } from "../../lib/prisma";
 import type { AuthUser } from "../../lib/auth";
 import { bookingScopeWhere, vehicleScopeWhere } from "../../lib/vehicle-rules";
@@ -22,6 +23,97 @@ export class PlatformEngine {
     });
   }
 
+  async coupons() {
+    const rows = await this.offers();
+    return rows.map((o) => this.couponShape(o));
+  }
+
+  couponShape(o: {
+    id: string;
+    code: string;
+    type: "PERCENT" | "FLAT";
+    value: number;
+    startsAt: Date;
+    endsAt: Date;
+    maxRedemptions: number | null;
+    active: boolean;
+    redemptions?: { id: string }[];
+    city?: { id: string; name: string } | null;
+    rentalType?: string | null;
+    minDays?: number | null;
+  }) {
+    const usedCount = o.redemptions?.length ?? 0;
+    const now = new Date();
+    let status: "USED" | "EXPIRED" | "FROZEN" | "SCHEDULED" | "ACTIVE" = "ACTIVE";
+    if (o.maxRedemptions != null && usedCount >= o.maxRedemptions) status = "USED";
+    else if (new Date(o.endsAt) < now) status = "EXPIRED";
+    else if (!o.active) status = "FROZEN";
+    else if (new Date(o.startsAt) > now) status = "SCHEDULED";
+    return {
+      ...o,
+      usedCount,
+      remaining:
+        o.maxRedemptions == null ? null : Math.max(0, o.maxRedemptions - usedCount),
+      singleUse: o.maxRedemptions === 1,
+      status,
+    };
+  }
+
+  async uniqueCouponCode() {
+    for (let i = 0; i < 12; i += 1) {
+      const code = `DD${randomBytes(4).toString("hex").toUpperCase()}`;
+      const exists = await prisma.offer.findUnique({ where: { code }, select: { id: true } });
+      if (!exists) return code;
+    }
+    throw new BadRequestException("Could not generate a unique coupon code");
+  }
+
+  async createCoupons(body: {
+    code?: string;
+    count?: number;
+    type: "PERCENT" | "FLAT";
+    value: number;
+    startsAt?: string;
+    endsAt: string;
+    singleUse?: boolean;
+    maxRedemptions?: number;
+    cityId?: string | null;
+    rentalType?:
+      | "SELF_DRIVE"
+      | "WITH_DRIVER_LOCAL"
+      | "WITH_DRIVER_INTERCITY"
+      | "AIRPORT"
+      | "OUTSTATION"
+      | "ONE_WAY"
+      | "TOUR_PACKAGE"
+      | "SUBSCRIPTION"
+      | null;
+    minDays?: number | null;
+    active?: boolean;
+  }) {
+    if (!body?.endsAt) throw new BadRequestException("Expiry date is required");
+    const count = Math.min(25, Math.max(1, Number(body.count) || 1));
+    const singleUse = body.singleUse !== false;
+    const maxRedemptions = singleUse ? 1 : body.maxRedemptions;
+    const startsAt = body.startsAt || new Date().toISOString();
+    const created = [];
+    for (let i = 0; i < count; i += 1) {
+      const code =
+        count === 1 && body.code?.trim()
+          ? body.code.trim().toUpperCase()
+          : await this.uniqueCouponCode();
+      const row = await this.createOffer({
+        ...body,
+        code,
+        startsAt,
+        endsAt: body.endsAt,
+        maxRedemptions,
+      });
+      created.push(this.couponShape({ ...row, redemptions: [] }));
+    }
+    return { count: created.length, coupons: created };
+  }
+
   async offer(id: string) {
     const offer = await prisma.offer.findUnique({
       where: { id },
@@ -32,7 +124,7 @@ export class PlatformEngine {
   }
 
   createOffer(body: {
-    code: string;
+    code?: string;
     type: "PERCENT" | "FLAT";
     value: number;
     startsAt: string;
@@ -52,7 +144,6 @@ export class PlatformEngine {
     minDays?: number | null;
     active?: boolean;
   }) {
-    if (!body?.code?.trim()) throw new BadRequestException("Code is required");
     if (!["PERCENT", "FLAT"].includes(body.type)) throw new BadRequestException("Invalid type");
     const value = Number(body.value);
     if (!Number.isFinite(value) || value <= 0) throw new BadRequestException("Value must be > 0");
@@ -64,21 +155,23 @@ export class PlatformEngine {
     if (minDays != null && (!Number.isInteger(minDays) || minDays < 1)) {
       throw new BadRequestException("minDays must be a positive integer");
     }
-    return prisma.offer.create({
-      data: {
-        code: body.code.trim().toUpperCase(),
-        type: body.type,
-        value,
-        startsAt,
-        endsAt,
-        maxRedemptions: body.maxRedemptions ?? null,
-        cityId: body.cityId || null,
-        rentalType: body.rentalType || null,
-        minDays,
-        active: body.active !== false,
-      },
-      include: { city: { select: { id: true, name: true } } },
-    });
+    return this.uniqueCouponCode().then((generated) =>
+      prisma.offer.create({
+        data: {
+          code: body.code?.trim() ? body.code.trim().toUpperCase() : generated,
+          type: body.type,
+          value,
+          startsAt,
+          endsAt,
+          maxRedemptions: body.maxRedemptions ?? null,
+          cityId: body.cityId || null,
+          rentalType: body.rentalType || null,
+          minDays,
+          active: body.active !== false,
+        },
+        include: { city: { select: { id: true, name: true } } },
+      })
+    );
   }
 
   async updateOffer(

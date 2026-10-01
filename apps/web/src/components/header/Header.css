@@ -13,9 +13,19 @@
   transition: box-shadow 0.25s ease, background 0.25s ease;
 }
 
-/* Sit below sticky monsoon strip so chrome stacks instead of overlapping */
-body:has(.monsoon-promo-bar) .dd-header {
-  top: 4.4rem;
+.dd-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  background: #fff;
+}
+
+.dd-chrome .monsoon-promo-bar,
+.dd-chrome .dd-header,
+body:has(.monsoon-promo-bar) .dd-chrome .dd-header,
+body.monsoon-sale .dd-chrome .dd-header {
+  position: relative;
+  top: auto;
 }
 
 .dd-header--scrolled {
@@ -87,6 +97,50 @@ body:has(.monsoon-promo-bar) .dd-header {
   align-items: center;
   gap: 1.2rem;
   flex-shrink: 0;
+}
+
+.dd-header-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.35rem 1rem 0.35rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(14, 124, 134, 0.08);
+  color: #0a5f66;
+}
+
+.dd-header-account:hover {
+  background: rgba(14, 124, 134, 0.14);
+  color: #0a5f66;
+}
+
+.dd-header-avatar {
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0e7c86, #0a5f66);
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.dd-header-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dd-header-account-name {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dd-header-wa {
@@ -197,6 +251,31 @@ body:has(.monsoon-promo-bar) .dd-header {
   color: var(--primary-color);
 }
 
+.dd-header-drawer-account {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.dd-header-drawer-account span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.dd-header-drawer-account strong {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.dd-header-drawer-account em {
+  font-style: normal;
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: #5f737c;
+}
+
 .dd-header-wa--drawer {
   align-self: stretch;
   justify-content: center;
@@ -233,5 +312,30 @@ body:has(.monsoon-promo-bar) .dd-header {
 
   .dd-header-menu {
     display: inline-flex;
+  }
+
+  .dd-header-inner {
+    padding: 0.8rem 1.4rem;
+    gap: 1rem;
+  }
+
+  .dd-header-logo img {
+    height: 52px;
+    max-width: 170px;
+  }
+
+  .dd-header-drawer {
+    padding: max(1.6rem, env(safe-area-inset-top)) max(1.6rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(1.6rem, env(safe-area-inset-left));
+  }
+}
+
+@media (max-width: 480px) {
+  .dd-header-logo img {
+    height: 44px;
+    max-width: 148px;
+  }
+
+  .dd-header-inner {
+    padding: 0.6rem 1.2rem;
   }
 }

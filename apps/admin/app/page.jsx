@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, getOpsBranch, getOpsCity, setOpsScope } from "../lib/api";
+import { roleLabel } from "../lib/rbac";
 
 const CARDS = [
   ["handoversToday", "Today’s handovers", "/bookings"],
@@ -11,9 +12,41 @@ const CARDS = [
   ["pendingSignatures", "Pending signatures", "/agreements"],
   ["failedPayments", "Failed payments", "/payments"],
   ["workshop", "Vehicles in workshop", "/maintenance"],
-  ["vehiclesAvailable", "Vehicles free", "/vehicles"],
+  ["vehiclesAvailable", "Vehicles free", "/fleet?view=vehicles"],
   ["bookings", "Bookings", "/bookings"],
 ];
+
+function greetingNow() {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-IN", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: "Asia/Kolkata",
+    }).format(new Date())
+  );
+  if (hour < 5) return "Good evening";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function displayName(user) {
+  const full = user?.fullName?.trim();
+  if (full) return full.split(/\s+/)[0];
+  const local = String(user?.email || "").split("@")[0];
+  if (!local) return "";
+  const token = local.split(/[._+-]/)[0];
+  return token ? token.charAt(0).toUpperCase() + token.slice(1) : "";
+}
+
+function todayLabel() {
+  return new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Kolkata",
+  });
+}
 
 export default function Dashboard() {
   const [me, setMe] = useState(null);
@@ -62,16 +95,40 @@ export default function Dashboard() {
   }
 
   if (error) return <p className="err">{error}</p>;
-  if (!data) return <p className="muted">Loading…</p>;
 
-  const scopeLabel = data.scope?.branchName
+  const name = displayName(me);
+  const greet = greetingNow();
+  const role = (me?.roles || []).find((r) => r !== "CUSTOMER");
+  const scopeLabel = data?.scope?.branchName
     ? `${data.scope.cityName || ""} · ${data.scope.branchName}`
-    : data.scope?.cityName || "All locations";
+    : data?.scope?.cityName || "All locations";
+  const hello = (
+    <div className="dash-hello">
+      <div>
+        <p className="dash-greet">
+          {greet}{name ? `, ${name}` : ""}
+        </p>
+        <h2>Dashboard</h2>
+        {data ? (
+          <p className="muted">Operations for {scopeLabel}. Switch city/branch to filter every admin list.</p>
+        ) : (
+          <p className="muted">Loading today’s numbers…</p>
+        )}
+      </div>
+      <div className="dash-hello-meta">
+        <span>{todayLabel()}</span>
+        {role ? <span className="chip">{roleLabel(role)}</span> : null}
+      </div>
+    </div>
+  );
+
+  if (!data) {
+    return hello;
+  }
 
   return (
     <div>
-      <h2>Dashboard</h2>
-      <p className="muted">Operations for {scopeLabel}. Switch city/branch to filter every admin list.</p>
+      {hello}
       <form
         className="row"
         style={{ marginBottom: 16 }}

@@ -309,6 +309,85 @@ body {
 .delay-2 { animation-delay: 0.3s; }
 .delay-3 { animation-delay: 0.4s; }
 
+img,
+video,
+canvas,
+svg,
+iframe {
+  max-width: 100%;
+}
+
+img,
+video {
+  height: auto;
+}
+
+.route-container,
+.fade-in-bottom,
+main {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.route-container {
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+}
+
+/* Space for call + WhatsApp FABs so last content is not covered */
+@media (max-width: 1024px) {
+  .route-container:not(.route-container--auth) {
+    padding-bottom: calc(9.6rem + env(safe-area-inset-bottom));
+  }
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --dd-page-pad: 1.6rem;
+    --dd-section-space: 4.2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --dd-page-pad: 1.4rem;
+    --dd-section-space: 3.4rem;
+  }
+
+  .dd-section-header {
+    margin-bottom: 2.4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --dd-page-pad: 1.2rem;
+    --dd-section-space: 2.8rem;
+  }
+
+  html {
+    font-size: 9.5px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  html {
+    font-size: 9px;
+  }
+}
+
 /* V2 reduced-motion baseline */
 @media (prefers-reduced-motion: reduce) {
   html {

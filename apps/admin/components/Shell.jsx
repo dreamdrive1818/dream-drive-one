@@ -4,55 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api, getOpsBranch, getOpsCity, getToken, setOpsScope } from "../lib/api";
 import { useEffect, useMemo, useState } from "react";
-
-const LINKS = [
-  ["/", "Dashboard", null],
-  ["/bookings", "Bookings", ["SALES", "SUPPORT", "FLEET_OPS", "BRANCH_MANAGER", "CITY_MANAGER"]],
-  ["/cars", "Cars", ["FLEET_OPS", "CITY_MANAGER", "SALES"]],
-  ["/vehicles", "Vehicles", ["FLEET_OPS", "BRANCH_MANAGER", "CITY_MANAGER"]],
-  ["/availability", "Availability", ["FLEET_OPS", "BRANCH_MANAGER", "CITY_MANAGER", "SALES"]],
-  ["/drivers", "Drivers", ["FLEET_OPS", "BRANCH_MANAGER", "CITY_MANAGER"]],
-  ["/maintenance", "Maintenance", ["FLEET_OPS", "BRANCH_MANAGER", "CITY_MANAGER"]],
-  ["/inspections", "Inspections", ["FLEET_OPS", "BRANCH_MANAGER", "CITY_MANAGER"]],
-  ["/kyc", "KYC", ["SUPPORT", "SALES"]],
-  ["/agreements", "Agreements", ["SUPPORT", "SALES"]],
-  ["/customers", "Customers", ["SUPPORT", "SALES"]],
-  ["/staff", "Staff", ["CITY_MANAGER"]],
-  ["/cities", "Cities", ["CITY_MANAGER"]],
-  ["/branches", "Branches", ["CITY_MANAGER", "FLEET_OPS", "BRANCH_MANAGER"]],
-  ["/tickets", "Tickets", ["SUPPORT", "SALES"]],
-  ["/reviews", "Reviews", ["SUPPORT", "SALES"]],
-  ["/payments", "Payments", ["FINANCE"]],
-  ["/partners", "Partners", ["FINANCE", "FLEET_OPS", "CITY_MANAGER"]],
-  ["/settlements", "Settlements", ["FINANCE"]],
-  ["/leads", "Leads", ["SALES", "SUPPORT", "CITY_MANAGER"]],
-  ["/offers", "Offers", ["SALES"]],
-  ["/packages", "Trips & tours", ["SALES", "FLEET_OPS"]],
-  ["/subscriptions", "Subscriptions", ["SALES", "FLEET_OPS", "FINANCE"]],
-  ["/cms", "CMS", ["SALES"]],
-  ["/banners", "Banners", ["SALES"]],
-  ["/blogs", "Blogs", ["SALES"]],
-  ["/media", "Media", ["SALES"]],
-  ["/notifications", "Notifications", ["SUPPORT"]],
-  ["/reports", "Reports", ["FINANCE", "CITY_MANAGER"]],
-  ["/audit", "Audit", []],
-];
-
-const STAFF = new Set([
-  "SUPPORT",
-  "SALES",
-  "FLEET_OPS",
-  "FINANCE",
-  "BRANCH_MANAGER",
-  "CITY_MANAGER",
-  "SUPER_ADMIN",
-]);
-
-function canSee(roles, allowed) {
-  if ((roles || []).includes("SUPER_ADMIN")) return true;
-  if (allowed == null) return true;
-  return allowed.some((role) => roles.includes(role));
-}
+import { NAV, canAccessPath, groupedNav, isStaff, roleLabel } from "../lib/rbac";
 
 export default function Shell({ children }) {
   const path = usePathname();
@@ -61,6 +13,8 @@ export default function Shell({ children }) {
   const [cities, setCities] = useState([]);
   const [cityId, setCityId] = useState("");
   const [branchId, setBranchId] = useState("");
+  const [navOpen, setNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState({});
 
   const roles = me?.roles || [];
   const isSuper = roles.includes("SUPER_ADMIN");
@@ -76,7 +30,7 @@ export default function Shell({ children }) {
     }
     api("/v1/me")
       .then((user) => {
-        if (!(user.roles || []).some((r) => STAFF.has(r))) {
+        if (!isStaff(user.roles || [])) {
           localStorage.removeItem("dd_token");
           router.replace("/login");
           return;
@@ -109,6 +63,14 @@ export default function Shell({ children }) {
 
   useEffect(() => {
     if (path === "/login" || !me) return;
+    const ownProfile = me.id && (path === `/staff/${me.id}` || path.startsWith(`/staff/${me.id}/`));
+    if (!canAccessPath(path, me.roles || []) && !ownProfile) {
+      router.replace("/");
+    }
+  }, [me, path, router]);
+
+  useEffect(() => {
+    if (path === "/login" || !me) return;
     api("/v1/admin/cities")
       .then(setCities)
       .catch(() => setCities([]));
@@ -129,12 +91,26 @@ export default function Shell({ children }) {
   }, [cities, cityId]);
 
   const lockedLabel = useMemo(() => {
+    const named = [me?.cityName, me?.branchName].filter(Boolean).join(" · ");
+    if (named) return named;
     const city = cities.find((c) => c.id === cityId);
     const branch = (city?.branches || cities.flatMap((c) => c.branches || [])).find((b) => b.id === branchId);
-    if (branch) return `${city?.name || ""} · ${branch.name}`.trim();
+    if (branch) return `${city?.name || me?.cityName || ""} · ${branch.name}`.trim();
     if (city) return city.name;
     return "No location assigned";
-  }, [cities, cityId, branchId]);
+  }, [cities, cityId, branchId, me]);
+
+  useEffect(() => {
+    setNavOpen(false);
+  }, [path]);
+
+  useEffect(() => {
+    const active = groupedNav(me?.roles || []).find((group) =>
+      group.items.some(([href]) => path === href || (href !== "/" && path.startsWith(href)))
+    );
+    if (!active?.key) return;
+    setCollapsed((prev) => (prev[active.key] ? { ...prev, [active.key]: false } : prev));
+  }, [path, me]);
 
   function applyScope(nextCity, nextBranch) {
     setCityId(nextCity);
@@ -142,15 +118,55 @@ export default function Shell({ children }) {
     setOpsScope(nextCity, nextBranch);
   }
 
+  const pageTitle =
+    NAV.find(([href]) => href !== "/" && path.startsWith(href))?.[1] ||
+    (path === "/" ? "Dashboard" : "Admin");
+  const roleNames = roles.filter((r) => r !== "CUSTOMER").map(roleLabel).join(" · ");
+  const navGroups = groupedNav(roles);
+
+  function toggleGroup(key) {
+    if (!key) return;
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function linkActive(href) {
+    return path === href || (href !== "/" && path.startsWith(href));
+  }
+
   if (path === "/login" || path === "/500" || path === "/404" || path === "/_error") {
     return children;
   }
 
   return (
-    <div className="shell">
+    <div className={`shell${navOpen ? " is-nav-open" : ""}`}>
+      <header className="topbar">
+        <button
+          type="button"
+          className="menu-btn"
+          aria-label="Open menu"
+          aria-expanded={navOpen}
+          onClick={() => setNavOpen(true)}
+        >
+          Menu
+        </button>
+        <strong>{pageTitle}</strong>
+        <span className="muted topbar-email">{me?.email || ""}</span>
+      </header>
+      <button
+        type="button"
+        className="aside-backdrop"
+        aria-label="Close menu"
+        onClick={() => setNavOpen(false)}
+      />
       <aside>
-        <h1>Dream-Drive</h1>
+        <div className="aside-brand">
+          <h1>Dream-Drive</h1>
+          <button type="button" className="ghost menu-close" onClick={() => setNavOpen(false)}>
+            Close
+          </button>
+        </div>
         <p className="muted">{me?.email || "Operations"}</p>
+        {roleNames ? <p className="aside-role">{roleNames}</p> : null}
         <div className="scope-switch">
           <span className="muted">Location</span>
           {canSwitch ? (
@@ -185,21 +201,55 @@ export default function Shell({ children }) {
           )}
         </div>
         <nav>
-          {LINKS.filter(([, , allowed]) => canSee(roles, allowed)).map(([href, label]) => (
-            <Link key={href} href={href} className={path === href || (href !== "/" && path.startsWith(href)) ? "active" : ""}>
-              {label}
-            </Link>
-          ))}
+          {navGroups.map((group) => {
+            const current = group.items.some(([href]) => linkActive(href));
+            const open = !group.key || !collapsed[group.key] || current;
+            return (
+              <div
+                key={group.key || "home"}
+                className={`nav-group${open ? " is-open" : ""}${current ? " is-active" : ""}`}
+              >
+                {group.label ? (
+                  <button
+                    type="button"
+                    className={`nav-cat${current ? " is-active" : ""}`}
+                    onClick={() => toggleGroup(group.key)}
+                    aria-expanded={open}
+                    aria-current={current ? "true" : undefined}
+                  >
+                    {group.label}
+                  </button>
+                ) : null}
+                {open
+                  ? group.items.map(([href, label]) => (
+                      <Link key={href} href={href} className={linkActive(href) ? "active" : ""}>
+                        {label}
+                      </Link>
+                    ))
+                  : null}
+              </div>
+            );
+          })}
         </nav>
-        <button
-          className="ghost"
-          onClick={() => {
-            localStorage.removeItem("dd_token");
-            router.replace("/login");
-          }}
-        >
-          Sign out
-        </button>
+        <div className="aside-actions">
+          {me?.id ? (
+            <Link
+              href={`/staff/${me.id}`}
+              className={`ghost aside-foot${path === `/staff/${me.id}` ? " active" : ""}`}
+            >
+              My profile
+            </Link>
+          ) : null}
+          <button
+            className="ghost aside-foot"
+            onClick={() => {
+              localStorage.removeItem("dd_token");
+              router.replace("/login");
+            }}
+          >
+            Sign out
+          </button>
+        </div>
       </aside>
       <main key={`${cityId}-${branchId}`}>{children}</main>
     </div>

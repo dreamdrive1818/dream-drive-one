@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { randomBytes, scryptSync } from "crypto";
 import { readFileSync } from "fs";
 import { PrismaClient, RentalType, RoleName } from "@prisma/client";
 
@@ -127,17 +128,26 @@ async function main() {
     email: string,
     fullName: string,
     role: RoleName,
-    cityId?: string
+    cityId?: string,
+    password?: string
   ) {
     const firebaseUid = `dev:${email}`;
     const roleRow = await prisma.role.findUniqueOrThrow({ where: { name: role } });
+    const passwordHash = password
+      ? (() => {
+          const salt = randomBytes(16);
+          const key = scryptSync(password, salt, 64);
+          return `scrypt:${salt.toString("base64")}:${key.toString("base64")}`;
+        })()
+      : undefined;
     const user = await prisma.user.upsert({
       where: { email },
-      update: {},
+      update: passwordHash ? { passwordHash } : {},
       create: {
         firebaseUid,
         email,
         status: "ACTIVE",
+        ...(passwordHash ? { passwordHash } : {}),
         profile: { create: { fullName } },
         wallet: { create: { balancePaise: 0 } },
         loyalty: { create: { points: 0 } },
@@ -159,7 +169,7 @@ async function main() {
     return user;
   }
 
-  await ensureUser("admin@dreamdrive.test", "Super Admin", "SUPER_ADMIN");
+  await ensureUser("admin@dreamdrive.test", "Super Admin", "SUPER_ADMIN", undefined, "admin@123");
   await ensureUser("fleet@dreamdrive.test", "Fleet Ops", "FLEET_OPS");
   await ensureUser("finance@dreamdrive.test", "Finance", "FINANCE");
   await ensureUser("branch@dreamdrive.test", "Ranchi Branch Manager", "BRANCH_MANAGER");

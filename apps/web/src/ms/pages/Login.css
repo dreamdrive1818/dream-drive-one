@@ -375,6 +375,18 @@ body.auth-shell .fade-in-bottom {
   box-shadow: 0 2px 8px rgba(10, 40, 55, 0.08);
 }
 
+@keyframes customer-login-tab-pulse {
+  0%   { background: #fff;                          box-shadow: 0 2px 8px rgba(10, 40, 55, 0.08);  color: #0a5f66; }
+  25%  { background: rgba(14, 124, 134, 0.22);      box-shadow: 0 0 0 4px rgba(14, 124, 134, 0.28); color: #0a5f66; transform: scale(1.04); }
+  55%  { background: rgba(14, 124, 134, 0.14);      box-shadow: 0 0 0 2px rgba(14, 124, 134, 0.18); color: #0a5f66; transform: scale(1.02); }
+  100% { background: #fff;                          box-shadow: 0 2px 8px rgba(10, 40, 55, 0.08);  color: #0a5f66; transform: scale(1); }
+}
+
+.customer-login-tab.is-active.is-highlight,
+.customer-login-tab.is-highlight {
+  animation: customer-login-tab-pulse 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .customer-login-tab:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -783,7 +795,7 @@ body.auth-shell .fade-in-bottom {
 
 @media (max-width: 480px) {
   .customer-login-page {
-    padding: 3.2rem 1.6rem 5rem;
+    padding: 2rem 1.2rem 4rem;
   }
 
   .customer-login-card {
@@ -848,7 +860,8 @@ body.auth-shell .fade-in-bottom {
   .customer-login-page--full .customer-login-shell,
   .customer-login-form-stage,
   .customer-auth-modal-panel,
-  .customer-login-error {
+  .customer-login-error,
+  .customer-login-tab.is-active.is-highlight {
     animation: none !important;
   }
 

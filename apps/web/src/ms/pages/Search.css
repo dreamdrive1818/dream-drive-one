@@ -754,7 +754,7 @@
 
 @media (max-width: 800px) {
   .fleet-search-page {
-    padding: 3.2rem 1.6rem 5rem;
+    padding: 2.4rem 1.4rem 5rem;
   }
 
   .fleet-search-bar {
@@ -780,6 +780,10 @@
 }
 
 @media (max-width: 560px) {
+  .fleet-search-page {
+    padding: 1.6rem 1.2rem 4.4rem;
+  }
+
   .fleet-search-bar-fields,
   .fleet-search-grid,
   .fleet-search-skeletons {

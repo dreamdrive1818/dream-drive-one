@@ -50,6 +50,7 @@ export default function AccountInvoices() {
       {error && <p className="account-msg err">{error}</p>}
       <div className="account-card">
         {rows.length === 0 && <p className="account-empty">No invoices yet.</p>}
+        <div className="account-table-wrap">
         <table className="account-table">
           <thead>
             <tr>
@@ -64,15 +65,15 @@ export default function AccountInvoices() {
           <tbody>
             {rows.map((inv) => (
               <tr key={inv.id}>
-                <td>{inv.number}</td>
-                <td>{inv.booking?.publicId}</td>
-                <td>{formatDay(inv.createdAt)}</td>
-                <td>
+                <td data-label="Number">{inv.number}</td>
+                <td data-label="Booking">{inv.booking?.publicId}</td>
+                <td data-label="Date">{formatDay(inv.createdAt)}</td>
+                <td data-label="Tax">
                   {inv.igstPaise
                     ? `IGST ${rupees(inv.igstPaise)}`
                     : `CGST ${rupees(inv.cgstPaise || 0)} · SGST ${rupees(inv.sgstPaise || 0)}`}
                 </td>
-                <td>
+                <td data-label="Total">
                   {rupees(inv.amountPaise)}
                   {(inv.lines || [])
                     .filter((l) => /damage/i.test(l.label))
@@ -82,7 +83,7 @@ export default function AccountInvoices() {
                       </div>
                     ))}
                 </td>
-                <td>
+                <td data-label="Invoice">
                   <button
                     className="account-btn ghost"
                     type="button"
@@ -96,6 +97,7 @@ export default function AccountInvoices() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </>
   );
