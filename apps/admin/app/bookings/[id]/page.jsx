@@ -165,8 +165,9 @@ export default function BookingDetailPage() {
         <Link href="/bookings">← Bookings</Link>
       </p>
       <h2>{booking.publicId}</h2>
-      <p className="muted">
-        {booking.user?.email} · {booking.rentalType} · {booking.status}
+      <p className="muted" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span>{[booking.user?.profile?.fullName, booking.user?.email, booking.rentalType].filter(Boolean).join(" · ")}</span>
+        {booking.status ? <span className={`status-pill status-${booking.status}`}>{String(booking.status).replace(/_/g, " ")}</span> : null}
       </p>
       {error && <p className="err">{error}</p>}
 

@@ -6,6 +6,13 @@ import {
 import { BookingStatus, Prisma, RentalType } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { addHours, daysBetween } from "../../lib/http";
+import {
+  availabilityCacheKey,
+  carCacheKey,
+  invalidateCatalogCache,
+  remember,
+  searchCacheKey,
+} from "../../lib/cache";
 
 const BLOCKING: BookingStatus[] = [
   "HOLD",
@@ -55,15 +62,17 @@ export class CatalogService {
       updatedAt: new Date(),
     };
     try {
-      return await prisma.catalogSettings.upsert({
-        where: { id: "default" },
-        create: {
-          id: "default",
-          bufferHours: fallback.bufferHours,
-          maxRentalDays: fallback.maxRentalDays,
-        },
-        update: {},
-      });
+      return await remember("dd:settings", 180, () =>
+        prisma.catalogSettings.upsert({
+          where: { id: "default" },
+          create: {
+            id: "default",
+            bufferHours: fallback.bufferHours,
+            maxRentalDays: fallback.maxRentalDays,
+          },
+          update: {},
+        })
+      );
     } catch {
       return fallback;
     }
@@ -75,13 +84,15 @@ export class CatalogService {
   }
 
   async publicConfig() {
-    const settings = await this.getSettings();
-    return {
-      bufferHours: settings.bufferHours,
-      maxRentalDays: settings.maxRentalDays,
-      driverAllowancePerNightPaise: settings.driverAllowancePerNightPaise ?? 30000,
-      maxDaysByType: MAX_DAYS_BY_TYPE,
-    };
+    return remember("dd:catcfg", 120, async () => {
+      const settings = await this.getSettings();
+      return {
+        bufferHours: settings.bufferHours,
+        maxRentalDays: settings.maxRentalDays,
+        driverAllowancePerNightPaise: settings.driverAllowancePerNightPaise ?? 30000,
+        maxDaysByType: MAX_DAYS_BY_TYPE,
+      };
+    });
   }
 
   async updateSettings(body: {
@@ -109,7 +120,7 @@ export class CatalogService {
     ) {
       throw new BadRequestException("driverAllowancePerNightPaise must be >= 0");
     }
-    return prisma.catalogSettings.upsert({
+    const settings = await prisma.catalogSettings.upsert({
       where: { id: "default" },
       create: {
         id: "default",
@@ -123,6 +134,8 @@ export class CatalogService {
         driverAllowancePerNightPaise,
       },
     });
+    await invalidateCatalogCache();
+    return settings;
   }
 
   parseRange(from?: string, to?: string, rentalType?: RentalType) {
@@ -167,6 +180,26 @@ export class CatalogService {
     const { from, to } = this.parseRange(query.from, query.to, rentalType);
     if (from && to) await this.assertRentalLength(from, to, rentalType);
 
+    return remember(searchCacheKey({ ...query, rentalType }), from && to ? 45 : 90, () =>
+      this.searchUncached(query, rentalType, from, to)
+    );
+  }
+
+  private async searchUncached(
+    query: {
+      cityId?: string;
+      type?: string;
+      seats?: string;
+      fuel?: string;
+      transmission?: string;
+      minPrice?: string;
+      maxPrice?: string;
+      sort?: string;
+    },
+    rentalType: RentalType,
+    from: Date | null,
+    to: Date | null
+  ) {
     const models = await prisma.carModel.findMany({
       where: {
         published: true,
@@ -183,9 +216,9 @@ export class CatalogService {
           : undefined,
       },
       include: {
-        images: { orderBy: { sortOrder: "asc" } },
+        images: { orderBy: { sortOrder: "asc" }, take: 3, select: { url: true, sortOrder: true } },
         pricingRules: true,
-        city: true,
+        city: { select: { id: true, name: true, slug: true } },
       },
       orderBy: [{ featured: "desc" }, { displayOrder: "asc" }],
     });
@@ -201,6 +234,14 @@ export class CatalogService {
         })
       : [];
     const popularity = new Map(counts.map((c) => [c.carModelId, c._count._all]));
+    const avail =
+      from && to
+        ? await this.batchAvailability(
+            models.map((m) => ({ id: m.id, cityId: m.cityId })),
+            from,
+            to
+          )
+        : null;
 
     const results = [];
     for (const model of models) {
@@ -208,15 +249,10 @@ export class CatalogService {
       if (!rule) continue;
       if (query.minPrice && rule.dailyPaise < Number(query.minPrice)) continue;
       if (query.maxPrice && rule.dailyPaise > Number(query.maxPrice)) continue;
-      let available = true;
-      let vehicleId: string | null = null;
-      let availableCount: number | null = null;
-      if (from && to) {
-        const vehicle = await this.findFreeVehicle(model.id, from, to, model.cityId);
-        available = Boolean(vehicle);
-        vehicleId = vehicle?.id ?? null;
-        availableCount = await this.countFreeVehicles(model.id, from, to, model.cityId);
-      }
+      const slot = avail?.get(model.id);
+      const available = slot ? slot.available : true;
+      const vehicleId = slot?.vehicleId ?? null;
+      const availableCount = slot?.availableCount ?? null;
       results.push({
         id: model.id,
         slug: model.slug,
@@ -256,21 +292,33 @@ export class CatalogService {
   }
 
   async bySlug(slug: string) {
-    const model = await prisma.carModel.findUnique({
-      where: { slug },
-      include: { images: { orderBy: { sortOrder: "asc" } }, pricingRules: true, city: true },
+    return remember(carCacheKey(slug), 60, async () => {
+      const model = await prisma.carModel.findUnique({
+        where: { slug },
+        include: { images: { orderBy: { sortOrder: "asc" } }, pricingRules: true, city: true },
+      });
+      if (!model || !model.published) throw new NotFoundException("Car not found");
+      const settings = await this.getSettings();
+      return {
+        ...model,
+        bufferHours: settings.bufferHours,
+        maxRentalDays: settings.maxRentalDays,
+        maxDaysByType: MAX_DAYS_BY_TYPE,
+      };
     });
-    if (!model || !model.published) throw new NotFoundException("Car not found");
-    const settings = await this.getSettings();
-    return {
-      ...model,
-      bufferHours: settings.bufferHours,
-      maxRentalDays: settings.maxRentalDays,
-      maxDaysByType: MAX_DAYS_BY_TYPE,
-    };
   }
 
   async availability(id: string, from?: string, to?: string, month?: string) {
+    if (from || to) {
+      const range = this.parseRange(from, to);
+      await this.assertRentalLength(range.from!, range.to!, "SELF_DRIVE");
+    }
+    return remember(availabilityCacheKey(id, from, to, month), 20, () =>
+      this.availabilityUncached(id, from, to, month)
+    );
+  }
+
+  private async availabilityUncached(id: string, from?: string, to?: string, month?: string) {
     const model = await prisma.carModel.findUnique({
       where: { id },
       include: { pricingRules: true },
@@ -284,7 +332,6 @@ export class CatalogService {
 
     if (from || to) {
       const range = this.parseRange(from, to);
-      await this.assertRentalLength(range.from!, range.to!, "SELF_DRIVE");
       const vehicle = await this.findFreeVehicle(id, range.from!, range.to!, model.cityId);
       available = Boolean(vehicle);
       vehicleId = vehicle?.id ?? null;
@@ -301,6 +348,78 @@ export class CatalogService {
       month: cal.key,
       busyDays,
     };
+  }
+
+  private async batchAvailability(
+    models: { id: string; cityId: string }[],
+    from: Date,
+    to: Date
+  ) {
+    const result = new Map<string, { available: boolean; vehicleId: string | null; availableCount: number }>();
+    if (!models.length) return result;
+    const buffer = await this.bufferHours();
+    const windowStart = addHours(from, -buffer);
+    const windowEnd = addHours(to, buffer);
+    const vehicles = await prisma.vehicle.findMany({
+      where: {
+        carModelId: { in: models.map((m) => m.id) },
+        status: "AVAILABLE",
+      },
+      select: {
+        id: true,
+        carModelId: true,
+        branch: { select: { cityId: true, active: true } },
+      },
+    });
+    const ids = vehicles.map((v) => v.id);
+    const [bookings, blocks, jobs] = ids.length
+      ? await Promise.all([
+          prisma.booking.findMany({
+            where: {
+              vehicleId: { in: ids },
+              status: { in: BLOCKING },
+              startsAt: { lt: windowEnd },
+              endsAt: { gt: windowStart },
+            },
+            select: { vehicleId: true },
+          }),
+          prisma.availabilityBlock.findMany({
+            where: {
+              vehicleId: { in: ids },
+              startsAt: { lt: windowEnd },
+              endsAt: { gt: windowStart },
+            },
+            select: { vehicleId: true },
+          }),
+          prisma.maintenanceJob.findMany({
+            where: {
+              vehicleId: { in: ids },
+              status: { in: ["SCHEDULED", "IN_PROGRESS"] },
+              startsAt: { lt: windowEnd },
+              endsAt: { gt: windowStart },
+            },
+            select: { vehicleId: true },
+          }),
+        ])
+      : [[], [], []];
+    const busy = new Set(
+      [...bookings, ...blocks, ...jobs].map((row) => row.vehicleId).filter(Boolean) as string[]
+    );
+    for (const model of models) {
+      const free = vehicles.filter(
+        (v) =>
+          v.carModelId === model.id &&
+          v.branch?.active &&
+          v.branch.cityId === model.cityId &&
+          !busy.has(v.id)
+      );
+      result.set(model.id, {
+        available: free.length > 0,
+        vehicleId: free[0]?.id ?? null,
+        availableCount: free.length,
+      });
+    }
+    return result;
   }
 
   monthBounds(month?: string, from?: string) {
@@ -466,6 +585,50 @@ export class CatalogService {
     return Boolean(job);
   }
 
+  private mockFleet() {
+    return (
+      process.env.PAYMENTS_MOCK === "true" ||
+      process.env.BOOKINGS_MOCK === "true" ||
+      process.env.NODE_ENV === "development"
+    );
+  }
+
+  private async ensureMockVehicle(tx: Db, carModelId: string) {
+    const model = await tx.carModel.findUnique({
+      where: { id: carModelId },
+      select: {
+        cityId: true,
+        city: {
+          select: {
+            branches: { where: { active: true }, select: { id: true }, take: 1 },
+          },
+        },
+      },
+    });
+    const branchId =
+      model?.city?.branches?.[0]?.id ||
+      (
+        await tx.branch.findFirst({
+          where: model?.cityId ? { cityId: model.cityId, active: true } : { active: true },
+          select: { id: true },
+        })
+      )?.id;
+    if (!branchId) throw new BadRequestException("No pickup branch configured");
+
+    const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+    return tx.vehicle.create({
+      data: {
+        registration: `MOCK${stamp}`.slice(0, 16),
+        carModelId,
+        branchId,
+        ownerType: "COMPANY",
+        status: "AVAILABLE",
+        color: "mock",
+        year: new Date().getFullYear(),
+      },
+    });
+  }
+
   async reserve(body: {
     carModelId: string;
     vehicleId?: string;
@@ -476,6 +639,7 @@ export class CatalogService {
     const from = new Date(body.startsAt);
     const to = new Date(body.endsAt);
     if (!(from < to)) throw new BadRequestException("from must be before to");
+    const mock = this.mockFleet();
 
     return prisma.$transaction(
       async (tx) => {
@@ -486,9 +650,15 @@ export class CatalogService {
           FOR UPDATE
         `;
         const model = await tx.carModel.findUnique({ where: { id: body.carModelId } });
-        const vehicle = body.vehicleId
+        let vehicle = body.vehicleId
           ? await tx.vehicle.findUnique({ where: { id: body.vehicleId } })
           : await this.findFreeVehicle(body.carModelId, from, to, model?.cityId, tx);
+        if (!vehicle && mock && !body.vehicleId) {
+          vehicle = await this.findFreeVehicle(body.carModelId, from, to, undefined, tx);
+        }
+        if (!vehicle && mock) {
+          vehicle = await this.ensureMockVehicle(tx, body.carModelId);
+        }
         if (!vehicle) throw new BadRequestException("No vehicle available");
         const buffer = await this.bufferHours();
         const busy = await this.vehicleBusy(
@@ -497,7 +667,10 @@ export class CatalogService {
           addHours(to, buffer),
           tx
         );
-        if (busy) throw new BadRequestException("Vehicle no longer free");
+        if (busy) {
+          if (!mock) throw new BadRequestException("Vehicle no longer free");
+          vehicle = await this.ensureMockVehicle(tx, body.carModelId);
+        }
         const block = await tx.availabilityBlock.create({
           data: {
             vehicleId: vehicle.id,
@@ -509,13 +682,17 @@ export class CatalogService {
         return { vehicleId: vehicle.id, blockId: block.id };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-    );
+    ).then(async (reserved) => {
+      await invalidateCatalogCache();
+      return reserved;
+    });
   }
 
   async release(bookingId: string) {
     const result = await prisma.availabilityBlock.deleteMany({
       where: { reason: { in: [`HOLD:${bookingId}`, `BOOKING:${bookingId}`] } },
     });
+    await invalidateCatalogCache();
     return { released: result.count };
   }
 
@@ -524,6 +701,7 @@ export class CatalogService {
       where: { reason: `HOLD:${bookingId}` },
       data: { reason: `BOOKING:${bookingId}` },
     });
+    await invalidateCatalogCache();
     return { ok: true };
   }
 
@@ -536,7 +714,7 @@ export class CatalogService {
 
   async createModel(body: Record<string, unknown>) {
     const slug = String(body.slug ?? String(body.name).toLowerCase().replace(/\s+/g, "-"));
-    return prisma.carModel.create({
+    const created = await prisma.carModel.create({
       data: {
         slug,
         name: String(body.name),
@@ -561,6 +739,8 @@ export class CatalogService {
       },
       include: { images: true, pricingRules: true, city: true },
     });
+    await invalidateCatalogCache();
+    return created;
   }
 
   async updateModel(id: string, body: Record<string, unknown>) {
@@ -590,14 +770,18 @@ export class CatalogService {
         .filter((img) => img.url);
       if (rows.length) await prisma.carImage.createMany({ data: rows });
     }
-    return prisma.carModel.findUnique({
+    const row = await prisma.carModel.findUnique({
       where: { id: updated.id },
       include: { images: { orderBy: { sortOrder: "asc" } }, pricingRules: true, city: true, vehicles: true },
     });
+    await invalidateCatalogCache();
+    return row;
   }
 
-  deleteModel(id: string) {
-    return prisma.carModel.delete({ where: { id } });
+  async deleteModel(id: string) {
+    const deleted = await prisma.carModel.delete({ where: { id } });
+    await invalidateCatalogCache();
+    return deleted;
   }
 
   listPricing(carModelId?: string) {

@@ -180,7 +180,16 @@
 }
 
 @media (max-width: 560px) {
+  .home-search {
+    margin-top: 3.2rem;
+    padding: 2.2rem 1.2rem 2.4rem;
+  }
+
   .home-search-fields {
     grid-template-columns: 1fr;
+  }
+
+  .home-search-title {
+    font-size: clamp(2.4rem, 8vw, 3.2rem);
   }
 }

@@ -17,8 +17,8 @@
 }
 
 .contact-popup.show {
-  /* Clear Call FAB (5.6rem) + gap above bottom-right stack */
-  bottom: 8.8rem;
+  /* Clear Call FAB + WhatsApp FAB stacked on the right */
+  bottom: calc(1.6rem + 5.6rem + 1rem + 5.6rem + 1rem);
   opacity: 1;
   pointer-events: auto;
 }
@@ -233,6 +233,22 @@
   }
 }
 
+@media (max-width: 960px) {
+  body.account-shell .contact-popup-reopen {
+    display: none;
+  }
+
+  body.account-shell .whatsapp-popup {
+    right: max(1.2rem, env(safe-area-inset-right));
+    bottom: calc(1.2rem + 5.2rem + 0.8rem + env(safe-area-inset-bottom));
+  }
+
+  body.account-shell .number-float {
+    right: max(1.2rem, env(safe-area-inset-right));
+    bottom: max(1.2rem, env(safe-area-inset-bottom));
+  }
+}
+
 @media (max-width: 480px) {
   .contact-popup {
     right: max(1.4rem, env(safe-area-inset-right));
@@ -242,11 +258,15 @@
   }
 
   .contact-popup.show {
-    bottom: 8.4rem;
+    bottom: calc(1.4rem + 5.6rem + 0.8rem + 4.8rem + 1rem);
   }
 
   .contact-popup-reopen {
     right: max(1.4rem, env(safe-area-inset-right));
-    bottom: calc(1.4rem + 5.6rem + 1rem);
+    bottom: calc(1.4rem + 5.6rem + 0.8rem + 4.8rem + 1rem);
+  }
+
+  body.account-shell .contact-popup-reopen {
+    display: none;
   }
 }

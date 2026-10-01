@@ -39,23 +39,33 @@ const ContactPopup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.email.trim() && !formData.phone.trim()) {
-      toast.error("Email or phone is required");
+    const posted = new FormData(e.currentTarget);
+    const name = String(posted.get("name") || formData.name || "").trim();
+    const email = String(posted.get("email") || formData.email || "").trim();
+    const phone = String(posted.get("phone") || formData.phone || "").trim();
+    const message = String(posted.get("message") || formData.message || "").trim();
+    setFormData({ name, email, phone, message });
+    if (!email && !phone) {
+      toast.error("Add an email or a phone number so we can reply.");
       return;
     }
     try {
       await api.post("/v1/public/contact", {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        message: formData.message,
+        name,
+        email,
+        phone,
+        message,
         source: "contact_popup",
       });
       toast.success("Message submitted successfully!");
       setFormData({ name: "", email: "", phone: "", message: "" });
       closePopup();
     } catch (err) {
-      toast.error("Failed to submit message. Please try again later.");
+      const apiMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to submit message. Please try again later.";
+      toast.error(Array.isArray(apiMessage) ? apiMessage.join(" ") : String(apiMessage));
     }
   };
 

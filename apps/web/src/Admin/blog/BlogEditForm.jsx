@@ -2,9 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { useAdminContext } from '../../context/AdminContext';
-import ReactQuill from 'react-quill';
+import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
 import './BlogEditForm.css';
+
+// react-quill@2 + quill@2 + React 19 are incompatible server-side; load
+// the editor client-only so it never appears in the SSR/prerender bundle.
+const ReactQuill = dynamic(() => import('react-quill'), {
+  ssr: false,
+  loading: () => <div style={{ minHeight: 200, background: '#f5f5f5', borderRadius: 4 }} />,
+});
 
 const slugify = (str) =>
   str.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');

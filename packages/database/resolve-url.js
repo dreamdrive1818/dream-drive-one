@@ -77,6 +77,7 @@ function resolveDatabaseUrl(opts = {}) {
   }
 
   if (url) {
+    url = withPrismaPoolLimits(url);
     process.env.DATABASE_URL = url;
     process.env.DIRECT_URL = rewriteToPooler(
       (process.env.DIRECT_URL || url).replace(/[?&]schema=public/, "")
@@ -85,4 +86,28 @@ function resolveDatabaseUrl(opts = {}) {
   return url;
 }
 
-module.exports = { resolveDatabaseUrl, rewriteToPooler };
+/**
+ * Supabase session pooler (port 5432) caps clients — this project’s pool is 15.
+ * Prisma defaults to ~num_cpus*2+1, which blows that limit when API/watch
+ * restarts leave extra Node processes. Keep each PrismaClient small.
+ */
+function withPrismaPoolLimits(url) {
+  if (!url) return url;
+  let parsed;
+  try {
+    parsed = new URL(url.replace(/^postgresql:/i, "http:"));
+  } catch {
+    return url;
+  }
+  const limit = process.env.PRISMA_CONNECTION_LIMIT || "5";
+  const timeout = process.env.PRISMA_POOL_TIMEOUT || "20";
+  if (!parsed.searchParams.has("connection_limit")) {
+    parsed.searchParams.set("connection_limit", limit);
+  }
+  if (!parsed.searchParams.has("pool_timeout")) {
+    parsed.searchParams.set("pool_timeout", timeout);
+  }
+  return parsed.toString().replace(/^http:/i, "postgresql:");
+}
+
+module.exports = { resolveDatabaseUrl, rewriteToPooler, withPrismaPoolLimits };

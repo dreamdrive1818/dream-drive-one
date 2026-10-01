@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, ".env") });
 dotenv.config({ path: path.resolve(__dirname, "../../apps/api/.env") });
 
 const { resolveDatabaseUrl } = require("./resolve-url");
-resolveDatabaseUrl({ requirePassword: true });
+const databaseUrl = resolveDatabaseUrl({ requirePassword: true });
 
 const { PrismaClient } = require("@prisma/client");
 
@@ -16,6 +16,7 @@ const globalForPrisma = globalThis;
 const prisma =
   globalForPrisma.__dreamDrivePrisma ??
   new PrismaClient({
+    datasources: databaseUrl ? { db: { url: databaseUrl } } : undefined,
     log:
       process.env.NODE_ENV === "development"
         ? ["warn", "error"]
@@ -25,5 +26,12 @@ const prisma =
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.__dreamDrivePrisma = prisma;
 }
+
+function disconnectPrisma() {
+  prisma.$disconnect().catch(() => undefined);
+}
+process.once("beforeExit", disconnectPrisma);
+process.once("SIGINT", disconnectPrisma);
+process.once("SIGTERM", disconnectPrisma);
 
 module.exports = { prisma, PrismaClient };

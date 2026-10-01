@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
 import { AccountSkeleton } from "../../../components/Skeleton/Skeleton";
@@ -19,6 +19,11 @@ const LINKS = [
 export default function AccountLayout() {
   const { user, ready, logout } = useAuth();
   const location = useLocation();
+
+  useEffect(() => {
+    document.body.classList.add("account-shell");
+    return () => document.body.classList.remove("account-shell");
+  }, []);
 
   if (!ready) {
     return <AccountSkeleton />;

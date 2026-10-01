@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import ReactQuill from 'react-quill';
+import dynamic from 'next/dynamic';
+import { useAdminContext } from '../../context/AdminContext';
 import 'react-quill/dist/quill.snow.css';
 import './AddBlogForm.css';
-import { useAdminContext } from '../../context/AdminContext';
+
+// react-quill is incompatible with React 19 SSR; load client-side only.
+const ReactQuill = dynamic(() => import('react-quill'), {
+  ssr: false,
+  loading: () => <div style={{ minHeight: 200, background: '#f5f5f5', borderRadius: 4 }} />,
+});
 
 const AddBlogForm = ({ onClose, onSuccess }) => {
   const [title, setTitle] = useState('');

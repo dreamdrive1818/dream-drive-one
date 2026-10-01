@@ -6,6 +6,7 @@ import {
 import { createHmac } from "crypto";
 import { PaymentKind } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { invalidateUserBookings } from "../../lib/cache";
 import { internalFetch, serviceUrls } from "../../lib/http";
 import { buildInvoicePdf } from "./invoice-pdf";
 import type { AuthUser } from "../../lib/auth";
@@ -168,7 +169,11 @@ export class PaymentEngine {
     if (payment.booking.userId !== userId) throw new BadRequestException("Not your payment");
 
     if (this.mockMode()) {
-      return this.markSuccess(payment.id, body.razorpayPaymentId ?? `pay_mock_${payment.id}`, "verify-mock");
+      return this.markSuccess(
+        payment.id,
+        body.razorpayPaymentId ?? `pay_mock_${payment.id}`,
+        `verify-mock:${payment.id}`
+      );
     }
 
     const secret = process.env.RAZORPAY_KEY_SECRET ?? "";
@@ -607,7 +612,9 @@ export class PaymentEngine {
     await prisma.paymentAttempt.create({
       data: { paymentId, payload: { eventId, razorpayPaymentId } },
     });
-    await this.afterSuccess(paymentId);
+    await this.afterSuccess(paymentId).catch((err) => {
+      console.error("payment afterSuccess failed", paymentId, err);
+    });
     return prisma.payment.findUnique({ where: { id: paymentId } });
   }
 
@@ -624,6 +631,7 @@ export class PaymentEngine {
       },
     });
     if (!payment) return;
+    await invalidateUserBookings(payment.booking.userId);
 
     // ── GST: CGST+SGST if same state, IGST if inter-state ──
     const supplierState = payment.booking.pickupBranch?.city?.state ?? SUPPLIER_STATE;
@@ -636,39 +644,44 @@ export class PaymentEngine {
     const sgstPaise = sameState ? gstPaise - cgstPaise : 0;
     const igstPaise = sameState ? 0 : gstPaise;
 
-    const allocated = await allocateInvoiceNumber();
+    let invoiceNumber = "";
+    try {
+      const allocated = await allocateInvoiceNumber();
+      const gstLines = sameState
+        ? [
+            { label: "CGST 9%", amountPaise: cgstPaise },
+            { label: "SGST 9%", amountPaise: sgstPaise },
+          ]
+        : [{ label: "IGST 18%", amountPaise: igstPaise }];
 
-    const gstLines = sameState
-      ? [
-          { label: "CGST 9%", amountPaise: cgstPaise },
-          { label: "SGST 9%", amountPaise: sgstPaise },
-        ]
-      : [{ label: "IGST 18%", amountPaise: igstPaise }];
-
-    const invoice = await prisma.invoice.create({
-      data: {
-        bookingId: payment.bookingId,
-        seriesId: allocated.seriesId,
-        number: allocated.number,
-        amountPaise: payment.amountPaise,
-        gstPaise,
-        cgstPaise,
-        sgstPaise,
-        igstPaise,
-        supplierState,
-        customerState,
-        lines: {
-          create: [
-            { label: lineLabel || `${payment.kind} payment`, amountPaise: payment.amountPaise - gstPaise },
-            ...gstLines,
-          ],
+      const invoice = await prisma.invoice.create({
+        data: {
+          bookingId: payment.bookingId,
+          seriesId: allocated.seriesId,
+          number: allocated.number,
+          amountPaise: payment.amountPaise,
+          gstPaise,
+          cgstPaise,
+          sgstPaise,
+          igstPaise,
+          supplierState,
+          customerState,
+          lines: {
+            create: [
+              { label: lineLabel || `${payment.kind} payment`, amountPaise: payment.amountPaise - gstPaise },
+              ...gstLines,
+            ],
+          },
         },
-      },
-    });
-    await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: { pdfUrl: `/v1/me/invoices/${invoice.id}/pdf` },
-    });
+      });
+      invoiceNumber = invoice.number;
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { pdfUrl: `/v1/me/invoices/${invoice.id}/pdf` },
+      });
+    } catch (err) {
+      console.error("invoice create failed", paymentId, err);
+    }
 
     if (payment.kind === "DEPOSIT") {
       await prisma.securityDeposit.upsert({
@@ -694,7 +707,7 @@ export class PaymentEngine {
         ref: payment.booking.publicId,
         data: {
           publicId: payment.booking.publicId,
-          invoiceNumber: invoice.number,
+          invoiceNumber: invoiceNumber || payment.booking.publicId,
           amount: `₹${(payment.amountPaise / 100).toLocaleString("en-IN")}`,
           kind: payment.kind,
           invoiceUrl: `${web}/account/invoices`,

@@ -11,7 +11,9 @@ import {
   faCalendarCheck,
   faCalendarDays,
   faCarSide,
+  faCheck,
   faCircleCheck,
+  faCopy,
   faClock,
   faCreditCard,
   faFileSignature,
@@ -219,10 +221,33 @@ export default function Track() {
   const [busy, setBusy] = useState(false);
   const [guestUnlocked, setGuestUnlocked] = useState(false);
   const [publicIdInput, setPublicIdInput] = useState(bookingId || "");
+  const [copied, setCopied] = useState("");
 
   const motionProps = reduceMotion
     ? { initial: "show", animate: "show" }
     : { initial: "hidden", animate: "show" };
+
+  async function copyValue(text, key) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const el = document.createElement("textarea");
+        el.value = text;
+        el.setAttribute("readonly", "");
+        el.style.position = "fixed";
+        el.style.opacity = "0";
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+      }
+      setCopied(key);
+      window.setTimeout(() => setCopied((current) => (current === key ? "" : current)), 2000);
+    } catch {
+      setCopied("");
+    }
+  }
 
   async function loadAsUser() {
     if (!bookingId) return;
@@ -576,6 +601,17 @@ export default function Track() {
     { icon: faIndianRupeeSign, label: "Booking amount", value: formatInr(booking.amountPaise) },
   ].filter(Boolean);
 
+  const detailsText = [
+    `Dream Drive booking ${booking.publicId}`,
+    `Status: ${labelStatus(booking.status)}`,
+    `Trip: ${formatWhen(booking.startsAt)} → ${formatWhen(booking.endsAt)}`,
+    rentalLabel ? `Type: ${rentalLabel}` : null,
+    ...details.map((d) => `${d.label}: ${d.value}`),
+    `Track: ${typeof window !== "undefined" ? `${window.location.origin}/track/${booking.publicId}` : `/track/${booking.publicId}`}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   return (
     <Shell label="Booking status" motionProps={motionProps}>
       <motion.div className="trk-topbar" variants={rise}>
@@ -595,6 +631,15 @@ export default function Track() {
             <span>{rentalLabel}</span>
             <span aria-hidden="true">•</span>
             <span>Booking {booking.publicId}</span>
+            <button
+              type="button"
+              className="trk-copy-btn trk-copy-btn--light"
+              onClick={() => copyValue(booking.publicId, "id")}
+              aria-label="Copy booking ID"
+            >
+              <FontAwesomeIcon icon={copied === "id" ? faCheck : faCopy} />
+              {copied === "id" ? "Copied" : "Copy ID"}
+            </button>
           </p>
           <h1>
             <span className="trk-status-icon" aria-hidden="true">
@@ -674,6 +719,14 @@ export default function Track() {
           <motion.section className="trk-card" variants={rise} aria-labelledby="trk-trip-title">
             <div className="trk-card-head">
               <h2 id="trk-trip-title">Trip details</h2>
+              <button
+                type="button"
+                className="trk-copy-btn"
+                onClick={() => copyValue(detailsText, "details")}
+              >
+                <FontAwesomeIcon icon={copied === "details" ? faCheck : faCopy} />
+                {copied === "details" ? "Copied" : "Copy details"}
+              </button>
             </div>
 
             <div className="trk-dates">

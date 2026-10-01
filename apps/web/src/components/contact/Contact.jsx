@@ -51,6 +51,8 @@ const Contact = () => {
     message: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formOk, setFormOk] = useState("");
 
   const phoneDisplay = webinfo?.phone?.trim() || "+91 70611 12181";
   const phoneDigits = String(webinfo?.phonecall || "917061112181").replace(
@@ -97,21 +99,37 @@ const Contact = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.email.trim() && !formData.phone.trim()) {
-      toast.error("Email or phone is required");
+    setFormError("");
+    setFormOk("");
+    const posted = new FormData(e.currentTarget);
+    const first = String(posted.get("first") || formData.first || "").trim();
+    const last = String(posted.get("last") || formData.last || "").trim();
+    const email = String(posted.get("email") || formData.email || "").trim();
+    const phone = String(posted.get("phone") || formData.phone || "").trim();
+    const city = String(posted.get("city") || formData.city || "").trim();
+    const message = String(posted.get("message") || formData.message || "").trim();
+    setFormData({ first, last, email, phone, city, message });
+    if (!email && !phone) {
+      setFormError("Add an email or a phone number so we can reply.");
+      return;
+    }
+    if (!first || !last || !message) {
+      setFormError("Name and message are required.");
       return;
     }
     setSubmitting(true);
     try {
       await api.post("/v1/public/contact", {
-        first: formData.first,
-        last: formData.last,
-        name: `${formData.first} ${formData.last}`.trim(),
-        email: formData.email,
-        phone: formData.phone,
-        city: formData.city,
-        message: formData.message,
+        first,
+        last,
+        name: `${first} ${last}`.trim(),
+        email,
+        phone,
+        city,
+        message,
+        source: "contact",
       });
+      setFormOk("Message sent. We’ll get back to you shortly.");
       toast.success("Message submitted successfully!");
       setFormData({
         first: "",
@@ -122,8 +140,17 @@ const Contact = () => {
         message: "",
       });
     } catch (err) {
-      console.error("Contact Submit Error:", err.message);
-      toast.error("Failed to submit message. Try again later.");
+      const apiMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to submit message. Try again later.";
+      const text = Array.isArray(apiMessage) ? apiMessage.join(" ") : String(apiMessage);
+      setFormError(
+        /failed to fetch|network|econnrefused/i.test(text)
+          ? "Can't reach the server. Wait a moment and try again."
+          : text
+      );
+      toast.error(text);
     } finally {
       setSubmitting(false);
     }
@@ -299,9 +326,19 @@ const Contact = () => {
             </div>
 
             <div className="dd-contact-form-foot">
-              <p className="dd-contact-form-note">
-                Email or phone is required.
-              </p>
+              {formError ? (
+                <p className="dd-contact-form-note dd-contact-form-note--err" role="alert">
+                  {formError}
+                </p>
+              ) : formOk ? (
+                <p className="dd-contact-form-note dd-contact-form-note--ok" role="status">
+                  {formOk}
+                </p>
+              ) : (
+                <p className="dd-contact-form-note">
+                  Add email or phone so we can reply.
+                </p>
+              )}
               <button
                 type="submit"
                 className="dd-contact-submit"

@@ -36,6 +36,7 @@ export default function Pay() {
   const [wallet, setWallet] = useState(null);
   const [useWallet, setUseWallet] = useState(true);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
 
@@ -54,11 +55,15 @@ export default function Pay() {
       .then(([row, w]) => {
         setBooking(row);
         setWallet(w);
+        if (row.status === "CANCELLED" || row.status === "NO_SHOW") {
+          setLoadError("This booking was cancelled. Start a new quote from the fleet.");
+          return;
+        }
         if (row.status && !["HOLD", "AWAITING_PAYMENT"].includes(row.status)) {
           navigate(`/checkout/success?booking=${row.publicId}&type=${row.rentalType}`, { replace: true });
         }
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => setLoadError(e.message || "Could not load this booking."));
   }, [ready, user, bookingId, navigate]);
 
   async function pollPayment(paymentId) {
@@ -139,16 +144,16 @@ export default function Pay() {
     }
   }
 
-  if (!ready || (!booking && !error && bookingId)) {
+  if (!ready || (!booking && !loadError && bookingId)) {
     return <CheckoutSkeleton label="Loading payment" />;
   }
 
-  if (!bookingId || error) {
+  if (!bookingId || loadError || !booking) {
     return (
       <div className="checkout-page">
         <div className="checkout-inner">
           <div className="checkout-state checkout-state--error" role="alert">
-            <h1>{error || "Booking not found"}</h1>
+            <h1>{loadError || "Booking not found"}</h1>
             <p>Open the booking from your account, or start a new quote from the fleet.</p>
             <Link to="/account/bookings" className="checkout-text-link">My bookings</Link>
             {" · "}

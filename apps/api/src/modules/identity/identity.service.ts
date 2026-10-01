@@ -8,13 +8,23 @@ import {
 import { Prisma, RoleName, UserStatus } from "@prisma/client";
 import { createHash, timingSafeEqual } from "crypto";
 import { prisma } from "../../lib/prisma";
+import { dashboardCacheKey, invalidateUserProfile, meCacheKey, remember } from "../../lib/cache";
 import {
   firebaseSignInWithPassword,
   firebaseSignUpWithPassword,
   verifyGoogleOrFirebaseIdToken,
   verifyFacebookAccessToken,
 } from "../../lib/firebase-rest";
-import { mintSessionToken } from "../../lib/session-token";
+import { mintSessionToken, allowDevAuthBypass } from "../../lib/session-token";
+import { hashPassword, verifyPassword, generateStaffPassword } from "../../lib/password";
+import {
+  assertAuthMethod,
+  assertCanCreateViaOtp,
+  assertCanCreateViaSocial,
+} from "../../lib/auth-settings";
+
+const BOOTSTRAP_ADMIN_EMAIL = (process.env.ADMIN_BOOTSTRAP_EMAIL || "admin@dreamdrive.test").toLowerCase();
+const BOOTSTRAP_ADMIN_PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD || "admin@123";
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_WINDOW_MS = 15 * 60 * 1000;
@@ -25,6 +35,22 @@ const memoryOtp = new Map<
   { codeHash: string; expiresAt: number; attempts: number; windowStart: number; windowCount: number }
 >();
 const pendingPhones = new Map<string, string>();
+const DEV_STAFF: Record<string, RoleName> = {
+  "admin@dreamdrive.test": "SUPER_ADMIN",
+  "fleet@dreamdrive.test": "FLEET_OPS",
+  "finance@dreamdrive.test": "FINANCE",
+  "branch@dreamdrive.test": "BRANCH_MANAGER",
+  "city@dreamdrive.test": "CITY_MANAGER",
+};
+
+const DEV_STAFF_NAMES: Record<string, string> = {
+  "admin@dreamdrive.test": "Super Admin",
+  "fleet@dreamdrive.test": "Fleet Ops",
+  "finance@dreamdrive.test": "Finance",
+  "branch@dreamdrive.test": "Ranchi Branch Manager",
+  "city@dreamdrive.test": "Ranchi City Manager",
+};
+
 const STAFF_ROLES: RoleName[] = [
   "SUPPORT",
   "SALES",
@@ -34,6 +60,13 @@ const STAFF_ROLES: RoleName[] = [
   "CITY_MANAGER",
   "SUPER_ADMIN",
 ];
+
+const STAFF_SCOPE_INCLUDE = {
+  include: {
+    city: { select: { id: true, name: true } },
+    branch: { select: { id: true, name: true } },
+  },
+} as const;
 
 function hashOtp(email: string, code: string) {
   const secret = process.env.SESSION_SECRET || process.env.INTERNAL_TOKEN || "dev-internal";
@@ -73,7 +106,7 @@ export class IdentityService {
           email,
           phone: input.phone ?? existing.phone,
         },
-        include: { roles: { include: { role: true } }, profile: true, staffScopes: true },
+        include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
       });
       return this.present(user);
     }
@@ -91,7 +124,7 @@ export class IdentityService {
         wallet: { create: { balancePaise: 0 } },
         loyalty: { create: { points: 0 } },
       },
-      include: { roles: { include: { role: true } }, profile: true, staffScopes: true },
+      include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
     });
     await this.audit({
       actorId: user.id,
@@ -105,7 +138,7 @@ export class IdentityService {
   async byFirebaseUid(firebaseUid: string) {
     const user = await prisma.user.findUnique({
       where: { firebaseUid },
-      include: { roles: { include: { role: true } }, profile: true, staffScopes: true },
+      include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
     });
     return user ? this.present(user) : null;
   }
@@ -113,19 +146,24 @@ export class IdentityService {
   async byEmail(email: string) {
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
-      include: { roles: { include: { role: true } }, profile: true, staffScopes: true },
+      include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
     });
     return user ? this.present(user) : null;
   }
 
   async me(userId: string, opts: { allowDisabled?: boolean } = {}) {
+    if (opts.allowDisabled) return this.meUncached(userId, opts);
+    return remember(meCacheKey(userId), 30, () => this.meUncached(userId, opts));
+  }
+
+  private async meUncached(userId: string, opts: { allowDisabled?: boolean } = {}) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         roles: { include: { role: true } },
         profile: true,
         addresses: true,
-        staffScopes: true,
+        staffScopes: STAFF_SCOPE_INCLUDE,
       },
     });
     if (!user) throw new NotFoundException("User not found");
@@ -193,6 +231,7 @@ export class IdentityService {
       await this.upsertAddress(userId, body.address);
     }
 
+    await invalidateUserProfile(userId);
     const user = await this.me(userId);
     return { user, otpCode, pendingPhone };
   }
@@ -219,6 +258,7 @@ export class IdentityService {
       entityId: userId,
       payload: { phone: pending },
     });
+    await invalidateUserProfile(userId);
     return this.me(userId);
   }
 
@@ -251,6 +291,7 @@ export class IdentityService {
         isDefault: body.isDefault === true || body.isDefault === "true" || row.isDefault,
       },
     });
+    await invalidateUserProfile(userId);
     return this.me(userId);
   }
 
@@ -258,45 +299,52 @@ export class IdentityService {
     const row = await prisma.address.findUnique({ where: { id: addressId } });
     if (!row || row.userId !== userId) throw new NotFoundException("Address not found");
     await prisma.address.delete({ where: { id: addressId } });
+    await invalidateUserProfile(userId);
     return this.me(userId);
   }
 
   async dashboard(userId: string) {
+    return remember(dashboardCacheKey(userId), 20, () => this.dashboardUncached(userId));
+  }
+
+  private async dashboardUncached(userId: string) {
     const profile = await this.me(userId);
     const [bookings, kyc, agreements, invoices, tickets, wallet, subscriptions] = await Promise.all([
       prisma.booking.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
         take: 20,
-        include: {
-          payments: true,
-          kycCase: { select: { id: true, status: true } },
-          agreements: { select: { id: true, status: true, pdfUrl: true, signedPdfUrl: true } },
-          pickupBranch: { select: { id: true, name: true } },
-          subscription: { select: { id: true, status: true, swapDueReason: true } },
+        select: {
+          id: true,
+          publicId: true,
+          carModelId: true,
+          startsAt: true,
+          endsAt: true,
+          amountPaise: true,
+          status: true,
         },
       }),
       prisma.kycCase.findMany({
         where: { userId },
-        include: { documents: true },
+        select: { id: true, status: true },
         orderBy: { id: "desc" },
-        take: 10,
+        take: 5,
       }),
       prisma.agreement.findMany({
         where: { booking: { userId } },
-        include: { envelope: true, booking: { select: { publicId: true, status: true } } },
+        select: { id: true, status: true },
         orderBy: { id: "desc" },
-        take: 20,
+        take: 10,
       }),
       prisma.invoice.findMany({
         where: { booking: { userId } },
-        include: { booking: { select: { publicId: true, status: true } }, lines: true },
+        select: { id: true, number: true, amountPaise: true },
         orderBy: { createdAt: "desc" },
         take: 20,
       }),
       prisma.ticket.findMany({
         where: { userId },
-        include: { messages: { where: { internal: false }, orderBy: { createdAt: "asc" } } },
+        select: { id: true, status: true },
         orderBy: { id: "desc" },
         take: 10,
       }),
@@ -307,18 +355,9 @@ export class IdentityService {
       }),
       prisma.subscription.findMany({
         where: { booking: { userId }, status: { in: ["ACTIVE", "PAUSED"] } },
-        include: {
-          plan: { select: { id: true, months: true, swapAllowed: true, maintenanceIncl: true } },
-          booking: {
-            select: {
-              publicId: true,
-              status: true,
-              vehicle: { select: { id: true, registration: true, status: true } },
-            },
-          },
-        },
+        select: { id: true, status: true, swapDueReason: true },
         orderBy: { createdAt: "desc" },
-        take: 20,
+        take: 10,
       }),
     ]);
     const models = await this.carModelsFor(bookings.map((b) => b.carModelId));
@@ -471,10 +510,12 @@ export class IdentityService {
   }
 
   async issueOtp(emailRaw: string) {
+    await assertAuthMethod("otp");
     const email = emailRaw.toLowerCase().trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new BadRequestException("Valid email required");
     }
+    await assertCanCreateViaOtp(email);
     const now = new Date();
     const existing = await this.loadOtp(email);
     let windowStart = existing ? new Date(existing.windowStart) : now;
@@ -498,7 +539,9 @@ export class IdentityService {
   }
 
   async verifyOtp(emailRaw: string, code: string, ip?: string) {
+    await assertAuthMethod("otp");
     const email = emailRaw.toLowerCase().trim();
+    await assertCanCreateViaOtp(email);
     const row = await this.loadOtp(email);
     if (!row || row.expiresAt < Date.now()) {
       throw new BadRequestException("Invalid or expired OTP");
@@ -539,40 +582,221 @@ export class IdentityService {
   }
 
 
-  async loginWithPassword(email: string, password: string, ip?: string) {
-    const fb = await firebaseSignInWithPassword(email, password);
-    const user = await this.upsertFromIdentity({
-      firebaseUid: fb.uid,
-      email: fb.email,
-      fullName: fb.name,
+  async loginStaffWithPassword(emailRaw: string, password: string, ip?: string) {
+    const email = String(emailRaw || "").toLowerCase().trim();
+    if (!email || !password) {
+      throw new BadRequestException("email and password required");
+    }
+    await this.maybeBootstrapSuperAdmin(email, password);
+    const row = await prisma.user.findUnique({
+      where: { email },
+      include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
+    });
+    if (!row) {
+      throw new UnauthorizedException("Invalid email or password");
+    }
+    if (row.status === UserStatus.DISABLED) {
+      throw new UnauthorizedException("Account disabled");
+    }
+    const roles = row.roles.map((r) => r.role.name);
+    if (!roles.some((r) => STAFF_ROLES.includes(r))) {
+      throw new ForbiddenException("This account is not staff");
+    }
+    if (!row.passwordHash || !(await verifyPassword(password, row.passwordHash))) {
+      throw new UnauthorizedException("Invalid email or password");
+    }
+    const user = this.present(row);
+    await this.audit({ actorId: user.id, action: "auth.staff-login", entityId: user.id, ip });
+    return {
+      token: mintSessionToken({ email: user.email, uid: user.firebaseUid }),
+      user,
+    };
+  }
+
+  async setStaffPassword(actorId: string, userId: string, password: string, ip?: string) {
+    if (!password || password.length < 8) {
+      throw new BadRequestException("Password must be at least 8 characters");
+    }
+    const target = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { roles: { include: { role: true } } },
+    });
+    if (!target) throw new NotFoundException("User not found");
+    const roles = target.roles.map((r) => r.role.name);
+    if (!roles.some((r) => STAFF_ROLES.includes(r))) {
+      throw new BadRequestException("Passwords can only be set on staff accounts");
+    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await hashPassword(password), issuedPassword: password },
+    });
+    await invalidateUserProfile(userId);
+    await this.audit({
+      actorId,
+      action: "user.password",
+      entityId: userId,
       ip,
     });
+    const fresh = await this.me(userId, { allowDisabled: true });
+    return { ...fresh, issuedPassword: password };
+  }
+
+  async enable(actorId: string, userId: string, ip?: string) {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { status: UserStatus.ACTIVE },
+    });
+    await invalidateUserProfile(userId);
+    await this.audit({ actorId, action: "user.enable", entityId: userId, ip });
+    return { id: user.id, status: user.status };
+  }
+
+  private async maybeBootstrapSuperAdmin(email: string, password: string) {
+    if (email !== BOOTSTRAP_ADMIN_EMAIL || password !== BOOTSTRAP_ADMIN_PASSWORD) return;
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, passwordHash: true },
+    });
+    if (existing?.passwordHash) return;
+    const user = existing
+      ? existing
+      : await this.upsertFromIdentity({
+          firebaseUid: `dev:${email}`,
+          email,
+          fullName: "Super Admin",
+        });
+    await this.ensureUserHasRole(user.id, "SUPER_ADMIN");
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await hashPassword(password),
+        issuedPassword: password,
+        status: UserStatus.ACTIVE,
+      },
+    });
+    await invalidateUserProfile(user.id);
+  }
+
+  async loginWithPassword(email: string, password: string, ip?: string) {
+    await assertAuthMethod("password");
+    const local = await this.tryLocalPasswordLogin(email, password, ip);
+    if (local) return local;
+    try {
+      const fb = await firebaseSignInWithPassword(email, password);
+      const user = await this.upsertFromIdentity({
+        firebaseUid: fb.uid,
+        email: fb.email,
+        fullName: fb.name,
+        ip,
+      });
+      await this.audit({ actorId: user.id, action: "auth.login", entityId: user.id, ip });
+      return { token: fb.idToken, user };
+    } catch (err) {
+      if (this.isPasswordCredentialFailure(err)) {
+        const existing = await prisma.user.findUnique({
+          where: { email: email.toLowerCase().trim() },
+          select: { id: true },
+        });
+        if (!existing) {
+          throw new UnauthorizedException("EMAIL_NOT_FOUND");
+        }
+      }
+      throw err;
+    }
+  }
+
+  private async tryLocalPasswordLogin(emailRaw: string, password: string, ip?: string) {
+    const email = String(emailRaw || "").toLowerCase().trim();
+    if (!email || !password) return null;
+    const row = await prisma.user.findUnique({
+      where: { email },
+      include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
+    });
+    if (!row?.passwordHash) return null;
+    if (row.status === UserStatus.DISABLED) {
+      throw new UnauthorizedException("Account disabled");
+    }
+    const ok = await verifyPassword(password, row.passwordHash);
+    if (!ok) return null;
+    const user = this.present(row);
     await this.audit({ actorId: user.id, action: "auth.login", entityId: user.id, ip });
-    return { token: fb.idToken, user };
+    return {
+      token: mintSessionToken({ email: user.email, uid: user.firebaseUid }),
+      user,
+    };
+  }
+
+  private isPasswordCredentialFailure(err: unknown): boolean {
+    if (!(err instanceof UnauthorizedException)) return false;
+    const response = err.getResponse();
+    const raw =
+      typeof response === "string"
+        ? response
+        : Array.isArray((response as { message?: unknown }).message)
+          ? (response as { message: string[] }).message.join(" ")
+          : String((response as { message?: unknown }).message ?? err.message);
+    return /INVALID_LOGIN_CREDENTIALS|EMAIL_NOT_FOUND|INVALID_PASSWORD|Invalid credentials|auth\/user-not-found|auth\/wrong-password|auth\/invalid-credential/i.test(
+      raw
+    );
   }
 
   async registerWithPassword(
     email: string,
     password: string,
     fullName?: string,
-    ip?: string
+    ip?: string,
+    phoneRaw?: string
   ) {
+    await assertAuthMethod("register");
     if (!password || password.length < 8) {
       throw new BadRequestException("Password must be at least 8 characters");
+    }
+    let phone: string | undefined;
+    if (phoneRaw != null && String(phoneRaw).trim() !== "") {
+      phone = normalizePhone(phoneRaw);
+      const taken = await prisma.user.findFirst({ where: { phone } });
+      if (taken) {
+        throw new BadRequestException("This mobile number is already registered");
+      }
     }
     const fb = await firebaseSignUpWithPassword(email, password);
     const user = await this.upsertFromIdentity({
       firebaseUid: fb.uid,
       email: fb.email,
       fullName: fullName || fb.name,
+      phone,
       ip,
     });
     await this.audit({ actorId: user.id, action: "auth.register", entityId: user.id, ip });
     return { token: fb.idToken, user };
   }
 
+  async loginWithDevEmail(emailRaw: string, ip?: string) {
+    if (!allowDevAuthBypass()) {
+      throw new UnauthorizedException("Dev sign-in is disabled");
+    }
+    const email = String(emailRaw || "").toLowerCase().trim();
+    if (!email) throw new BadRequestException("email required");
+    const staffRole = DEV_STAFF[email];
+    const user = await this.upsertFromIdentity({
+      firebaseUid: `dev:${email}`,
+      email,
+      fullName: DEV_STAFF_NAMES[email] || email.split("@")[0],
+      ip,
+    });
+    if (staffRole) {
+      await this.ensureUserHasRole(user.id, staffRole);
+    }
+    await invalidateUserProfile(user.id);
+    const fresh = await this.meUncached(user.id);
+    await this.audit({ actorId: fresh.id, action: "auth.dev", entityId: fresh.id, ip });
+    return { token: `dev:${email}`, user: fresh };
+  }
+
   async loginWithGoogle(idToken: string, ip?: string) {
+    await assertAuthMethod("google");
     const google = await verifyGoogleOrFirebaseIdToken(idToken);
+    await assertCanCreateViaSocial(google.email);
     const user = await this.upsertFromIdentity({
       firebaseUid: google.uid,
       email: google.email,
@@ -587,7 +811,9 @@ export class IdentityService {
   }
 
   async loginWithFacebook(accessToken: string, ip?: string) {
+    await assertAuthMethod("facebook");
     const fb = await verifyFacebookAccessToken(accessToken);
+    await assertCanCreateViaSocial(fb.email);
     const user = await this.upsertFromIdentity({
       firebaseUid: fb.uid,
       email: fb.email,
@@ -605,12 +831,14 @@ export class IdentityService {
     actor: { roles: string[]; assignedCityId?: string | null },
     q?: string,
     take = 100,
-    opts?: { staff?: boolean; role?: string }
+    opts?: { staff?: boolean; customers?: boolean; role?: string }
   ) {
     const limit = Math.min(Math.max(Number(take) || 100, 1), 200);
     const term = q?.trim();
     const superAdmin = actor.roles.includes("SUPER_ADMIN");
     const cityId = actor.assignedCityId || null;
+    const staffOnly = Boolean(opts?.staff);
+    const customersOnly = Boolean(opts?.customers) && !staffOnly;
     return prisma.user.findMany({
       where: {
         ...(term
@@ -622,21 +850,135 @@ export class IdentityService {
               ],
             }
           : {}),
-        ...(opts?.staff
-          ? { roles: { some: { role: { name: { not: "CUSTOMER" } } } } }
-          : opts?.role
-            ? { roles: { some: { role: { name: opts.role as RoleName } } } }
-            : {}),
-        ...(!superAdmin
+        ...(staffOnly
+          ? { roles: { some: { role: { name: { in: STAFF_ROLES } } } } }
+          : customersOnly
+            ? { roles: { none: { role: { name: { in: STAFF_ROLES } } } } }
+            : opts?.role
+              ? { roles: { some: { role: { name: opts.role as RoleName } } } }
+              : {}),
+        ...(!superAdmin && staffOnly
           ? cityId
             ? { staffScopes: { some: { cityId } } }
             : { id: { in: [] } }
           : {}),
       },
-      include: { roles: { include: { role: true } }, profile: true, staffScopes: true },
+      include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
       orderBy: { createdAt: "desc" },
       take: limit,
-    }).then((rows) => rows.map((u) => this.present(u)));
+    }).then((rows) =>
+      rows.map((u) =>
+        this.present(u, {
+          includeIssuedPassword:
+            staffOnly && (superAdmin || actor.roles.includes("CITY_MANAGER")),
+        })
+      )
+    );
+  }
+
+  async staffProfile(
+    id: string,
+    actor: { id: string; roles: string[]; assignedCityId?: string | null }
+  ) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        roles: { include: { role: true } },
+        profile: true,
+        staffScopes: STAFF_SCOPE_INCLUDE,
+      },
+    });
+    if (!user) throw new NotFoundException("Staff not found");
+    const names = user.roles.map((r) => r.role.name);
+    if (!names.some((r) => STAFF_ROLES.includes(r))) {
+      throw new BadRequestException("This account is a customer, not staff");
+    }
+    const superAdmin = actor.roles.includes("SUPER_ADMIN");
+    const isSelf = actor.id === id;
+    if (!superAdmin && !isSelf) {
+      if (!actor.roles.includes("CITY_MANAGER")) {
+        throw new ForbiddenException("Staff profile is not available");
+      }
+      const cityId = actor.assignedCityId || null;
+      const scopeCity = user.staffScopes?.[0]?.cityId || null;
+      if (!cityId || (scopeCity && scopeCity !== cityId)) {
+        throw new ForbiddenException("Staff is outside your city");
+      }
+    }
+    const audits = await prisma.auditLog.findMany({
+      where: { entityId: id, entity: "User" },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { actor: { select: { email: true } } },
+    });
+    return {
+      ...this.present(user, {
+        includeIssuedPassword: superAdmin || actor.roles.includes("CITY_MANAGER"),
+      }),
+      audits,
+    };
+  }
+
+  async updateStaffHr(
+    actorId: string,
+    userId: string,
+    input: { phone?: string | null; salaryInr?: number | null },
+    ip?: string
+  ) {
+    const actor = await this.me(actorId);
+    if (!actor.roles.includes("SUPER_ADMIN")) {
+      throw new ForbiddenException("Only super admin can edit phone and salary");
+    }
+    const existing = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { roles: { include: { role: true } } },
+    });
+    if (!existing) throw new NotFoundException("Staff not found");
+    if (!existing.roles.some((r) => STAFF_ROLES.includes(r.role.name))) {
+      throw new BadRequestException("This account is a customer, not staff");
+    }
+    const data: { phone?: string | null; salaryInr?: number | null } = {};
+    if (input.phone !== undefined) {
+      data.phone =
+        input.phone == null || String(input.phone).trim() === ""
+          ? null
+          : await this.uniqueStaffPhone(String(input.phone), userId);
+    }
+    if (input.salaryInr !== undefined) {
+      data.salaryInr = this.parseSalary(input.salaryInr);
+    }
+    if (!Object.keys(data).length) {
+      throw new BadRequestException("Nothing to update");
+    }
+    await prisma.user.update({ where: { id: userId }, data });
+    await invalidateUserProfile(userId);
+    await this.audit({
+      actorId,
+      action: "staff.hr",
+      entityId: userId,
+      payload: data,
+      ip,
+    });
+    return this.staffProfile(userId, { id: actor.id, roles: actor.roles, assignedCityId: actor.cityId });
+  }
+
+  private parseSalary(value: number | string | null | undefined) {
+    if (value == null || String(value).trim() === "") return null;
+    const n = typeof value === "number" ? value : Number(String(value).replace(/,/g, ""));
+    if (!Number.isFinite(n) || n < 0 || n > 100_000_000) {
+      throw new BadRequestException("Enter a valid monthly salary");
+    }
+    return Math.round(n);
+  }
+
+  private async uniqueStaffPhone(raw: string, userId: string) {
+    const phone = normalizePhone(raw);
+    const taken = await prisma.user.findFirst({
+      where: { phone, NOT: { id: userId } },
+      select: { id: true },
+    });
+    if (taken) throw new BadRequestException("That phone number is already in use");
+    return phone;
   }
 
   async setRoles(actorId: string, userId: string, roles: RoleName[], ip?: string) {
@@ -654,6 +996,7 @@ export class IdentityService {
         await tx.userRole.create({ data: { userId, roleId: role.id } });
       }
     });
+    await invalidateUserProfile(userId);
     await this.audit({
       actorId,
       action: "user.roles",
@@ -669,14 +1012,24 @@ export class IdentityService {
     input: {
       email: string;
       fullName?: string;
+      password?: string;
+      generatePassword?: boolean;
       roles?: RoleName[];
       cityId?: string;
       branchId?: string;
+      phone?: string;
+      salaryInr?: number | null;
     },
     ip?: string
   ) {
     const actor = await this.me(actorId);
     const email = input.email.toLowerCase().trim();
+    const password =
+      input.password ||
+      (input.generatePassword ? generateStaffPassword() : undefined);
+    if (password != null && password.length > 0 && password.length < 8) {
+      throw new BadRequestException("Password must be at least 8 characters");
+    }
     const roles = [...new Set(input.roles?.length ? input.roles : (["SUPPORT"] as RoleName[]))];
     if (!roles.some((r) => STAFF_ROLES.includes(r))) {
       throw new BadRequestException("Invite requires a staff role");
@@ -705,10 +1058,14 @@ export class IdentityService {
     if (roles.includes("BRANCH_MANAGER") && !branchId) {
       throw new BadRequestException("Branch manager must be assigned a branch");
     }
-    if (!actorIsSuper && !roles.includes("SUPER_ADMIN") && !cityId) {
-      throw new BadRequestException("Staff must be assigned a city");
+    const needsLocation = roles.some((r) => r !== "SUPER_ADMIN");
+    if (needsLocation && !cityId) {
+      throw new BadRequestException("Pick a city so this staff member has a location in their panel");
     }
     const existing = await prisma.user.findUnique({ where: { email } });
+    if (!existing && !password) {
+      throw new BadRequestException("Password is required for new staff");
+    }
     const user = existing
       ? await this.upsertFromIdentity({
           firebaseUid: existing.firebaseUid,
@@ -723,6 +1080,23 @@ export class IdentityService {
           ip,
         });
     await this.setRoles(actorId, user.id, roles, ip);
+    if (password) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: await hashPassword(password), issuedPassword: password },
+      });
+    }
+    const hr: { phone?: string | null; salaryInr?: number | null } = {};
+    if (actorIsSuper) {
+      if (input.phone !== undefined) {
+        if (input.phone == null || String(input.phone).trim() === "") hr.phone = null;
+        else hr.phone = await this.uniqueStaffPhone(String(input.phone), user.id);
+      }
+      if (input.salaryInr !== undefined) hr.salaryInr = this.parseSalary(input.salaryInr);
+    }
+    if (Object.keys(hr).length) {
+      await prisma.user.update({ where: { id: user.id }, data: hr });
+    }
     if (cityId || branchId) {
       await prisma.staffScope.deleteMany({ where: { userId: user.id } });
       await prisma.staffScope.create({
@@ -733,6 +1107,7 @@ export class IdentityService {
         },
       });
     }
+    await invalidateUserProfile(user.id);
     await this.audit({
       actorId,
       action: "user.invite",
@@ -740,7 +1115,8 @@ export class IdentityService {
       payload: { email, roles, cityId, branchId },
       ip,
     });
-    return this.me(user.id);
+    const fresh = await this.me(user.id);
+    return { ...fresh, issuedPassword: password || null };
   }
 
   async setScope(
@@ -789,6 +1165,7 @@ export class IdentityService {
         data: { userId, cityId, branchId },
       });
     }
+    await invalidateUserProfile(userId);
     await this.audit({
       actorId,
       action: "user.scope",
@@ -840,6 +1217,7 @@ export class IdentityService {
       where: { id: userId },
       data: { status: UserStatus.DISABLED },
     });
+    await invalidateUserProfile(userId);
     await this.audit({ actorId, action: "user.disable", entityId: userId, ip });
     return { id: user.id, status: user.status };
   }
@@ -932,6 +1310,7 @@ export class IdentityService {
         isDefault,
       },
     });
+    await invalidateUserProfile(userId);
     return { ...created, profile: await this.me(userId) };
   }
 
@@ -951,11 +1330,23 @@ export class IdentityService {
     return prisma.role.create({ data: { name } });
   }
 
+  private async ensureUserHasRole(userId: string, name: RoleName) {
+    const role = await this.ensureRole(name);
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId, roleId: role.id } },
+      create: { userId, roleId: role.id },
+      update: {},
+    });
+  }
+
   private present(user: {
     id: string;
     firebaseUid: string;
     email: string;
     phone: string | null;
+    passwordHash?: string | null;
+    issuedPassword?: string | null;
+    salaryInr?: number | null;
     status: UserStatus;
     createdAt: Date;
     roles: { role: { name: RoleName } }[];
@@ -966,8 +1357,13 @@ export class IdentityService {
       kycValidUntil?: Date | null;
     } | null;
     addresses?: unknown;
-    staffScopes?: { cityId: string | null; branchId: string | null }[];
-  }) {
+    staffScopes?: {
+      cityId: string | null;
+      branchId: string | null;
+      city?: { name: string } | null;
+      branch?: { name: string } | null;
+    }[];
+  }, opts: { includeIssuedPassword?: boolean } = {}) {
     const roles = user.roles.map((r) => r.role.name);
     const scope = user.staffScopes?.[0];
     const kycStatus = user.profile?.kycStatus ?? "NOT_STARTED";
@@ -978,6 +1374,7 @@ export class IdentityService {
       firebaseUid: user.firebaseUid,
       email: user.email,
       phone: user.phone,
+      salaryInr: user.salaryInr ?? null,
       pendingPhone: user.profile?.pendingPhone ?? pendingPhones.get(user.id) ?? null,
       status: user.status,
       createdAt: user.createdAt,
@@ -986,8 +1383,12 @@ export class IdentityService {
       kycValidUntil: user.profile?.kycValidUntil ?? null,
       nameLocked: kycStatus === "APPROVED",
       roles,
+      passwordSet: Boolean(user.passwordHash),
+      ...(opts.includeIssuedPassword ? { issuedPassword: user.issuedPassword || null } : {}),
       cityId: scope?.cityId ?? null,
       branchId: scope?.branchId ?? null,
+      cityName: scope?.city?.name ?? null,
+      branchName: scope?.branch?.name ?? null,
       canSwitchCity: isSuperAdmin,
       canSwitchBranch: isSuperAdmin || isCityManager,
       addresses: user.addresses,

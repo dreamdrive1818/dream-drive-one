@@ -17,7 +17,7 @@ const MonsoonPromoBar = () => {
   return (
     <div className="monsoon-promo-bar" role="region" aria-label={stripBanner.title || "Offer"}>
       <span className="monsoon-promo-bar__tag">{stripBanner.title}</span>
-      <span>{stripBanner.body || stripBanner.title}</span>
+      <span className="monsoon-promo-bar__copy">{stripBanner.body || stripBanner.title}</span>
       <button type="button" className="monsoon-promo-bar__cta" onClick={go}>
         {stripBanner.ctaText || "View offers"}
       </button>

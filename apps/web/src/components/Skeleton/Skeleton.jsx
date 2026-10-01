@@ -353,6 +353,24 @@ export function AccountSkeleton() {
   );
 }
 
+export function AccountBookingsSkeleton({ count = 3 }) {
+  return (
+    <div className="account-list" aria-busy="true" aria-label="Loading bookings">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="account-item" aria-hidden="true">
+          <Skeleton height={70} width={96} radius={12} />
+          <div>
+            <Skeleton height={20} width="48%" className="dd-skel-mb-sm" />
+            <Skeleton height={14} width="78%" className="dd-skel-mb-sm" />
+            <Skeleton height={14} width="42%" />
+          </div>
+          <Skeleton height={28} width={120} radius={999} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function FleetCarouselSkeleton() {
   return (
     <div className="fleet-loading" aria-busy="true" aria-label="Loading fleet">

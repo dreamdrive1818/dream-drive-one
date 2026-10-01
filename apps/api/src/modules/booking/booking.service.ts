@@ -11,6 +11,7 @@ import {
   TripDirection,
 } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { bookingsCacheKey, invalidateUserBookings, remember } from "../../lib/cache";
 import { addMinutes, daysBetween, hoursBetween, hourInIst, isNightHour, nightsBetween, internalFetch, serviceUrls } from "../../lib/http";
 import type { AuthUser } from "../../lib/auth";
 import { freezeBookingCommission } from "../../lib/commission";
@@ -208,7 +209,15 @@ export class BookingEngine {
       throw new BadRequestException("Not your quote");
     }
     const existing = await prisma.booking.findUnique({ where: { quoteId } });
-    if (existing) return this.get(existing.id);
+    if (existing) {
+      if (existing.status === "HOLD" || existing.status === "AWAITING_PAYMENT") {
+        return this.get(existing.id);
+      }
+      await prisma.booking.update({
+        where: { id: existing.id },
+        data: { quoteId: null },
+      });
+    }
 
     const payload = (quote.payload ?? {}) as QuotePayload;
     if (!payload.pickupBranchId) throw new BadRequestException("Quote is missing pickup branch");
@@ -271,6 +280,26 @@ export class BookingEngine {
       });
       await this.emitRealtime(booking.id, booking.publicId, "AWAITING_PAYMENT", "vehicle reserved");
     } catch (err) {
+      const mock =
+        process.env.PAYMENTS_MOCK === "true" ||
+        process.env.BOOKINGS_MOCK === "true" ||
+        process.env.NODE_ENV === "development";
+      if (mock) {
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: { status: "AWAITING_PAYMENT" },
+        });
+        await prisma.bookingStatusHistory.create({
+          data: {
+            bookingId: booking.id,
+            from: "HOLD",
+            to: "AWAITING_PAYMENT",
+            reason: "mock booking — vehicle assigned later",
+          },
+        });
+        await invalidateUserBookings(userId);
+        return this.get(booking.id);
+      }
       await prisma.booking.update({
         where: { id: booking.id },
         data: { status: "CANCELLED" },
@@ -283,6 +312,10 @@ export class BookingEngine {
           reason: "no vehicle available",
         },
       });
+      const message = err instanceof Error ? err.message : "";
+      if (/no vehicle available|vehicle no longer free/i.test(message)) {
+        throw new BadRequestException("No vehicle available for these dates. Try another car or dates.");
+      }
       throw err;
     }
 
@@ -290,8 +323,10 @@ export class BookingEngine {
       await prisma.offerRedemption.create({
         data: { offerId: quote.offerId, userId },
       }).catch(() => undefined);
+      await this.expireOfferIfUsedUp(quote.offerId);
     }
 
+    await invalidateUserBookings(userId);
     return this.get(booking.id);
   }
 
@@ -303,36 +338,34 @@ export class BookingEngine {
   }
 
   mine(userId: string) {
-    return prisma.booking.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      include: {
-        payments: true,
-        extras: true,
-        kycCase: { select: { id: true, status: true } },
-        agreements: { include: { envelope: true } },
-        pickupBranch: { select: { id: true, name: true, cityId: true } },
-        dropBranch: { select: { id: true, name: true, cityId: true } },
-        driverAssignment: { include: { driver: { select: { id: true, fullName: true, phone: true } } } },
-        subscription: { select: { id: true, status: true, swapCount: true, swapDueReason: true } },
-        review: { select: { id: true, rating: true, published: true } },
-      },
-    }).then(async (rows) => {
-      const ids = [...new Set(rows.map((b) => b.carModelId))];
-      const models = ids.length
-        ? await prisma.carModel.findMany({
-            where: { id: { in: ids } },
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              images: { select: { url: true }, take: 1, orderBy: { sortOrder: "asc" } },
-            },
-          })
-        : [];
-      const byId = new Map(models.map((m) => [m.id, m]));
-      return rows.map((b) => ({ ...b, carModel: byId.get(b.carModelId) ?? null }));
-    });
+    return remember(bookingsCacheKey(userId), 20, () =>
+      prisma.booking.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          payments: { select: { id: true, status: true, kind: true, amountPaise: true } },
+          kycCase: { select: { id: true, status: true } },
+          pickupBranch: { select: { id: true, name: true, cityId: true } },
+          dropBranch: { select: { id: true, name: true, cityId: true } },
+          subscription: { select: { id: true, status: true, swapCount: true, swapDueReason: true } },
+        },
+      }).then(async (rows) => {
+        const ids = [...new Set(rows.map((b) => b.carModelId))];
+        const models = ids.length
+          ? await prisma.carModel.findMany({
+              where: { id: { in: ids } },
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                images: { select: { url: true }, take: 1, orderBy: { sortOrder: "asc" } },
+              },
+            })
+          : [];
+        const byId = new Map(models.map((m) => [m.id, m]));
+        return rows.map((b) => ({ ...b, carModel: byId.get(b.carModelId) ?? null }));
+      })
+    );
   }
 
   async cancel(userId: string, id: string, staff: boolean, reason?: string) {
@@ -357,6 +390,7 @@ export class BookingEngine {
       refundAmount: formatInr(refundPaise),
       reason: cancelReason,
     });
+    await invalidateUserBookings(booking.userId);
     const fresh = await this.get(booking.id);
     return {
       ...fresh,
@@ -369,6 +403,7 @@ export class BookingEngine {
   async adminCreate(body: {
     userId?: string;
     customerEmail?: string;
+    customerName?: string;
     carModelId: string;
     rentalType: RentalType;
     startsAt: string;
@@ -386,7 +421,7 @@ export class BookingEngine {
     tripDirection?: TripDirection;
     comped?: boolean;
   }) {
-    const userId = await this.resolveCustomer(body.userId, body.customerEmail);
+    const userId = await this.resolveCustomer(body.userId, body.customerEmail, body.customerName);
     const quote = await this.quote({
       userId,
       carModelId: body.carModelId,
@@ -716,16 +751,34 @@ export class BookingEngine {
     return this.get(booking.id);
   }
 
-  listAdmin(
+  async listAdmin(
     user: AuthUser,
-    query: { status?: BookingStatus; q?: string; from?: string; to?: string } = {}
+    query: {
+      status?: BookingStatus;
+      q?: string;
+      from?: string;
+      to?: string;
+      onDate?: string;
+      page?: string | number;
+      pageSize?: string | number;
+    } = {}
   ) {
     const term = query.q?.trim();
-    return prisma.booking.findMany({
-      where: {
-        ...bookingScopeWhere(user),
-        ...(query.status ? { status: query.status } : {}),
-        ...(query.from || query.to
+    const onDate = query.onDate && /^\d{4}-\d{2}-\d{2}$/.test(query.onDate) ? query.onDate : "";
+    const dayStart = onDate ? new Date(`${onDate}T00:00:00+05:30`) : null;
+    const dayEnd = dayStart ? new Date(dayStart.getTime() + 86_400_000) : null;
+    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 100));
+    const page = Math.max(1, Number(query.page) || 1);
+    const where = {
+      ...bookingScopeWhere(user),
+      ...(query.status ? { status: query.status } : {}),
+      ...(dayStart && dayEnd
+        ? {
+            startsAt: { lt: dayEnd },
+            endsAt: { gt: dayStart },
+            ...(!query.status ? { status: { notIn: ["DRAFT" as const, "CANCELLED" as const] } } : {}),
+          }
+        : query.from || query.to
           ? {
               startsAt: {
                 ...(query.from ? { gte: new Date(query.from) } : {}),
@@ -733,18 +786,23 @@ export class BookingEngine {
               },
             }
           : {}),
-        ...(term
-          ? {
-              OR: [
-                { publicId: { contains: term, mode: "insensitive" } },
-                { user: { email: { contains: term, mode: "insensitive" } } },
-                { user: { phone: { contains: term } } },
-              ],
-            }
-          : {}),
-      },
+      ...(term
+        ? {
+            OR: [
+              { publicId: { contains: term, mode: "insensitive" as const } },
+              { user: { email: { contains: term, mode: "insensitive" as const } } },
+              { user: { phone: { contains: term } } },
+              { user: { profile: { fullName: { contains: term, mode: "insensitive" as const } } } },
+            ],
+          }
+        : {}),
+    };
+    const total = await prisma.booking.count({ where });
+    const rows = await prisma.booking.findMany({
+      where,
       orderBy: { createdAt: "desc" },
-      take: 200,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       include: {
         user: { select: { email: true, phone: true, profile: true } },
         payments: true,
@@ -754,17 +812,77 @@ export class BookingEngine {
         driverAssignment: { include: { driver: { select: { id: true, fullName: true, phone: true } } } },
         vehicle: { select: { id: true, registration: true } },
       },
-    }).then(async (rows) => {
-      const ids = [...new Set(rows.map((b) => b.carModelId))];
-      const models = ids.length
-        ? await prisma.carModel.findMany({
-            where: { id: { in: ids } },
-            select: { id: true, name: true, slug: true },
-          })
-        : [];
-      const byId = new Map(models.map((m) => [m.id, m]));
-      return rows.map((b) => ({ ...b, carModel: byId.get(b.carModelId) ?? null }));
     });
+    const ids = [...new Set(rows.map((b) => b.carModelId))];
+    const models = ids.length
+      ? await prisma.carModel.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, name: true, slug: true },
+        })
+      : [];
+    const byId = new Map(models.map((m) => [m.id, m]));
+    return {
+      items: rows.map((b) => ({ ...b, carModel: byId.get(b.carModelId) ?? null })),
+      total,
+      page,
+      pageSize,
+      pages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  }
+
+  async occupancyCalendar(user: AuthUser, month?: string) {
+    const nowIst = new Date().toLocaleString("en-CA", { timeZone: "Asia/Kolkata" });
+    const key = month && /^\d{4}-\d{2}$/.test(month) ? month : nowIst.slice(0, 7);
+    const [year, mo] = key.split("-").map(Number);
+    const nextKey = mo === 12 ? `${year + 1}-01` : `${year}-${String(mo + 1).padStart(2, "0")}`;
+    const start = new Date(`${key}-01T00:00:00+05:30`);
+    const end = new Date(`${nextKey}-01T00:00:00+05:30`);
+    const daysInMonth = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+
+    const rows = await prisma.booking.findMany({
+      where: {
+        ...bookingScopeWhere(user),
+        status: { notIn: ["DRAFT", "CANCELLED"] },
+        startsAt: { lt: end },
+        endsAt: { gt: start },
+      },
+      select: {
+        id: true,
+        publicId: true,
+        startsAt: true,
+        endsAt: true,
+        status: true,
+        carModelId: true,
+      },
+    });
+    const modelIds = [...new Set(rows.map((r) => r.carModelId))];
+    const models = modelIds.length
+      ? await prisma.carModel.findMany({
+          where: { id: { in: modelIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const names = new Map(models.map((m) => [m.id, m.name]));
+
+    const days = [];
+    for (let d = 1; d <= daysInMonth; d += 1) {
+      const date = `${key}-${String(d).padStart(2, "0")}`;
+      const dayStart = new Date(`${date}T00:00:00+05:30`);
+      const dayEnd = new Date(dayStart.getTime() + 86_400_000);
+      const hit = rows.filter((b) => b.startsAt < dayEnd && b.endsAt > dayStart);
+      days.push({
+        date,
+        count: hit.length,
+        bookings: hit.map((b) => ({
+          id: b.id,
+          publicId: b.publicId,
+          status: b.status,
+          car: names.get(b.carModelId) || "—",
+        })),
+      });
+    }
+    const peak = days.reduce((best, day) => (day.count > (best?.count || 0) ? day : best), days[0] || null);
+    return { month: key, days, peak: peak ? { date: peak.date, count: peak.count } : null };
   }
 
   async expireHolds() {
@@ -1576,6 +1694,18 @@ export class BookingEngine {
     return offer;
   }
 
+  private async expireOfferIfUsedUp(offerId: string) {
+    const offer = await prisma.offer.findUnique({
+      where: { id: offerId },
+      include: { redemptions: true },
+    });
+    if (!offer) return;
+    const usedUp = offer.maxRedemptions != null && offer.redemptions.length >= offer.maxRedemptions;
+    if (usedUp && offer.active) {
+      await prisma.offer.update({ where: { id: offerId }, data: { active: false } });
+    }
+  }
+
   private publicId() {
     return "DD" + Date.now().toString(36).toUpperCase() + Math.floor(Math.random() * 100)
       .toString()
@@ -1732,20 +1862,29 @@ export class BookingEngine {
     }
   }
 
-  private async resolveCustomer(userId?: string, customerEmail?: string) {
-    if (userId) {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
+  private async resolveCustomer(userId?: string, customerEmail?: string, customerName?: string) {
+    let id = userId;
+    if (id) {
+      const user = await prisma.user.findUnique({ where: { id } });
       if (!user) throw new NotFoundException("Customer not found");
-      return user.id;
-    }
-    if (customerEmail) {
+    } else if (customerEmail) {
       const user = await prisma.user.findUnique({
         where: { email: customerEmail.trim().toLowerCase() },
       });
       if (!user) throw new NotFoundException("Customer not found — create the customer first");
-      return user.id;
+      id = user.id;
+    } else {
+      throw new BadRequestException("userId or customerEmail required");
     }
-    throw new BadRequestException("userId or customerEmail required");
+    const name = customerName?.trim();
+    if (name) {
+      await prisma.customerProfile.upsert({
+        where: { userId: id },
+        update: { fullName: name },
+        create: { userId: id, fullName: name },
+      });
+    }
+    return id;
   }
 
   private async hydrateQuote(quote: {

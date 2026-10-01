@@ -16,6 +16,13 @@ function startHealthServer(): Server {
     res.writeHead(404);
     res.end();
   });
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      console.warn(`worker health: port ${port} already in use, health endpoint unavailable`);
+    } else {
+      console.error(`worker health server error: ${err.message}`);
+    }
+  });
   server.listen(port, "0.0.0.0", () => {
     console.log(`worker health listening on ${port}`);
   });

@@ -696,11 +696,46 @@
 .trk-status-kicker {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.8rem;
   margin: 0;
   font-size: 1.3rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.78);
+}
+
+.trk-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(15, 27, 61, 0.12);
+  background: #fff;
+  color: #0f1b3d;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.trk-copy-btn:hover {
+  background: #f4f7fb;
+}
+
+.trk-copy-btn:focus-visible {
+  outline: 2px solid #0e7c86;
+  outline-offset: 2px;
+}
+
+.trk-copy-btn--light {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.trk-copy-btn--light:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .trk-status h1 {
@@ -1245,6 +1280,12 @@
 
   .trk-topbar .trk-live {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .track-page {
+    padding: 2rem 1.2rem 5rem;
   }
 }
 

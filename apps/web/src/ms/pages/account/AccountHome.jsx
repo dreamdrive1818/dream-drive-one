@@ -149,7 +149,8 @@ export default function AccountHome() {
         </div>
       </div>
 
-      <div className="account-card">
+      <div className="account-home-split">
+        <div className="account-card">
         <h2>Profile</h2>
         {user?.nameLocked && (
           <p className="account-hint">
@@ -157,27 +158,29 @@ export default function AccountHome() {
           </p>
         )}
         <form onSubmit={saveProfile}>
-          <div className="account-field">
-            <label htmlFor="fullName">Full name</label>
-            <input
-              id="fullName"
-              value={form.fullName}
-              disabled={user?.nameLocked}
-              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-            />
-          </div>
-          <div className="account-field">
-            <label>Email</label>
-            <input value={user?.email || ""} disabled />
-          </div>
-          <div className="account-field">
-            <label htmlFor="phone">Mobile</label>
-            <input
-              id="phone"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="10-digit mobile"
-            />
+          <div className="account-form-grid">
+            <div className="account-field">
+              <label htmlFor="fullName">Full name</label>
+              <input
+                id="fullName"
+                value={form.fullName}
+                disabled={user?.nameLocked}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              />
+            </div>
+            <div className="account-field">
+              <label>Email</label>
+              <input value={user?.email || ""} disabled />
+            </div>
+            <div className="account-field">
+              <label htmlFor="phone">Mobile</label>
+              <input
+                id="phone"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="10-digit mobile"
+              />
+            </div>
           </div>
           <button className="account-btn" type="submit" disabled={busy}>
             Save profile
@@ -202,7 +205,7 @@ export default function AccountHome() {
         {(user?.addresses || []).length === 0 && <p className="account-empty">No saved addresses yet.</p>}
         <ul className="account-list">
           {(user?.addresses || []).map((a) => (
-            <li key={a.id} className="account-item" style={{ gridTemplateColumns: "1fr auto" }}>
+            <li key={a.id} className="account-item account-item--address">
               <div>
                 <h3>{a.isDefault ? "Default address" : "Address"}</h3>
                 <p>
@@ -229,22 +232,22 @@ export default function AccountHome() {
               required
             />
           </div>
-          <div className="account-row">
-            <div className="account-field" style={{ flex: 1 }}>
+          <div className="account-address-grid">
+            <div className="account-field">
               <input
                 placeholder="City"
                 value={address.city}
                 onChange={(e) => setAddress({ ...address, city: e.target.value })}
               />
             </div>
-            <div className="account-field" style={{ flex: 1 }}>
+            <div className="account-field">
               <input
                 placeholder="State"
                 value={address.state}
                 onChange={(e) => setAddress({ ...address, state: e.target.value })}
               />
             </div>
-            <div className="account-field" style={{ width: 120 }}>
+            <div className="account-field account-field--pin">
               <input
                 placeholder="PIN"
                 value={address.zip}
@@ -256,6 +259,7 @@ export default function AccountHome() {
             Save address
           </button>
         </form>
+        </div>
       </div>
 
       <div className="account-card">
@@ -267,7 +271,7 @@ export default function AccountHome() {
         )}
         <div className="account-list">
           {bookings.slice(0, 4).map((b) => (
-            <Link key={b.id} className="account-item" to={`/account/bookings/${b.publicId}`}>
+            <Link key={b.id} className="account-item account-item--booking" to={`/account/bookings/${b.publicId}`}>
               <img src={b.carModel?.images?.[0]?.url || "/favicon.ico"} alt="" />
               <div>
                 <h3>{b.carModel?.name || b.publicId}</h3>

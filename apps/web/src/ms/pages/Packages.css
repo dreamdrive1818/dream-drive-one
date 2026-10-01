@@ -1317,6 +1317,12 @@
   }
 }
 
+@media (max-width: 480px) {
+  .packages-page {
+    padding: 2rem 1.2rem 5rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pk-card,
   .pk-btn,

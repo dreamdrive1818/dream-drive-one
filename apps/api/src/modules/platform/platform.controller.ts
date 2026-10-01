@@ -90,6 +90,59 @@ export class PlatformController {
     return this.platform.updateOffer(id, body);
   }
 
+  @Get("v1/admin/coupons")
+  coupons(@Req() req: Request) {
+    requireRoles(req, "SALES", "FINANCE", "SUPER_ADMIN");
+    return this.platform.coupons();
+  }
+
+  @Post("v1/admin/coupons")
+  createCoupons(
+    @Req() req: Request,
+    @Body()
+    body: {
+      code?: string;
+      count?: number;
+      type: "PERCENT" | "FLAT";
+      value: number;
+      startsAt?: string;
+      endsAt: string;
+      singleUse?: boolean;
+      maxRedemptions?: number;
+      cityId?: string | null;
+      rentalType?:
+        | "SELF_DRIVE"
+        | "WITH_DRIVER_LOCAL"
+        | "WITH_DRIVER_INTERCITY"
+        | "AIRPORT"
+        | "OUTSTATION"
+        | "ONE_WAY"
+        | "TOUR_PACKAGE"
+        | "SUBSCRIPTION"
+        | null;
+      minDays?: number | null;
+    }
+  ) {
+    requireRoles(req, "SALES", "SUPER_ADMIN");
+    return this.platform.createCoupons(body);
+  }
+
+  @Patch("v1/admin/coupons/:id")
+  updateCoupon(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body()
+    body: {
+      endsAt?: string;
+      startsAt?: string;
+      active?: boolean;
+      maxRedemptions?: number | null;
+    }
+  ) {
+    requireRoles(req, "SALES", "SUPER_ADMIN");
+    return this.platform.updateOffer(id, body).then((row) => this.platform.couponShape(row));
+  }
+
   @Get("v1/me/loyalty")
   loyalty(@Req() req: Request) {
     return this.platform.loyalty(currentUser(req).id);
