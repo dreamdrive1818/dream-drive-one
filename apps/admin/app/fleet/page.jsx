@@ -3,8 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "../../lib/api";
-import CarsPage from "../cars/page";
-import VehiclesPage from "../vehicles/page";
+import CarsManager from "../../components/CarsManager";
+import VehiclesManager from "../../components/VehiclesManager";
 
 const CARS_ROLES = new Set(["SALES", "FLEET_OPS", "CITY_MANAGER", "SUPER_ADMIN"]);
 const VEHICLE_ROLES = new Set(["FLEET_OPS", "BRANCH_MANAGER", "CITY_MANAGER", "SUPER_ADMIN"]);
@@ -60,7 +60,7 @@ function FleetInner() {
           </button>
         )}
       </div>
-      {view === "cars" ? <CarsPage hideTitle /> : <VehiclesPage hideTitle />}
+      {view === "cars" ? <CarsManager hideTitle /> : <VehiclesManager hideTitle />}
     </div>
   );
 }
