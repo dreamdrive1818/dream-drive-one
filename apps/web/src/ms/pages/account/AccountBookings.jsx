@@ -2,18 +2,25 @@
 
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../../api";
+import { api, peekApi } from "../../api";
 import { AccountBookingsSkeleton } from "../../../components/Skeleton/Skeleton";
 import { formatDay, prettyStatus, rupees, statusTone } from "./format";
 
 export default function AccountBookings() {
-  const [rows, setRows] = useState([]);
+  const cached = peekApi("/v1/me/bookings");
+  const [rows, setRows] = useState(() => (Array.isArray(cached) ? cached : []));
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!Array.isArray(cached));
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const hit = peekApi("/v1/me/bookings");
+    if (Array.isArray(hit)) {
+      setRows(hit);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setError("");
     api("/v1/me/bookings")
       .then((data) => {
@@ -21,7 +28,7 @@ export default function AccountBookings() {
       })
       .catch((e) => {
         if (!cancelled) {
-          setRows([]);
+          if (!Array.isArray(peekApi("/v1/me/bookings"))) setRows([]);
           setError(e.message);
         }
       })

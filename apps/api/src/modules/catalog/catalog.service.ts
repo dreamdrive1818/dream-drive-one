@@ -62,17 +62,17 @@ export class CatalogService {
       updatedAt: new Date(),
     };
     try {
-      return await remember("dd:settings", 180, () =>
-        prisma.catalogSettings.upsert({
-          where: { id: "default" },
-          create: {
+      return await remember("dd:settings", 180, async () => {
+        const existing = await prisma.catalogSettings.findUnique({ where: { id: "default" } });
+        if (existing) return existing;
+        return prisma.catalogSettings.create({
+          data: {
             id: "default",
             bufferHours: fallback.bufferHours,
             maxRentalDays: fallback.maxRentalDays,
           },
-          update: {},
-        })
-      );
+        });
+      });
     } catch {
       return fallback;
     }
@@ -217,31 +217,44 @@ export class CatalogService {
       },
       include: {
         images: { orderBy: { sortOrder: "asc" }, take: 3, select: { url: true, sortOrder: true } },
-        pricingRules: true,
+        pricingRules: {
+          select: {
+            rentalType: true,
+            dailyPaise: true,
+            under12Paise: true,
+            extraKmPaise: true,
+            depositPaise: true,
+            hourlyPaise: true,
+            startsOn: true,
+            endsOn: true,
+          },
+        },
         city: { select: { id: true, name: true, slug: true } },
       },
       orderBy: [{ featured: "desc" }, { displayOrder: "asc" }],
     });
 
-    const counts = models.length
-      ? await prisma.booking.groupBy({
-          by: ["carModelId"],
-          where: {
-            carModelId: { in: models.map((m) => m.id) },
-            status: { notIn: ["DRAFT", "CANCELLED"] },
-          },
-          _count: { _all: true },
-        })
-      : [];
-    const popularity = new Map(counts.map((c) => [c.carModelId, c._count._all]));
-    const avail =
-      from && to
-        ? await this.batchAvailability(
+    const ids = models.map((m) => m.id);
+    const [counts, avail] = await Promise.all([
+      ids.length
+        ? prisma.booking.groupBy({
+            by: ["carModelId"],
+            where: {
+              carModelId: { in: ids },
+              status: { notIn: ["DRAFT", "CANCELLED"] },
+            },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+      from && to && ids.length
+        ? this.batchAvailability(
             models.map((m) => ({ id: m.id, cityId: m.cityId })),
             from,
             to
           )
-        : null;
+        : Promise.resolve(null),
+    ]);
+    const popularity = new Map(counts.map((c) => [c.carModelId, c._count._all]));
 
     const results = [];
     for (const model of models) {
@@ -371,39 +384,10 @@ export class CatalogService {
         branch: { select: { cityId: true, active: true } },
       },
     });
-    const ids = vehicles.map((v) => v.id);
-    const [bookings, blocks, jobs] = ids.length
-      ? await Promise.all([
-          prisma.booking.findMany({
-            where: {
-              vehicleId: { in: ids },
-              status: { in: BLOCKING },
-              startsAt: { lt: windowEnd },
-              endsAt: { gt: windowStart },
-            },
-            select: { vehicleId: true },
-          }),
-          prisma.availabilityBlock.findMany({
-            where: {
-              vehicleId: { in: ids },
-              startsAt: { lt: windowEnd },
-              endsAt: { gt: windowStart },
-            },
-            select: { vehicleId: true },
-          }),
-          prisma.maintenanceJob.findMany({
-            where: {
-              vehicleId: { in: ids },
-              status: { in: ["SCHEDULED", "IN_PROGRESS"] },
-              startsAt: { lt: windowEnd },
-              endsAt: { gt: windowStart },
-            },
-            select: { vehicleId: true },
-          }),
-        ])
-      : [[], [], []];
-    const busy = new Set(
-      [...bookings, ...blocks, ...jobs].map((row) => row.vehicleId).filter(Boolean) as string[]
+    const busy = await this.busyVehicleIds(
+      vehicles.map((v) => v.id),
+      windowStart,
+      windowEnd
     );
     for (const model of models) {
       const free = vehicles.filter(
@@ -534,11 +518,14 @@ export class CatalogService {
       },
       include: { branch: true },
     });
-    for (const vehicle of vehicles) {
-      const busy = await this.vehicleBusy(vehicle.id, windowStart, windowEnd, db);
-      if (!busy) return vehicle;
-    }
-    return null;
+    if (!vehicles.length) return null;
+    const busy = await this.busyVehicleIds(
+      vehicles.map((v) => v.id),
+      windowStart,
+      windowEnd,
+      db
+    );
+    return vehicles.find((vehicle) => !busy.has(vehicle.id)) ?? null;
   }
 
   async countFreeVehicles(carModelId: string, from: Date, to: Date, cityId?: string) {
@@ -553,36 +540,49 @@ export class CatalogService {
       },
       select: { id: true },
     });
-    let count = 0;
-    for (const vehicle of vehicles) {
-      if (!(await this.vehicleBusy(vehicle.id, windowStart, windowEnd))) count += 1;
-    }
-    return count;
+    if (!vehicles.length) return 0;
+    const busy = await this.busyVehicleIds(
+      vehicles.map((v) => v.id),
+      windowStart,
+      windowEnd
+    );
+    return vehicles.reduce((n, v) => n + (busy.has(v.id) ? 0 : 1), 0);
+  }
+
+  private async busyVehicleIds(ids: string[], from: Date, to: Date, db: Db = prisma) {
+    if (!ids.length) return new Set<string>();
+    const [bookings, blocks, jobs] = await Promise.all([
+      db.booking.findMany({
+        where: {
+          vehicleId: { in: ids },
+          status: { in: BLOCKING },
+          startsAt: { lt: to },
+          endsAt: { gt: from },
+        },
+        select: { vehicleId: true },
+      }),
+      db.availabilityBlock.findMany({
+        where: { vehicleId: { in: ids }, startsAt: { lt: to }, endsAt: { gt: from } },
+        select: { vehicleId: true },
+      }),
+      db.maintenanceJob.findMany({
+        where: {
+          vehicleId: { in: ids },
+          status: { in: ["SCHEDULED", "IN_PROGRESS"] },
+          startsAt: { lt: to },
+          endsAt: { gt: from },
+        },
+        select: { vehicleId: true },
+      }),
+    ]);
+    return new Set(
+      [...bookings, ...blocks, ...jobs].map((row) => row.vehicleId).filter(Boolean) as string[]
+    );
   }
 
   async vehicleBusy(vehicleId: string, from: Date, to: Date, db: Db = prisma) {
-    const booking = await db.booking.findFirst({
-      where: {
-        vehicleId,
-        status: { in: BLOCKING },
-        startsAt: { lt: to },
-        endsAt: { gt: from },
-      },
-    });
-    if (booking) return true;
-    const block = await db.availabilityBlock.findFirst({
-      where: { vehicleId, startsAt: { lt: to }, endsAt: { gt: from } },
-    });
-    if (block) return true;
-    const job = await db.maintenanceJob.findFirst({
-      where: {
-        vehicleId,
-        status: { in: ["SCHEDULED", "IN_PROGRESS"] },
-        startsAt: { lt: to },
-        endsAt: { gt: from },
-      },
-    });
-    return Boolean(job);
+    const busy = await this.busyVehicleIds([vehicleId], from, to, db);
+    return busy.has(vehicleId);
   }
 
   private mockFleet() {
@@ -707,7 +707,12 @@ export class CatalogService {
 
   listAdminModels() {
     return prisma.carModel.findMany({
-      include: { images: { orderBy: { sortOrder: "asc" } }, pricingRules: true, city: true, vehicles: true },
+      include: {
+        images: { orderBy: { sortOrder: "asc" }, take: 8, select: { id: true, url: true, sortOrder: true } },
+        pricingRules: true,
+        city: { select: { id: true, name: true, slug: true } },
+        vehicles: { select: { id: true, registration: true, status: true, branchId: true } },
+      },
       orderBy: { displayOrder: "asc" },
     });
   }

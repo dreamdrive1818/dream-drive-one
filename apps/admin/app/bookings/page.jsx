@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api } from "../../lib/api";
+import { api, peekApi } from "../../lib/api";
 
 function currentMonth() {
   const d = new Date();
@@ -102,8 +102,15 @@ export default function BookingsPage() {
   });
   const pageSize = 100;
 
+  function applyBookings(res, nextPage) {
+    const items = Array.isArray(res) ? res : res.items || [];
+    setRows(items);
+    setTotal(Array.isArray(res) ? items.length : res.total || 0);
+    setPages(Array.isArray(res) ? 1 : res.pages || 1);
+    setPage(Array.isArray(res) ? 1 : res.page || nextPage);
+  }
+
   function load(nextPage = page) {
-    setLoading(true);
     setError("");
     const params = new URLSearchParams();
     if (status) params.set("status", status);
@@ -111,21 +118,30 @@ export default function BookingsPage() {
     if (onDate) params.set("onDate", onDate);
     params.set("page", String(nextPage));
     params.set("pageSize", String(pageSize));
-    api(`/v1/admin/bookings?${params}`)
-      .then((res) => {
-        const items = Array.isArray(res) ? res : res.items || [];
-        setRows(items);
-        setTotal(Array.isArray(res) ? items.length : res.total || 0);
-        setPages(Array.isArray(res) ? 1 : res.pages || 1);
-        setPage(Array.isArray(res) ? 1 : res.page || nextPage);
-      })
+    const path = `/v1/admin/bookings?${params}`;
+    const cached = peekApi(path);
+    if (cached) {
+      applyBookings(cached, nextPage);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    api(path)
+      .then((res) => applyBookings(res, nextPage))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }
 
   function loadCalendar(m = month) {
-    setLoadingCal(true);
-    api(`/v1/admin/bookings/calendar?month=${m}`)
+    const path = `/v1/admin/bookings/calendar?month=${m}`;
+    const cached = peekApi(path);
+    if (cached) {
+      setCalendar(cached);
+      setLoadingCal(false);
+    } else {
+      setLoadingCal(true);
+    }
+    api(path)
       .then(setCalendar)
       .catch((e) => setError(e.message))
       .finally(() => setLoadingCal(false));

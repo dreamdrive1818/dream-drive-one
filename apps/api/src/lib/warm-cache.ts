@@ -12,17 +12,17 @@ export async function warmPublicCache() {
           orderBy: { name: "asc" },
         })
       ),
-      remember("dd:settings", 180, () =>
-        prisma.catalogSettings.upsert({
-          where: { id: "default" },
-          create: {
+      remember("dd:settings", 180, async () => {
+        const existing = await prisma.catalogSettings.findUnique({ where: { id: "default" } });
+        if (existing) return existing;
+        return prisma.catalogSettings.create({
+          data: {
             id: "default",
             bufferHours: Number(process.env.BUFFER_HOURS ?? 3),
             maxRentalDays: Number(process.env.MAX_RENTAL_DAYS ?? 30),
           },
-          update: {},
-        })
-      ),
+        });
+      }),
     ]);
     console.log(`cache warm: cities + settings (${redis ? "redis" : "memory"})`);
   } catch (err) {

@@ -174,7 +174,13 @@ async function main() {
   await ensureUser("finance@dreamdrive.test", "Finance", "FINANCE");
   await ensureUser("branch@dreamdrive.test", "Ranchi Branch Manager", "BRANCH_MANAGER");
   await ensureUser("city@dreamdrive.test", "Ranchi City Manager", "CITY_MANAGER");
-  const customer = await ensureUser("customer@dreamdrive.test", "Demo Customer", "CUSTOMER");
+  const customer = await ensureUser(
+    "customer@dreamdrive.test",
+    "Demo Customer",
+    "CUSTOMER",
+    undefined,
+    "customer@123"
+  );
   await prisma.user.update({
     where: { id: customer.id },
     data: { phone: "9876543210" },
@@ -910,6 +916,8 @@ async function main() {
   });
 
   console.log("Seed complete. Dev logins:");
+  console.log("  Admin   admin@dreamdrive.test / admin@123     → :3001/login");
+  console.log("  Customer customer@dreamdrive.test / customer@123 → :3000/login");
   console.log("  Bearer dev:admin@dreamdrive.test");
   console.log("  Bearer dev:customer@dreamdrive.test");
   console.log(

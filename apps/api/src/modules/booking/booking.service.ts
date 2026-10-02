@@ -338,7 +338,7 @@ export class BookingEngine {
   }
 
   mine(userId: string) {
-    return remember(bookingsCacheKey(userId), 20, () =>
+    return remember(bookingsCacheKey(userId), 45, () =>
       prisma.booking.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
@@ -797,22 +797,24 @@ export class BookingEngine {
           }
         : {}),
     };
-    const total = await prisma.booking.count({ where });
-    const rows = await prisma.booking.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: {
-        user: { select: { email: true, phone: true, profile: true } },
-        payments: true,
-        extras: true,
-        pickupBranch: { select: { id: true, name: true } },
-        dropBranch: { select: { id: true, name: true } },
-        driverAssignment: { include: { driver: { select: { id: true, fullName: true, phone: true } } } },
-        vehicle: { select: { id: true, registration: true } },
-      },
-    });
+    const [total, rows] = await Promise.all([
+      prisma.booking.count({ where }),
+      prisma.booking.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          user: { select: { email: true, phone: true, profile: { select: { fullName: true } } } },
+          payments: { select: { id: true, status: true, kind: true, amountPaise: true } },
+          extras: true,
+          pickupBranch: { select: { id: true, name: true } },
+          dropBranch: { select: { id: true, name: true } },
+          driverAssignment: { include: { driver: { select: { id: true, fullName: true, phone: true } } } },
+          vehicle: { select: { id: true, registration: true } },
+        },
+      }),
+    ]);
     const ids = [...new Set(rows.map((b) => b.carModelId))];
     const models = ids.length
       ? await prisma.carModel.findMany({
@@ -838,51 +840,50 @@ export class BookingEngine {
     const start = new Date(`${key}-01T00:00:00+05:30`);
     const end = new Date(`${nextKey}-01T00:00:00+05:30`);
     const daysInMonth = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+    const scope = `${user.id}:${user.cityId || ""}:${user.branchId || ""}`;
 
-    const rows = await prisma.booking.findMany({
-      where: {
-        ...bookingScopeWhere(user),
-        status: { notIn: ["DRAFT", "CANCELLED"] },
-        startsAt: { lt: end },
-        endsAt: { gt: start },
-      },
-      select: {
-        id: true,
-        publicId: true,
-        startsAt: true,
-        endsAt: true,
-        status: true,
-        carModelId: true,
-      },
+    return remember(`dd:occ:${scope}:${key}`, 25, async () => {
+      const [rows, models] = await Promise.all([
+        prisma.booking.findMany({
+          where: {
+            ...bookingScopeWhere(user),
+            status: { notIn: ["DRAFT", "CANCELLED"] },
+            startsAt: { lt: end },
+            endsAt: { gt: start },
+          },
+          select: {
+            id: true,
+            publicId: true,
+            startsAt: true,
+            endsAt: true,
+            status: true,
+            carModelId: true,
+          },
+        }),
+        prisma.carModel.findMany({ select: { id: true, name: true } }),
+      ]);
+      const names = new Map(models.map((m) => [m.id, m.name]));
+
+      const days = [];
+      for (let d = 1; d <= daysInMonth; d += 1) {
+        const date = `${key}-${String(d).padStart(2, "0")}`;
+        const dayStart = new Date(`${date}T00:00:00+05:30`);
+        const dayEnd = new Date(dayStart.getTime() + 86_400_000);
+        const hit = rows.filter((b) => b.startsAt < dayEnd && b.endsAt > dayStart);
+        days.push({
+          date,
+          count: hit.length,
+          bookings: hit.map((b) => ({
+            id: b.id,
+            publicId: b.publicId,
+            status: b.status,
+            car: names.get(b.carModelId) || "—",
+          })),
+        });
+      }
+      const peak = days.reduce((best, day) => (day.count > (best?.count || 0) ? day : best), days[0] || null);
+      return { month: key, days, peak: peak ? { date: peak.date, count: peak.count } : null };
     });
-    const modelIds = [...new Set(rows.map((r) => r.carModelId))];
-    const models = modelIds.length
-      ? await prisma.carModel.findMany({
-          where: { id: { in: modelIds } },
-          select: { id: true, name: true },
-        })
-      : [];
-    const names = new Map(models.map((m) => [m.id, m.name]));
-
-    const days = [];
-    for (let d = 1; d <= daysInMonth; d += 1) {
-      const date = `${key}-${String(d).padStart(2, "0")}`;
-      const dayStart = new Date(`${date}T00:00:00+05:30`);
-      const dayEnd = new Date(dayStart.getTime() + 86_400_000);
-      const hit = rows.filter((b) => b.startsAt < dayEnd && b.endsAt > dayStart);
-      days.push({
-        date,
-        count: hit.length,
-        bookings: hit.map((b) => ({
-          id: b.id,
-          publicId: b.publicId,
-          status: b.status,
-          car: names.get(b.carModelId) || "—",
-        })),
-      });
-    }
-    const peak = days.reduce((best, day) => (day.count > (best?.count || 0) ? day : best), days[0] || null);
-    return { month: key, days, peak: peak ? { date: peak.date, count: peak.count } : null };
   }
 
   async expireHolds() {

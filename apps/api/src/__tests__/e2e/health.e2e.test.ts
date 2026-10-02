@@ -7,6 +7,8 @@ jest.mock('../../lib/prisma', () => ({
     $disconnect: jest.fn().mockResolvedValue(undefined),
     catalogSettings: {
       upsert: jest.fn().mockResolvedValue({ id: 'default', bufferHours: 3, maxRentalDays: 30, updatedAt: new Date() }),
+      findUnique: jest.fn().mockResolvedValue({ id: 'default', bufferHours: 3, maxRentalDays: 30, updatedAt: new Date() }),
+      create: jest.fn(),
     },
   },
 }));

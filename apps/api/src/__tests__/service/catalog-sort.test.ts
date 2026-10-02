@@ -3,7 +3,7 @@
 jest.mock('../../lib/prisma', () => ({
   prisma: {
     carModel: { findMany: jest.fn(), findUnique: jest.fn() },
-    catalogSettings: { upsert: jest.fn() },
+    catalogSettings: { upsert: jest.fn(), findUnique: jest.fn(), create: jest.fn() },
     booking: { groupBy: jest.fn() },
     availabilityBlock: { findMany: jest.fn() },
     vehicle: { findFirst: jest.fn(), count: jest.fn() },

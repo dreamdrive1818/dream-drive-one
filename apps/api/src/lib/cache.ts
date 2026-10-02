@@ -3,10 +3,14 @@ import Redis from "ioredis";
 type MemoryRow = { value: string; exp: number };
 
 const memory = new Map<string, MemoryRow>();
+const inflight = new Map<string, Promise<unknown>>();
 const DEFAULT_TTL = 45;
+const REDIS_WAIT_MS = 180;
+const MAX_MEMORY_KEYS = 800;
 
 let redis: Redis | null | undefined;
 let redisReady = false;
+let redisFailLogs = 0;
 
 function redisUrl() {
   return (process.env.REDIS_URL || process.env.UPSTASH_REDIS_URL || "").trim();
@@ -17,6 +21,22 @@ function normalizeRedisUrl(url: string) {
     return `rediss://${url.slice("redis://".length)}`;
   }
   return url;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("cache timeout")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
 }
 
 function getRedis(): Redis | null {
@@ -33,14 +53,15 @@ function getRedis(): Redis | null {
     const url = normalizeRedisUrl(raw);
     const useTls = /upstash\.io/i.test(url) || url.startsWith("rediss://");
     redis = new Redis(url, {
-      maxRetriesPerRequest: 2,
-      connectTimeout: 8000,
+      maxRetriesPerRequest: 1,
+      connectTimeout: 1500,
+      commandTimeout: REDIS_WAIT_MS,
       enableReadyCheck: true,
-      enableOfflineQueue: true,
+      enableOfflineQueue: false,
       family: 4,
       tls: useTls ? {} : undefined,
       retryStrategy(times) {
-        if (times > 10) return null;
+        if (times > 3) return null;
         return Math.min(times * 400, 2000);
       },
     });
@@ -53,7 +74,8 @@ function getRedis(): Redis | null {
     });
     redis.on("error", (err) => {
       redisReady = false;
-      if (process.env.NODE_ENV === "development") {
+      if (process.env.NODE_ENV === "development" && redisFailLogs < 3) {
+        redisFailLogs += 1;
         console.warn("redis cache:", err.message);
       }
     });
@@ -75,11 +97,18 @@ function memoryGet(key: string): string | undefined {
 
 function memorySet(key: string, raw: string, ttlSec: number) {
   memory.set(key, { value: raw, exp: Date.now() + ttlSec * 1000 });
-  if (memory.size > 500) {
-    const now = Date.now();
-    for (const [k, v] of memory) {
-      if (v.exp <= now) memory.delete(k);
-    }
+  if (memory.size <= MAX_MEMORY_KEYS) return;
+  const now = Date.now();
+  for (const [k, v] of memory) {
+    if (v.exp <= now) memory.delete(k);
+  }
+  if (memory.size <= MAX_MEMORY_KEYS) return;
+  const overflow = memory.size - MAX_MEMORY_KEYS;
+  let dropped = 0;
+  for (const k of memory.keys()) {
+    memory.delete(k);
+    dropped += 1;
+    if (dropped >= overflow) break;
   }
 }
 
@@ -93,9 +122,9 @@ export async function cacheGet<T>(key: string): Promise<T | undefined> {
     }
   }
   const client = getRedis();
-  if (!client) return undefined;
+  if (!client || !redisReady) return undefined;
   try {
-    const raw = await client.get(key);
+    const raw = await withTimeout(client.get(key), REDIS_WAIT_MS);
     if (raw == null) return undefined;
     memorySet(key, raw, DEFAULT_TTL);
     return JSON.parse(raw) as T;
@@ -108,31 +137,29 @@ export async function cacheSet(key: string, value: unknown, ttlSec = DEFAULT_TTL
   const raw = JSON.stringify(value);
   memorySet(key, raw, ttlSec);
   const client = getRedis();
-  if (!client) return;
-  try {
-    await client.set(key, raw, "EX", ttlSec);
-  } catch {
-    // in-memory still serves this process
-  }
+  if (!client || !redisReady) return;
+  void client.set(key, raw, "EX", ttlSec).catch(() => undefined);
 }
 
 export async function cacheDel(...keys: string[]) {
   for (const key of keys) memory.delete(key);
   const client = getRedis();
-  if (!client || !keys.length) return;
-  try {
-    await client.del(...keys);
-  } catch {
-    // ignore
-  }
+  if (!client || !redisReady || !keys.length) return;
+  void client.del(...keys).catch(() => undefined);
 }
 
 export async function remember<T>(key: string, ttlSec: number, load: () => Promise<T>): Promise<T> {
   const hit = await cacheGet<T>(key);
   if (hit !== undefined) return hit;
-  const value = await load();
-  await cacheSet(key, value, ttlSec);
-  return value;
+  const pending = inflight.get(key);
+  if (pending) return pending as Promise<T>;
+  const run = (async () => {
+    const value = await load();
+    await cacheSet(key, value, ttlSec);
+    return value;
+  })().finally(() => inflight.delete(key));
+  inflight.set(key, run);
+  return run;
 }
 
 export async function pingRedis() {
@@ -142,12 +169,19 @@ export async function pingRedis() {
     return false;
   }
   try {
-    await client.ping();
+    await withTimeout(client.ping(), 800);
     redisReady = true;
     console.log("redis cache: ready");
     return true;
   } catch (err) {
+    redisReady = false;
     console.warn("redis cache: ping failed —", err instanceof Error ? err.message : err);
+    try {
+      client.disconnect();
+    } catch {
+      // ignore
+    }
+    redis = null;
     return false;
   }
 }
@@ -183,23 +217,53 @@ export function meCacheKey(userId: string) {
   return `dd:me:${userId}`;
 }
 
-export async function invalidateCatalogCache() {
-  const prefixes = ["dd:search:", "dd:car:", "dd:avail:", "dd:settings", "dd:cities", "dd:catcfg", "dd:home"];
-  for (const key of [...memory.keys()]) {
-    if (prefixes.some((p) => key === p || key.startsWith(p))) memory.delete(key);
-  }
-  const client = getRedis();
-  if (!client) return;
+const PUBLIC_PREFIXES = [
+  "dd:search:",
+  "dd:car:",
+  "dd:avail:",
+  "dd:settings",
+  "dd:cities",
+  "dd:catcfg",
+  "dd:home",
+  "dd:public-config",
+  "dd:pages:",
+  "dd:banners:",
+  "dd:blogs:",
+  "dd:testimonials",
+  "dd:auth-settings",
+];
+
+async function flushRedisPrefixes(client: Redis, prefixes: string[]) {
   try {
     const keys: string[] = [];
     for (const prefix of prefixes) {
-      const found = await client.keys(`${prefix}*`);
-      keys.push(...found);
+      let cursor = "0";
+      do {
+        const [next, found] = await client.scan(cursor, "MATCH", `${prefix}*`, "COUNT", 80);
+        cursor = next;
+        keys.push(...found);
+      } while (cursor !== "0");
     }
-    if (keys.length) await client.del(...keys);
+    const uniq = [...new Set(keys)];
+    for (let i = 0; i < uniq.length; i += 80) {
+      await client.del(...uniq.slice(i, i + 80));
+    }
   } catch {
-    // ignore
+    // memory already dropped
   }
+}
+
+export async function invalidateCatalogCache() {
+  for (const key of [...memory.keys()]) {
+    if (PUBLIC_PREFIXES.some((p) => key === p || key.startsWith(p))) memory.delete(key);
+  }
+  const client = getRedis();
+  if (!client || !redisReady) return;
+  void flushRedisPrefixes(client, PUBLIC_PREFIXES);
+}
+
+export async function invalidatePublicCache() {
+  return invalidateCatalogCache();
 }
 
 export async function invalidateUserProfile(userId: string) {

@@ -16,7 +16,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import HowItWorks from "../HowItWorks/HowItWorks";
 import { motion, useReducedMotion } from "framer-motion";
-import { api } from "../../ms/api";
+import { api, peekApi } from "../../ms/api";
 import {
   filtersToSearchParams,
   dateToIsoAtHour,
@@ -117,6 +117,21 @@ const isDiscountedCar = (car) => {
   return Number.isFinite(sale) && Number.isFinite(price) && sale > price;
 };
 
+function sortFleetCars(list) {
+  const discountPct = (car) => {
+    const sale = Number(car.salePrice);
+    const price = Number(car.price);
+    return ((sale - price) / sale) * 100;
+  };
+  return [...list].sort((a, b) => {
+    const aDisc = isDiscountedCar(a);
+    const bDisc = isDiscountedCar(b);
+    if (aDisc !== bDisc) return aDisc ? -1 : 1;
+    if (aDisc && bDisc) return discountPct(b) - discountPct(a);
+    return (a.displayOrder ?? 9999) - (b.displayOrder ?? 9999);
+  });
+}
+
 const transmissionLabel = (value) => {
   if (value === null || value === undefined || value === "") return null;
   const raw = String(value);
@@ -185,8 +200,12 @@ const FleetCarousel = () => {
   const [brokenImages, setBrokenImages] = useState(() => new Set());
   const [currentPage, setCurrentPage] = useState(0);
 
-  const [cities, setCities] = useState([]);
-  const [cityId, setCityId] = useState("");
+  const cachedCityRows = Array.isArray(peekApi("/v1/public/cities")) ? peekApi("/v1/public/cities") : [];
+  const [cities, setCities] = useState(cachedCityRows);
+  const [cityId, setCityId] = useState(() => {
+    const ranchi = cachedCityRows.find((c) => /ranchi/i.test(String(c.name || "")));
+    return ranchi?.id || cachedCityRows[0]?.id || "";
+  });
   const [vehicleClass, setVehicleClass] = useState("Hatchback");
   const dateDefaults = defaultSearchDates();
   const [fromDate, setFromDate] = useState(dateDefaults.fromDate);
@@ -240,37 +259,27 @@ const FleetCarousel = () => {
   }, []);
 
   useEffect(() => {
+    if (!cityId) return undefined;
     let cancelled = false;
-    const loadCars = async () => {
+    const path = `/v1/public/search?cityId=${encodeURIComponent(cityId)}`;
+    const cached = peekApi(path);
+    if (cached) {
+      setCars(sortFleetCars(mapSearchCars(cached)));
+      setLoading(false);
+    } else {
       setLoading(true);
-      try {
-        const qs = new URLSearchParams();
-        if (cityId) qs.set("cityId", cityId);
-        const path = qs.toString()
-          ? `/v1/public/search?${qs}`
-          : "/v1/public/search";
-        const carData = mapSearchCars(await api(path));
-        const discountPct = (car) => {
-          const sale = Number(car.salePrice);
-          const price = Number(car.price);
-          return ((sale - price) / sale) * 100;
-        };
-        const sortedCars = [...carData].sort((a, b) => {
-          const aDisc = isDiscountedCar(a);
-          const bDisc = isDiscountedCar(b);
-          if (aDisc !== bDisc) return aDisc ? -1 : 1;
-          if (aDisc && bDisc) return discountPct(b) - discountPct(a);
-          return (a.displayOrder ?? 9999) - (b.displayOrder ?? 9999);
-        });
-        if (!cancelled) setCars(sortedCars);
-      } catch (err) {
+    }
+    api(path)
+      .then((rows) => {
+        if (!cancelled) setCars(sortFleetCars(mapSearchCars(rows)));
+      })
+      .catch((err) => {
         console.error("Failed to load fleet cars:", err);
-        if (!cancelled) setCars([]);
-      } finally {
+        if (!cancelled && !cached) setCars([]);
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    };
-    loadCars();
+      });
     return () => {
       cancelled = true;
     };
