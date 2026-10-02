@@ -29,7 +29,8 @@ export default function AuthForm({
     loginGoogle,
     loginFacebook,
   } = useAuth();
-  const { auth: authFlags } = useLocalContext() || {};
+  const { auth: authFlags, webinfo } = useLocalContext() || {};
+  const logo = webinfo?.logo;
   const canPassword = authFlags?.password !== false;
   const canOtp = authFlags?.otp !== false;
   const canRegister = authFlags?.register !== false;
@@ -387,7 +388,11 @@ export default function AuthForm({
   return (
     <div className={`customer-login-shell${compact ? " customer-login-shell--compact" : ""}`}>
       <header className="customer-login-header">
-        <p className="customer-login-eyebrow">Dream Drive</p>
+        {logo ? (
+          <img src={logo} alt="Dream Drive" className="customer-login-brand-logo" />
+        ) : (
+          <p className="customer-login-eyebrow">Dream Drive</p>
+        )}
         {compact ? (
           <h2 className="customer-login-title-modal">{title}</h2>
         ) : (

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
+import { useLocalContext } from "../../context/LocalContext";
 import {
   getPostLoginPath,
   readRedirectFromLocation,
@@ -15,6 +16,8 @@ const VISUAL_STAGE = "/hero-road-presence.jpg";
 
 export default function Login() {
   const { user, ready } = useAuth();
+  const { webinfo } = useLocalContext() || {};
+  const logo = webinfo?.logo;
   const navigate = useNavigate();
   const isSubmitLogin = useRef(false);
 
@@ -67,7 +70,7 @@ export default function Login() {
 
   return (
     <div className="customer-login-page customer-login-page--full">
-      <aside className="customer-login-visual" aria-hidden="true">
+      <aside className="customer-login-visual">
         <img
           src={VISUAL_STAGE}
           alt=""
@@ -76,15 +79,6 @@ export default function Login() {
         />
         <div className="customer-login-visual-shade" />
         <div className="customer-login-visual-sheen" />
-        <div className="customer-login-visual-copy">
-          <p className="customer-login-visual-brand">Dream Drive</p>
-          <p className="customer-login-visual-line">
-            Ranchi’s trusted self-drive rentals — keys when you need them.
-          </p>
-        </div>
-      </aside>
-
-      <section className="customer-login-panel">
         <nav className="customer-login-panel-nav" aria-label="Login page">
           <button type="button" className="customer-login-nav-btn" onClick={goBack}>
             <span aria-hidden="true">←</span>
@@ -94,6 +88,27 @@ export default function Login() {
             Home
           </button>
         </nav>
+        <div className="customer-login-visual-copy">
+          <div className="customer-login-visual-mark">
+            {logo ? (
+              <img
+                src={logo}
+                alt="Dream Drive"
+                className="customer-login-visual-logo"
+                draggable={false}
+              />
+            ) : (
+              <p className="customer-login-visual-brand">Dream Drive</p>
+            )}
+          </div>
+          <div className="customer-login-visual-copy-text">
+            <p className="customer-login-visual-kicker">Self-drive · Ranchi</p>
+            <p className="customer-login-visual-line">Keys when you need them.</p>
+          </div>
+        </div>
+      </aside>
+
+      <section className="customer-login-panel">
         <div className="customer-login-panel-scroll">
           <AuthForm idPrefix="page-auth" onSuccess={completeLogin} />
         </div>
