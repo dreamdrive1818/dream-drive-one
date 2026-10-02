@@ -9,7 +9,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import { remember } from "../../lib/cache";
+import { remember, invalidatePublicCache } from "../../lib/cache";
 import { uploadToCloudinary } from "../../lib/cloudinary";
 import { upsertPublicLead } from "../../lib/leads";
 import {
@@ -276,22 +276,48 @@ const SETTING_DEFAULTS: Record<string, { label: string; group: string; value: st
 
 @Injectable()
 export class CmsService {
-  // -------------------------------------------------------------------------
-  // Ensure every default key exists in the DB (runs on first call only;
-  // subsequent calls are a single SELECT).
-  // -------------------------------------------------------------------------
+  private settingsSeeded = false;
+  private settingsSeed: Promise<void> | null = null;
+
   private async seedSettings() {
-    for (const [key, meta] of Object.entries(SETTING_DEFAULTS)) {
-      await prisma.siteSetting.upsert({
-        where:  { key },
-        create: { key, value: meta.value, label: meta.label, group: meta.group },
-        update: {},           // never overwrite an admin-edited value
+    if (this.settingsSeeded) return;
+    if (this.settingsSeed) return this.settingsSeed;
+    this.settingsSeed = this.seedSettingsOnce()
+      .then(() => {
+        this.settingsSeeded = true;
+      })
+      .finally(() => {
+        this.settingsSeed = null;
       });
-    }
+    return this.settingsSeed;
+  }
+
+  private async seedSettingsOnce() {
+    const keys = Object.keys(SETTING_DEFAULTS);
+    const existing = await prisma.siteSetting.findMany({
+      where: { key: { in: keys } },
+      select: { key: true },
+    });
+    const have = new Set(existing.map((row) => row.key));
+    const missing = keys.filter((key) => !have.has(key));
+    if (!missing.length) return;
+    await prisma.siteSetting.createMany({
+      data: missing.map((key) => ({
+        key,
+        value: SETTING_DEFAULTS[key].value,
+        label: SETTING_DEFAULTS[key].label,
+        group: SETTING_DEFAULTS[key].group,
+      })),
+      skipDuplicates: true,
+    });
   }
 
   async publicConfig() {
-    await this.seedSettings();
+    return remember("dd:public-config", 120, () => this.publicConfigUncached());
+  }
+
+  private async publicConfigUncached() {
+    void this.seedSettings();
     const [rows, auth] = await Promise.all([
       prisma.siteSetting.findMany({ where: { group: "contact" } }),
       getAuthSettings(),
@@ -358,7 +384,7 @@ export class CmsService {
   }
 
   async home() {
-    return remember("dd:home", 60, () => this.homeUncached());
+    return remember("dd:home", 90, () => this.homeUncached());
   }
 
   private async homeUncached() {
@@ -415,15 +441,17 @@ export class CmsService {
   }
 
   async publicPages(kind?: string) {
-    const rows = await prisma.cmsPage.findMany({
-      where: {
-        published: true,
-        kind: kind && kind in CmsPageKind ? (kind as CmsPageKind) : undefined,
-      },
-      include: { metadata: true },
-      orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
+    return remember(`dd:pages:${kind || "all"}`, 90, async () => {
+      const rows = await prisma.cmsPage.findMany({
+        where: {
+          published: true,
+          kind: kind && kind in CmsPageKind ? (kind as CmsPageKind) : undefined,
+        },
+        include: { metadata: true },
+        orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
+      });
+      return rows.map(presentPage);
     });
-    return rows.map(presentPage);
   }
 
   async publicPage(slug: string) {
@@ -436,8 +464,10 @@ export class CmsService {
   }
 
   async banners(placement?: string) {
-    const rows = await this.activeBanners(new Date(), placement);
-    return rows.map(presentBanner);
+    return remember(`dd:banners:${placement || "all"}`, 60, async () => {
+      const rows = await this.activeBanners(new Date(), placement);
+      return rows.map(presentBanner);
+    });
   }
 
   private activeBanners(now: Date, placement?: string) {
@@ -457,25 +487,27 @@ export class CmsService {
 
   async blogs(query: { category?: string; take?: number }) {
     const take = Math.min(Math.max(query.take ?? 50, 1), 100);
-    const categoryFilter = query.category
-      ? {
-          OR: [
-            { slug: query.category },
-            { id: query.category },
-            { name: { equals: query.category, mode: "insensitive" as const } },
-          ],
-        }
-      : undefined;
-    const rows = await prisma.blogPost.findMany({
-      where: {
-        published: true,
-        category: categoryFilter,
-      },
-      include: { category: true },
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-      take,
+    return remember(`dd:blogs:${query.category || ""}:${take}`, 60, async () => {
+      const categoryFilter = query.category
+        ? {
+            OR: [
+              { slug: query.category },
+              { id: query.category },
+              { name: { equals: query.category, mode: "insensitive" as const } },
+            ],
+          }
+        : undefined;
+      const rows = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          category: categoryFilter,
+        },
+        include: { category: true },
+        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+        take,
+      });
+      return rows.map((row) => presentBlog(row));
     });
-    return rows.map((row) => presentBlog(row));
   }
 
   async blog(slug: string) {
@@ -545,11 +577,13 @@ export class CmsService {
   }
 
   async testimonials() {
-    const rows = await prisma.testimonial.findMany({
-      where: { active: true },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+    return remember("dd:testimonials", 90, async () => {
+      const rows = await prisma.testimonial.findMany({
+        where: { active: true },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      });
+      return rows.map(presentTestimonial);
     });
-    return rows.map(presentTestimonial);
   }
 
   async submitTestimonial(body: {
@@ -1166,6 +1200,7 @@ export class CmsService {
     entityId?: string,
     payload?: Prisma.InputJsonValue
   ) {
+    void invalidatePublicCache();
     await prisma.auditLog.create({
       data: {
         actorId,

@@ -8,20 +8,30 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { api, getToken, setToken } from "./api";
+import { api, getToken, peekApi, prefetch, seedApi, setToken } from "./api";
 import { isLocalDev } from "./authUtils";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [ready, setReady] = useState(false);
+  const [user, setUser] = useState(() => (typeof window === "undefined" ? null : peekApi("/v1/me") || null));
+  const [ready, setReady] = useState(() => typeof window === "undefined" || !getToken() || Boolean(peekApi("/v1/me")));
 
   const applySession = useCallback(async (token, nextUser) => {
     if (token) setToken(token);
     if (nextUser) {
+      seedApi("/v1/me", nextUser);
       setUser(nextUser);
       setReady(true);
+      prefetch([
+        "/v1/me/dashboard",
+        "/v1/me/bookings",
+        "/v1/public/cities",
+        "/v1/public/home",
+        "/v1/public/search",
+        "/v1/public/catalog-config",
+      ]);
+      return nextUser;
     }
     if (!getToken()) {
       setUser(null);
@@ -29,12 +39,10 @@ export function AuthProvider({ children }) {
       return null;
     }
     try {
-      await api("/v1/auth/sync", { method: "POST", body: {} });
       const me = await api("/v1/me");
       setUser(me);
       return me;
     } catch {
-      if (nextUser) return nextUser;
       setUser(null);
       setToken("");
       return null;
@@ -49,12 +57,20 @@ export function AuthProvider({ children }) {
       setReady(true);
       return null;
     }
+    const cached = peekApi("/v1/me");
+    if (cached) {
+      setUser(cached);
+      setReady(true);
+      void api("/v1/me")
+        .then((me) => setUser(me))
+        .catch(() => undefined);
+      return cached;
+    }
     try {
-      await api("/v1/auth/sync", { method: "POST", body: {} });
       const me = await api("/v1/me");
       setUser(me);
       return me;
-    } catch (err) {
+    } catch {
       setUser(null);
       setToken("");
       return null;
@@ -64,8 +80,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    prefetch([
+      "/v1/public/cities",
+      "/v1/public/home",
+      "/v1/public/search",
+      "/v1/public/catalog-config",
+    ]);
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    prefetch(["/v1/me/dashboard", "/v1/me/bookings"]);
+  }, [user?.id]);
 
   const requireSession = useCallback(
     async (loadSession) => {
@@ -225,7 +252,7 @@ export function AuthProvider({ children }) {
         if (!result.sessionStarted) {
           throw new Error("OTP verified, but a session token was not issued.");
         }
-        return refresh();
+        return peekApi("/v1/me") || refresh();
       },
       logout,
     }),

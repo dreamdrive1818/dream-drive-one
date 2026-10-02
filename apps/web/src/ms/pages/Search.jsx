@@ -12,7 +12,7 @@ import {
   faSliders,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
-import { api } from "../api";
+import { api, peekApi } from "../api";
 import {
   RENTAL_TYPE_LABELS,
   RENTAL_TYPES,
@@ -52,12 +52,17 @@ const EMPTY_FILTERS = {
   sort: "",
 };
 
+function cachedCities() {
+  const rows = peekApi("/v1/public/cities");
+  return Array.isArray(rows) ? rows : [];
+}
+
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [cities, setCities] = useState([]);
+  const [cities, setCities] = useState(cachedCities);
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [citiesLoading, setCitiesLoading] = useState(true);
+  const [citiesLoading, setCitiesLoading] = useState(() => cachedCities().length === 0);
   const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
   const [maxRentalDays, setMaxRentalDays] = useState(30);
@@ -124,12 +129,18 @@ export default function Search() {
       if (!activeFilters.cityId) return;
       if (validateDateRange(activeFilters.from, activeFilters.to, maxRentalDays)) return;
 
-      setLoading(true);
+      const path = `/v1/public/search?${buildApiSearchParams(activeFilters)}`;
+      const cached = peekApi(path);
+      if (cached) {
+        setCars(Array.isArray(cached) ? cached : []);
+        setSearched(true);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
       setError("");
       try {
-        const rows = await api(
-          `/v1/public/search?${buildApiSearchParams(activeFilters)}`
-        );
+        const rows = await api(path);
         setCars(Array.isArray(rows) ? rows : []);
         setSearched(true);
       } catch (err) {
@@ -145,7 +156,25 @@ export default function Search() {
 
   useEffect(() => {
     let cancelled = false;
-    setCitiesLoading(true);
+    const warmed = cachedCities();
+    if (warmed.length) {
+      setCities(warmed);
+      setCitiesLoading(false);
+      const current = parseFleetFilters(searchParams);
+      const dates = defaultSearchDates();
+      const patch = {};
+      if (!current.cityId && warmed[0]?.id) patch.cityId = warmed[0].id;
+      if (!current.from) patch.from = dates.from;
+      if (!current.to) patch.to = dates.to;
+      if (Object.keys(patch).length) {
+        setSearchParams(
+          filtersToSearchParams({ ...current, ...patch }),
+          { replace: true }
+        );
+      }
+    } else {
+      setCitiesLoading(true);
+    }
     api("/v1/public/cities")
       .then((rows) => {
         if (cancelled) return;
@@ -185,8 +214,9 @@ export default function Search() {
   }, []);
 
   useEffect(() => {
-    if (!filters.cityId || dateError) return;
-    runSearch(filters);
+    if (!filters.cityId || dateError) return undefined;
+    const timer = setTimeout(() => runSearch(filters), 280);
+    return () => clearTimeout(timer);
   }, [apiFetchKey, dateError, runSearch, filters]);
 
   useEffect(() => {

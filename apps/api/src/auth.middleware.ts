@@ -89,15 +89,18 @@ export class AuthMiddleware implements NestMiddleware {
     }
 
     let user: UserCtx | null = null;
-    try {
-      user = await this.resolveUser(req.headers.authorization);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Sign in required";
-      if (message === "Account disabled") {
-        res.status(401).json({ error: "Account disabled" });
-        return;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        user = await this.resolveUser(authHeader);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Sign in required";
+        if (message === "Account disabled") {
+          res.status(401).json({ error: "Account disabled" });
+          return;
+        }
+        user = null;
       }
-      user = null;
     }
 
     const opsCity = headerValue(req, "x-ops-city-id");
@@ -117,9 +120,14 @@ export class AuthMiddleware implements NestMiddleware {
       if (user.phone) req.headers["x-phone"] = user.phone;
       if (user.cityId) req.headers["x-assigned-city-id"] = user.cityId;
       if (user.branchId) req.headers["x-assigned-branch-id"] = user.branchId;
-      const scoped = await this.identity.resolveOpsScope(user, opsCity, opsBranch);
-      if (scoped.cityId) req.headers["x-city-id"] = scoped.cityId;
-      if (scoped.branchId) req.headers["x-branch-id"] = scoped.branchId;
+      if (opsCity || opsBranch) {
+        const scoped = await this.identity.resolveOpsScope(user, opsCity, opsBranch);
+        if (scoped.cityId) req.headers["x-city-id"] = scoped.cityId;
+        if (scoped.branchId) req.headers["x-branch-id"] = scoped.branchId;
+      } else {
+        if (user.cityId) req.headers["x-city-id"] = user.cityId;
+        if (user.branchId) req.headers["x-branch-id"] = user.branchId;
+      }
     }
 
     if (!isPublic(path) && !user) {
@@ -137,7 +145,7 @@ export class AuthMiddleware implements NestMiddleware {
     if (!authHeader?.startsWith("Bearer ")) return null;
     const token = authHeader.slice(7);
     const cached = cache.get(token);
-    if (cached && Date.now() - cached.at < 60_000) {
+    if (cached && Date.now() - cached.at < 180_000) {
       if (cached.user.status === "DISABLED") return null;
       return cached.user;
     }

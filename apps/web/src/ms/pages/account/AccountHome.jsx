@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../../api";
+import { api, peekApi } from "../../api";
 import { useAuth } from "../../AuthContext";
 import { formatDay, prettyStatus, rupees, statusTone } from "./format";
 
 export default function AccountHome() {
   const { user, refresh } = useAuth();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => peekApi("/v1/me/dashboard") || null);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     fullName: user?.fullName || "",
@@ -27,6 +27,8 @@ export default function AccountHome() {
   const [info, setInfo] = useState("");
 
   useEffect(() => {
+    const cached = peekApi("/v1/me/dashboard");
+    if (cached) setData(cached);
     api("/v1/me/dashboard")
       .then(setData)
       .catch((e) => setError(e.message));

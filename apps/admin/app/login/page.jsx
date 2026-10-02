@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, getToken, setToken } from "../../lib/api";
+import { api, getToken, prefetch, seedApi, setToken } from "../../lib/api";
 import { isStaff } from "../../lib/rbac";
 
 export default function LoginPage() {
@@ -30,15 +30,25 @@ export default function LoginPage() {
       const res = await api("/v1/auth/staff-login", {
         method: "POST",
         body: { email: email.trim().toLowerCase(), password },
-        retries: 2,
+        retries: 0,
       });
       setToken(res.token);
-      const me = res.user || (await api("/v1/me"));
-      if (!isStaff(me.roles)) {
+      const me = res.user;
+      if (!me || !isStaff(me.roles)) {
         localStorage.removeItem("dd_token");
         setError("This account is not staff.");
         return;
       }
+      seedApi("/v1/me", me);
+      prefetch([
+        "/v1/admin/dashboard",
+        "/v1/admin/cities",
+        "/v1/admin/bookings?page=1&pageSize=100",
+        "/v1/admin/bookings/calendar",
+        "/v1/admin/car-models",
+        "/v1/admin/vehicles",
+        "/v1/admin/branches",
+      ]);
       router.replace("/");
     } catch (err) {
       localStorage.removeItem("dd_token");

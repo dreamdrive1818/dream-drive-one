@@ -237,7 +237,16 @@ export class FleetEngine {
           ? { registration: { contains: normalizeRegistration(query.q), mode: "insensitive" } }
           : {}),
       },
-      include: this.vehicleInclude(),
+      include: {
+        carModel: { select: { id: true, name: true, slug: true, type: true } },
+        branch: { include: { city: { select: { id: true, name: true, slug: true } } } },
+        partner: { select: { id: true, name: true, active: true } },
+        documents: {
+          orderBy: { createdAt: "desc" as const },
+          take: 8,
+          select: { id: true, kind: true, expiresAt: true, url: true, createdAt: true },
+        },
+      },
       orderBy: { registration: "asc" },
     });
   }

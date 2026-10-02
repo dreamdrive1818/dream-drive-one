@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api, getOpsBranch, getOpsCity, setOpsScope } from "../lib/api";
+import { api, getOpsBranch, getOpsCity, peekApi, setOpsScope } from "../lib/api";
 import { roleLabel } from "../lib/rbac";
 
 const CARDS = [
@@ -49,9 +49,9 @@ function todayLabel() {
 }
 
 export default function Dashboard() {
-  const [me, setMe] = useState(null);
-  const [cities, setCities] = useState([]);
-  const [data, setData] = useState(null);
+  const [me, setMe] = useState(() => peekApi("/v1/me") || null);
+  const [cities, setCities] = useState(() => peekApi("/v1/admin/cities") || []);
+  const [data, setData] = useState(() => peekApi("/v1/admin/dashboard") || null);
   const [error, setError] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -76,6 +76,16 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    const cachedMe = peekApi("/v1/me");
+    if (cachedMe) {
+      setMe(cachedMe);
+      setCityId(cachedMe.canSwitchCity ? getOpsCity() : cachedMe.cityId || "");
+      setBranchId(cachedMe.canSwitchCity || cachedMe.canSwitchBranch ? getOpsBranch() : cachedMe.branchId || "");
+    }
+    const cachedCities = peekApi("/v1/admin/cities");
+    if (cachedCities) setCities(cachedCities);
+    const cachedDash = peekApi("/v1/admin/dashboard");
+    if (cachedDash) setData(cachedDash);
     api("/v1/me")
       .then((user) => {
         setMe(user);

@@ -3,9 +3,9 @@ const API = (process.env.API_PROXY_URL || process.env.NEXT_PUBLIC_API_URL || "ht
 
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    staleTimes: { dynamic: 0, static: 0 },
-  },
+    experimental: {
+      staleTimes: { dynamic: 30, static: 180 },
+    },
   async headers() {
     return [
       {

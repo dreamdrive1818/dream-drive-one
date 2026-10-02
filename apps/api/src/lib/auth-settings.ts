@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import { prisma } from "./prisma";
-import { cacheDel, remember } from "./cache";
+import { cacheDel, invalidatePublicCache, remember } from "./cache";
 
 export type AuthMethod = "password" | "otp" | "register" | "google" | "facebook";
 
@@ -80,7 +80,7 @@ function isOn(value: string | undefined, fallback: boolean) {
 }
 
 export async function getAuthSettings(): Promise<AuthSettings> {
-  return remember(AUTH_SETTINGS_CACHE_KEY, 15, async () => {
+  return remember(AUTH_SETTINGS_CACHE_KEY, 120, async () => {
     const keys = Object.keys(AUTH_SETTING_DEFAULTS);
     const rows = await prisma.siteSetting.findMany({
       where: { key: { in: keys } },
@@ -102,7 +102,8 @@ export async function getAuthSettings(): Promise<AuthSettings> {
 }
 
 export async function invalidateAuthSettingsCache() {
-  await cacheDel(AUTH_SETTINGS_CACHE_KEY, "dd:home");
+  await cacheDel(AUTH_SETTINGS_CACHE_KEY, "dd:home", "dd:public-config");
+  await invalidatePublicCache();
 }
 
 export function assertAtLeastOneSignIn(settings: Partial<AuthSettings>) {

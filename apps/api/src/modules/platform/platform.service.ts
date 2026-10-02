@@ -875,6 +875,9 @@ export class PlatformEngine {
       pendingSignatures,
       failedPayments,
       workshop,
+      byStatus,
+      branch,
+      city,
     ] = await Promise.all([
       prisma.booking.count({ where: bookingWhere }),
       prisma.kycCase.count({
@@ -917,25 +920,23 @@ export class PlatformEngine {
         },
       }),
       prisma.vehicle.count({ where: { status: "MAINTENANCE", ...vehicleWhere } }),
+      prisma.booking.groupBy({
+        by: ["status"],
+        where: bookingWhere,
+        _count: true,
+      }),
+      user.branchId
+        ? prisma.branch.findUnique({
+            where: { id: user.branchId },
+            include: { city: { select: { name: true } } },
+          })
+        : Promise.resolve(null),
+      user.cityId && !user.branchId
+        ? prisma.city.findUnique({ where: { id: user.cityId }, select: { name: true } })
+        : Promise.resolve(null),
     ]);
-    const byStatus = await prisma.booking.groupBy({
-      by: ["status"],
-      where: bookingWhere,
-      _count: true,
-    });
-    let cityName: string | null = null;
-    let branchName: string | null = null;
-    if (user.branchId) {
-      const branch = await prisma.branch.findUnique({
-        where: { id: user.branchId },
-        include: { city: { select: { name: true } } },
-      });
-      branchName = branch?.name ?? null;
-      cityName = branch?.city?.name ?? null;
-    } else if (user.cityId) {
-      const city = await prisma.city.findUnique({ where: { id: user.cityId }, select: { name: true } });
-      cityName = city?.name ?? null;
-    }
+    const cityName = branch?.city?.name ?? city?.name ?? null;
+    const branchName = branch?.name ?? null;
     return {
       bookings,
       pendingKyc,

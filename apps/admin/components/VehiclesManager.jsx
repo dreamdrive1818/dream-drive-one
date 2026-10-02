@@ -44,6 +44,7 @@ export default function VehiclesManager({ hideTitle = false }) {
   const [openId, setOpenId] = useState("");
   const [detail, setDetail] = useState(null);
   const [filter, setFilter] = useState({ status: "", branchId: "", q: "" });
+  const [qDebounced, setQDebounced] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [doc, setDoc] = useState({ kind: "INSURANCE", url: "", expiresAt: "", file: null });
@@ -53,13 +54,7 @@ export default function VehiclesManager({ hideTitle = false }) {
   const [branchForm, setBranchForm] = useState({ cityId: "", name: "", address: "" });
   const [contract, setContract] = useState({ partnerId: "", startsOn: "", endsOn: "" });
 
-  function load() {
-    const params = new URLSearchParams();
-    if (filter.status) params.set("status", filter.status);
-    if (filter.branchId) params.set("branchId", filter.branchId);
-    if (filter.q) params.set("q", filter.q);
-    const qs = params.toString() ? `?${params}` : "";
-    api(`/v1/admin/vehicles${qs}`).then(setRows).catch((e) => setError(e.message));
+  function loadRefs() {
     api("/v1/admin/car-models").then(setModels).catch(() => {});
     api("/v1/admin/cities").then(setCities).catch(() => {});
     api("/v1/admin/branches").then(setBranches).catch(() => {});
@@ -68,7 +63,26 @@ export default function VehiclesManager({ hideTitle = false }) {
     api("/v1/admin/vehicle-transfers?status=PENDING").then(setTransfers).catch(() => setTransfers([]));
   }
 
-  useEffect(load, [filter.status, filter.branchId]);
+  function loadVehicles() {
+    const params = new URLSearchParams();
+    if (filter.status) params.set("status", filter.status);
+    if (filter.branchId) params.set("branchId", filter.branchId);
+    if (qDebounced) params.set("q", qDebounced);
+    const qs = params.toString() ? `?${params}` : "";
+    api(`/v1/admin/vehicles${qs}`).then(setRows).catch((e) => setError(e.message));
+  }
+
+  function load() {
+    loadRefs();
+    loadVehicles();
+  }
+
+  useEffect(loadRefs, []);
+  useEffect(() => {
+    const timer = setTimeout(() => setQDebounced(filter.q.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [filter.q]);
+  useEffect(loadVehicles, [filter.status, filter.branchId, qDebounced]);
 
   async function loadDetail(id) {
     try {

@@ -21,6 +21,7 @@ import {
   assertAuthMethod,
   assertCanCreateViaOtp,
   assertCanCreateViaSocial,
+  getAuthSettings,
 } from "../../lib/auth-settings";
 
 const BOOTSTRAP_ADMIN_EMAIL = (process.env.ADMIN_BOOTSTRAP_EMAIL || "admin@dreamdrive.test").toLowerCase();
@@ -92,19 +93,27 @@ export class IdentityService {
     const email = input.email.toLowerCase().trim();
     const existing = await prisma.user.findFirst({
       where: { OR: [{ firebaseUid: input.firebaseUid }, { email }] },
-      include: { roles: { include: { role: true } }, profile: true },
+      include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
     });
 
     if (existing) {
       if (existing.status === UserStatus.DISABLED) {
         throw new UnauthorizedException("Account disabled");
       }
+      const nextPhone = input.phone ?? existing.phone;
+      if (
+        existing.firebaseUid === input.firebaseUid &&
+        existing.email === email &&
+        existing.phone === nextPhone
+      ) {
+        return this.present(existing);
+      }
       const user = await prisma.user.update({
         where: { id: existing.id },
         data: {
           firebaseUid: input.firebaseUid,
           email,
-          phone: input.phone ?? existing.phone,
+          phone: nextPhone,
         },
         include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
       });
@@ -153,7 +162,7 @@ export class IdentityService {
 
   async me(userId: string, opts: { allowDisabled?: boolean } = {}) {
     if (opts.allowDisabled) return this.meUncached(userId, opts);
-    return remember(meCacheKey(userId), 30, () => this.meUncached(userId, opts));
+    return remember(meCacheKey(userId), 60, () => this.meUncached(userId, opts));
   }
 
   private async meUncached(userId: string, opts: { allowDisabled?: boolean } = {}) {
@@ -304,12 +313,12 @@ export class IdentityService {
   }
 
   async dashboard(userId: string) {
-    return remember(dashboardCacheKey(userId), 20, () => this.dashboardUncached(userId));
+    return remember(dashboardCacheKey(userId), 45, () => this.dashboardUncached(userId));
   }
 
   private async dashboardUncached(userId: string) {
-    const profile = await this.me(userId);
-    const [bookings, kyc, agreements, invoices, tickets, wallet, subscriptions] = await Promise.all([
+    const [profile, bookings, kyc, agreements, invoices, tickets, wallet, subscriptions, modelRows] = await Promise.all([
+      this.me(userId),
       prisma.booking.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
@@ -348,19 +357,23 @@ export class IdentityService {
         orderBy: { id: "desc" },
         take: 10,
       }),
-      prisma.wallet.upsert({
-        where: { userId },
-        create: { userId, balancePaise: 0 },
-        update: {},
-      }),
+      prisma.wallet.findUnique({ where: { userId } }),
       prisma.subscription.findMany({
         where: { booking: { userId }, status: { in: ["ACTIVE", "PAUSED"] } },
         select: { id: true, status: true, swapDueReason: true },
         orderBy: { createdAt: "desc" },
         take: 10,
       }),
+      prisma.carModel.findMany({
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          images: { select: { url: true }, take: 1, orderBy: { sortOrder: "asc" } },
+        },
+      }),
     ]);
-    const models = await this.carModelsFor(bookings.map((b) => b.carModelId));
+    const models = new Map(modelRows.map((m) => [m.id, m]));
     return {
       profile,
       bookings: bookings.map((b) => ({ ...b, carModel: models.get(b.carModelId) ?? null })),
@@ -368,7 +381,7 @@ export class IdentityService {
       documents: { kycStatus: profile.kycStatus, kyc, agreements },
       invoices,
       tickets,
-      wallet,
+      wallet: wallet ?? { userId, balancePaise: 0 },
     };
   }
 
@@ -590,7 +603,7 @@ export class IdentityService {
     await this.maybeBootstrapSuperAdmin(email, password);
     const row = await prisma.user.findUnique({
       where: { email },
-      include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
+      include: { roles: { include: { role: true } }, profile: true, addresses: true, staffScopes: STAFF_SCOPE_INCLUDE },
     });
     if (!row) {
       throw new UnauthorizedException("Invalid email or password");
@@ -606,7 +619,7 @@ export class IdentityService {
       throw new UnauthorizedException("Invalid email or password");
     }
     const user = this.present(row);
-    await this.audit({ actorId: user.id, action: "auth.staff-login", entityId: user.id, ip });
+    void this.audit({ actorId: user.id, action: "auth.staff-login", entityId: user.id, ip });
     return {
       token: mintSessionToken({ email: user.email, uid: user.firebaseUid }),
       user,
@@ -678,8 +691,13 @@ export class IdentityService {
   }
 
   async loginWithPassword(email: string, password: string, ip?: string) {
-    await assertAuthMethod("password");
-    const local = await this.tryLocalPasswordLogin(email, password, ip);
+    const [settings, local] = await Promise.all([
+      getAuthSettings(),
+      this.tryLocalPasswordLogin(email, password, ip),
+    ]);
+    if (!settings.password) {
+      throw new ForbiddenException("This sign-in method is currently disabled.");
+    }
     if (local) return local;
     try {
       const fb = await firebaseSignInWithPassword(email, password);
@@ -689,7 +707,7 @@ export class IdentityService {
         fullName: fb.name,
         ip,
       });
-      await this.audit({ actorId: user.id, action: "auth.login", entityId: user.id, ip });
+      void this.audit({ actorId: user.id, action: "auth.login", entityId: user.id, ip });
       return { token: fb.idToken, user };
     } catch (err) {
       const existing = await prisma.user.findUnique({
@@ -708,7 +726,7 @@ export class IdentityService {
     if (!email || !password) return null;
     const row = await prisma.user.findUnique({
       where: { email },
-      include: { roles: { include: { role: true } }, profile: true, staffScopes: STAFF_SCOPE_INCLUDE },
+      include: { roles: { include: { role: true } }, profile: true, addresses: true, staffScopes: STAFF_SCOPE_INCLUDE },
     });
     if (!row?.passwordHash) return null;
     if (row.status === UserStatus.DISABLED) {
@@ -717,7 +735,7 @@ export class IdentityService {
     const ok = await verifyPassword(password, row.passwordHash);
     if (!ok) return null;
     const user = this.present(row);
-    await this.audit({ actorId: user.id, action: "auth.login", entityId: user.id, ip });
+    void this.audit({ actorId: user.id, action: "auth.login", entityId: user.id, ip });
     return {
       token: mintSessionToken({ email: user.email, uid: user.firebaseUid }),
       user,

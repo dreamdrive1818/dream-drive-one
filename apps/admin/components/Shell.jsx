@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { api, getOpsBranch, getOpsCity, getToken, setOpsScope } from "../lib/api";
+import { api, getOpsBranch, getOpsCity, getToken, peekApi, prefetch, setOpsScope } from "../lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { NAV, canAccessPath, groupedNav, isStaff, roleLabel } from "../lib/rbac";
 
 export default function Shell({ children }) {
   const path = usePathname();
   const router = useRouter();
-  const [me, setMe] = useState(null);
-  const [cities, setCities] = useState([]);
+  const [me, setMe] = useState(() => peekApi("/v1/me") || null);
+  const [cities, setCities] = useState(() => peekApi("/v1/admin/cities") || []);
   const [cityId, setCityId] = useState("");
   const [branchId, setBranchId] = useState("");
   const [navOpen, setNavOpen] = useState(false);
@@ -26,10 +26,16 @@ export default function Shell({ children }) {
     if (path === "/login") return;
     if (!getToken()) {
       router.replace("/login");
-      return;
     }
+  }, [path, router]);
+
+  useEffect(() => {
+    if (path === "/login") return;
+    if (!getToken()) return;
+    let cancelled = false;
     api("/v1/me")
       .then((user) => {
+        if (cancelled) return;
         if (!isStaff(user.roles || [])) {
           localStorage.removeItem("dd_token");
           router.replace("/login");
@@ -44,7 +50,7 @@ export default function Shell({ children }) {
         } else if ((user.roles || []).includes("CITY_MANAGER")) {
           setCityId(user.cityId || "");
           setBranchId(savedBranch);
-          if (user.cityId && (savedCity !== user.cityId)) {
+          if (user.cityId && savedCity !== user.cityId) {
             setOpsScope(user.cityId, savedBranch);
           }
         } else {
@@ -56,10 +62,14 @@ export default function Shell({ children }) {
         }
       })
       .catch(() => {
+        if (cancelled) return;
         localStorage.removeItem("dd_token");
         router.replace("/login");
       });
-  }, [path, router]);
+    return () => {
+      cancelled = true;
+    };
+  }, [router, path === "/login"]);
 
   useEffect(() => {
     if (path === "/login" || !me) return;
@@ -70,11 +80,19 @@ export default function Shell({ children }) {
   }, [me, path, router]);
 
   useEffect(() => {
-    if (path === "/login" || !me) return;
+    if (!me?.id) return;
     api("/v1/admin/cities")
-      .then(setCities)
+      .then((rows) => setCities(Array.isArray(rows) ? rows : []))
       .catch(() => setCities([]));
-  }, [path, me]);
+    prefetch([
+      "/v1/admin/dashboard",
+      "/v1/admin/bookings?page=1&pageSize=100",
+      "/v1/admin/bookings/calendar",
+      "/v1/admin/car-models",
+      "/v1/admin/vehicles",
+      "/v1/admin/branches",
+    ]);
+  }, [me?.id]);
 
   useEffect(() => {
     function onScope(event) {
