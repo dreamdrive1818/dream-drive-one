@@ -49,6 +49,25 @@ body.auth-shell .route-container--auth {
   width: 100%;
 }
 
+body.auth-shell {
+  scrollbar-width: thin;
+  scrollbar-color: #0e7c86 rgba(11, 27, 43, 0.2);
+}
+
+body.auth-shell::-webkit-scrollbar {
+  width: 8px;
+}
+
+body.auth-shell::-webkit-scrollbar-track {
+  background: #f5f9f8;
+}
+
+body.auth-shell::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #1ab0ba, #0e7c86);
+  border-radius: 999px;
+  border: 2px solid #f5f9f8;
+}
+
 body.auth-shell .fade-in-bottom {
   min-height: 100vh;
   animation: none;
@@ -80,13 +99,15 @@ body.auth-shell .fade-in-bottom {
 }
 
 .customer-login-panel-nav {
+  position: absolute;
+  top: max(1.8rem, env(safe-area-inset-top));
+  left: max(1.8rem, env(safe-area-inset-left));
   display: flex;
   gap: 0.8rem;
-  width: min(460px, 100%);
-  margin: 0 auto;
-  padding: 0.2rem 0 0.8rem;
-  flex-shrink: 0;
-  z-index: 4;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  z-index: 5;
 }
 
 .customer-login-nav-btn {
@@ -95,8 +116,10 @@ body.auth-shell .fade-in-bottom {
   gap: 0.6rem;
   padding: 0.85rem 1.5rem;
   border-radius: 999px;
-  border: 1px solid rgba(11, 31, 42, 0.12);
-  background: #0b1f2a;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(11, 31, 42, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: #f7fbfb;
   font-size: 1.35rem;
   font-weight: 650;
@@ -104,7 +127,7 @@ body.auth-shell .fade-in-bottom {
   line-height: 1;
   cursor: pointer;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(11, 31, 42, 0.16);
+  box-shadow: 0 4px 14px rgba(11, 31, 42, 0.22);
   transition: background 0.18s, transform 0.18s, border-color 0.18s;
 }
 
@@ -187,8 +210,50 @@ body.auth-shell .fade-in-bottom {
 .customer-login-visual-copy {
   position: relative;
   z-index: 2;
-  max-width: 34rem;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  max-width: 52rem;
   animation: customer-login-fade-up 0.75s ease both;
+}
+
+.customer-login-visual-mark {
+  flex: 0 0 auto;
+}
+
+.customer-login-visual-logo {
+  display: block;
+  height: clamp(8.4rem, 10vw, 11.2rem);
+  width: auto;
+  max-width: 18rem;
+  object-fit: contain;
+  object-position: center;
+  background: none;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
+}
+
+.customer-login-visual-copy-text {
+  min-width: 0;
+  padding: 0.2rem 0 0.2rem 2rem;
+  border-left: 2px solid rgba(232, 197, 71, 0.88);
+}
+
+.customer-login-visual-kicker {
+  margin: 0 0 0.7rem;
+  font-size: 1.15rem;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #e8c547;
+}
+
+.customer-login-brand-logo {
+  display: block;
+  height: 6.4rem;
+  width: auto;
+  max-width: 20rem;
+  margin: 0 auto 1.6rem;
+  object-fit: contain;
 }
 
 .customer-login-visual-brand {
@@ -204,11 +269,14 @@ body.auth-shell .fade-in-bottom {
 
 .customer-login-visual-line {
   margin: 0;
-  font-size: clamp(1.55rem, 1.9vw, 1.9rem);
-  line-height: 1.5;
-  color: rgba(244, 251, 251, 0.86);
-  font-weight: 500;
-  max-width: 28rem;
+  font-family: var(--font-family-display);
+  font-size: clamp(2.6rem, 3.4vw, 3.8rem);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: #f7fcfb;
+  font-weight: 600;
+  max-width: 22rem;
+  text-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
   animation: customer-login-fade-up 0.75s ease 0.12s both;
 }
 
@@ -233,7 +301,47 @@ body.auth-shell .fade-in-bottom {
   flex-direction: column;
   align-items: center;
   overflow: auto;
-  padding: 0.4rem 0 4rem;
+  padding: 2.4rem 0.8rem 4rem;
+  scrollbar-width: thin;
+  scrollbar-color: #0e7c86 rgba(14, 124, 134, 0.1);
+}
+
+.customer-login-panel-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.customer-login-panel-scroll::-webkit-scrollbar-track {
+  margin: 1.6rem 0;
+  background: rgba(14, 124, 134, 0.08);
+  border-radius: 999px;
+}
+
+.customer-login-panel-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #1ab0ba, #0e7c86);
+  border-radius: 999px;
+  border: 2px solid #f5f9f8;
+}
+
+.customer-login-panel-scroll::-webkit-scrollbar-thumb:hover {
+  background: #0a646c;
+}
+
+.customer-login-page--full {
+  scrollbar-width: thin;
+  scrollbar-color: #0e7c86 rgba(14, 124, 134, 0.12);
+}
+
+.customer-login-page--full::-webkit-scrollbar {
+  width: 8px;
+}
+
+.customer-login-page--full::-webkit-scrollbar-track {
+  background: #0b1b2b;
+}
+
+.customer-login-page--full::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #1ab0ba, #0e7c86);
+  border-radius: 999px;
 }
 
 .customer-login-page--full .customer-login-shell {
@@ -679,7 +787,8 @@ body.auth-shell .fade-in-bottom {
   padding: 0;
 }
 
-.customer-login-shell--compact .customer-login-eyebrow {
+.customer-login-shell--compact .customer-login-eyebrow,
+.customer-login-shell--compact .customer-login-brand-logo {
   display: none;
 }
 
@@ -806,7 +915,34 @@ body.auth-shell .fade-in-bottom {
 
   .customer-login-page--full .customer-login-visual {
     min-height: 32vh;
-    padding: 3.2rem 2.4rem 2.6rem;
+    padding: 7.2rem 2.4rem 2.6rem;
+  }
+
+  .customer-login-panel-nav {
+    top: max(1.4rem, env(safe-area-inset-top));
+    left: max(1.4rem, env(safe-area-inset-left));
+  }
+
+  .customer-login-visual-copy {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.2rem;
+    max-width: 100%;
+  }
+
+  .customer-login-visual-copy-text {
+    padding: 1.1rem 0 0;
+    border-left: 0;
+    border-top: 2px solid rgba(232, 197, 71, 0.88);
+  }
+
+  .customer-login-visual-logo {
+    height: 7.2rem;
+    max-width: 16rem;
+  }
+
+  .customer-login-brand-logo {
+    height: 4.8rem;
   }
 
   .customer-login-panel {
@@ -883,11 +1019,26 @@ body.auth-shell .fade-in-bottom {
 
   .customer-login-page--full .customer-login-visual {
     min-height: 24vh;
-    padding: 2.4rem 1.8rem 2rem;
+    padding: 6.4rem 1.8rem 2rem;
+  }
+
+  .customer-login-visual-logo {
+    height: 6.4rem;
+    max-width: 14rem;
+  }
+
+  .customer-login-visual-kicker {
+    font-size: 1.05rem;
   }
 
   .customer-login-visual-line {
+    font-size: 2.4rem;
     max-width: 22rem;
+  }
+
+  .customer-login-brand-logo {
+    height: 4.4rem;
+    margin-bottom: 1rem;
   }
 }
 
