@@ -629,6 +629,52 @@ a.account-item:hover {
   line-height: 1.25;
 }
 
+.kyc-drop-file {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #5b6b73;
+  word-break: break-word;
+}
+
+.kyc-drop-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: auto;
+}
+
+.kyc-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  flex: 1;
+  min-height: 3.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(14, 124, 134, 0.28);
+  color: #0e7c86;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kyc-action:hover {
+  background: rgba(14, 124, 134, 0.08);
+}
+
+.kyc-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .kyc-drop-action {
   display: inline-flex;
   align-items: center;
@@ -646,10 +692,13 @@ a.account-item:hover {
 
 .kyc-drop input[type="file"] {
   position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  font-size: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .kyc-fields {

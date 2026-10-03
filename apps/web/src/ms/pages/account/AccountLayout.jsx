@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../AuthContext";
 import { AccountSkeleton } from "../../../components/Skeleton/Skeleton";
@@ -19,6 +19,17 @@ const LINKS = [
 export default function AccountLayout() {
   const { user, ready, logout } = useAuth();
   const location = useLocation();
+  const navRef = useRef(null);
+
+  useEffect(() => {
+    const root = navRef.current;
+    if (!root) return undefined;
+    const frame = requestAnimationFrame(() => {
+      const active = root.querySelector("a.is-active");
+      active?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [location.pathname, ready]);
 
   useEffect(() => {
     document.body.classList.add("account-shell");
@@ -42,7 +53,7 @@ export default function AccountLayout() {
             <strong>{user.fullName || "Your account"}</strong>
             <span>{user.email}</span>
           </div>
-          <nav className="account-nav-links" aria-label="Account">
+          <nav className="account-nav-links" aria-label="Account" ref={navRef}>
             {LINKS.map(([to, label]) => (
               <NavLink
                 key={to || "home"}

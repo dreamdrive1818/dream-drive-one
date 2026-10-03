@@ -39,7 +39,7 @@ export class NotifyEngine {
     const subject = this.render(tpl?.subject ?? fallback?.subject ?? input.template, data);
     const body = this.render(tpl?.body ?? fallback?.body ?? JSON.stringify(data), data);
 
-    const sent = await this.deliver(to, subject, body, channel);
+    const sent = await this.deliver(to, subject, body, channel, input.template);
     const attempts = 1;
     await prisma.notificationLog.create({
       data: {
@@ -101,7 +101,7 @@ export class NotifyEngine {
     });
     let retried = 0;
     for (const row of failed) {
-      const again = await this.deliver(row.to, row.subject || row.template, row.body || row.template, row.channel);
+      const again = await this.deliver(row.to, row.subject || row.template, row.body || row.template, row.channel, row.template);
       const attempts = row.attempts + 1;
       const dead = !again.ok && !again.skipped && attempts >= MAX_ATTEMPTS;
       await prisma.notificationLog.update({
@@ -121,7 +121,7 @@ export class NotifyEngine {
   async resend(id: string) {
     const row = await prisma.notificationLog.findUnique({ where: { id } });
     if (!row) throw new NotFoundException("Notification log not found");
-    const sent = await this.deliver(row.to, row.subject || row.template, row.body || row.template, row.channel);
+    const sent = await this.deliver(row.to, row.subject || row.template, row.body || row.template, row.channel, row.template);
     await prisma.notificationLog.create({
       data: {
         template: row.template,
@@ -256,13 +256,14 @@ export class NotifyEngine {
     to: string,
     subject: string,
     body: string,
-    channel: string
+    channel: string,
+    template = ""
   ): Promise<{ ok: boolean; mocked?: boolean; skipped?: boolean; error?: string }> {
     if (channel === "sms" || channel === "whatsapp") {
       console.log(`[notify:${channel}:skipped] to=${maskRecipient(to)} subject=${subject}`);
       return { ok: false, skipped: true, error: `${channel} channel not configured` };
     }
-    const mail = mailTransport();
+    const mail = mailTransport(mailboxFor(template));
     if (!mail) {
       console.log(`[notify:dev] to=${to} subject=${subject} body=${body.slice(0, 500)}`);
       return { ok: true, mocked: true };
@@ -290,24 +291,63 @@ export class NotifyEngine {
   }
 }
 
-/** Hostinger SMTP when SMTP_HOST is set; otherwise the existing Gmail transport. */
-function mailTransport():
+type Mailbox = "noreply" | "support" | "info";
+
+/** Automated mail from no-reply. Customer trip mail from support. Enquiries from info. */
+const TEMPLATE_MAILBOX: Record<string, Mailbox> = {
+  otp: "noreply",
+  booking_confirmed: "support",
+  payment_receipt: "support",
+  kyc_decision: "support",
+  leegality_invite: "support",
+  trip_reminder: "support",
+  booking_cancelled: "support",
+  vehicle_doc_expiry: "support",
+  lead_reminder: "info",
+};
+
+const MAILBOX_DEFAULTS: Record<Mailbox, { user: string; passKey: string; fromName: string }> = {
+  noreply: {
+    user: "no-reply@dream-drive.co.in",
+    passKey: "SMTP_NOREPLY_PASS",
+    fromName: "Dream Drive",
+  },
+  support: {
+    user: "support@dream-drive.co.in",
+    passKey: "SMTP_SUPPORT_PASS",
+    fromName: "Dream Drive Support",
+  },
+  info: {
+    user: "info@dream-drive.co.in",
+    passKey: "SMTP_INFO_PASS",
+    fromName: "Dream Drive",
+  },
+};
+
+function mailboxFor(template: string): Mailbox {
+  return TEMPLATE_MAILBOX[template] ?? "support";
+}
+
+/** Hostinger SMTP for the mailbox that owns this message; otherwise Gmail. */
+function mailTransport(mailbox: Mailbox):
   | { from: string; transport: Record<string, unknown> }
   | { error: string }
   | null {
   const host = process.env.SMTP_HOST?.trim();
   if (host) {
-    const user = process.env.SMTP_USER?.trim();
-    const pass = process.env.SMTP_PASS?.trim();
-    if (!user || !pass) {
-      return { error: "SMTP_USER and SMTP_PASS are required when SMTP_HOST is set" };
+    const spec = MAILBOX_DEFAULTS[mailbox];
+    const user =
+      process.env[`SMTP_${mailbox.toUpperCase()}_USER`]?.trim() || spec.user;
+    const pass = process.env[spec.passKey]?.trim();
+    if (!pass) {
+      return { error: `${spec.passKey} is required to send from ${user}` };
     }
     const port = Number(process.env.SMTP_PORT || 465);
     const secure = process.env.SMTP_SECURE
       ? process.env.SMTP_SECURE !== "false"
       : port === 465;
     return {
-      from: process.env.MAIL_FROM?.trim() || `Dream Drive <${user}>`,
+      from: `${spec.fromName} <${user}>`,
       transport: {
         host,
         port,

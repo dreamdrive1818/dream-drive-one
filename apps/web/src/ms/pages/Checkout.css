@@ -380,14 +380,46 @@
   padding: 0.3rem 0.75rem;
 }
 
-.checkout-card-copy--offer {
-  width: 100%;
+.checkout-card--promo {
+  display: grid;
+  gap: 1rem;
+}
+
+.checkout-promo-head {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.checkout-promo-head h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  letter-spacing: 0.04em;
+}
+
+.checkout-promo-icon {
+  width: 3.6rem;
+  height: 3.6rem;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--ck-pale);
+  color: var(--ck-teal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkout-promo-icon svg {
+  width: 1.8rem;
+  height: 1.8rem;
 }
 
 .checkout-offer-row {
   display: flex;
+  align-items: stretch;
   gap: 0.8rem;
-  margin-top: 0.35rem;
+  margin-top: 0;
+  min-width: 0;
 }
 
 .checkout-offer input {
@@ -787,12 +819,17 @@
   }
 
   .checkout-offer-row {
-    flex-direction: column;
+    flex-direction: row;
   }
 
-  .checkout-offer-apply,
   .checkout-offer input {
-    width: 100%;
+    min-width: 0;
+  }
+
+  .checkout-offer-apply {
+    width: auto;
+    min-width: 8.4rem;
+    padding: 0 1.2rem;
   }
 
   .checkout-summary-body {

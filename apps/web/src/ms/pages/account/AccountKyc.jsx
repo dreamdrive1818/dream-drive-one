@@ -23,13 +23,23 @@ const KINDS = [
     accept: ".pdf,.jpg,.jpeg,.png,.webp",
     required: true,
     icon: faIdCard,
+    capture: "environment",
   },
   {
-    kind: "AADHAAR",
-    label: "Aadhaar",
+    kind: "AADHAAR_FRONT",
+    label: "Aadhaar front",
     accept: ".pdf,.jpg,.jpeg,.png,.webp",
     required: true,
     icon: faAddressCard,
+    capture: "environment",
+  },
+  {
+    kind: "AADHAAR_BACK",
+    label: "Aadhaar back",
+    accept: ".pdf,.jpg,.jpeg,.png,.webp",
+    required: true,
+    icon: faAddressCard,
+    capture: "environment",
   },
   {
     kind: "PAN",
@@ -37,6 +47,7 @@ const KINDS = [
     accept: ".pdf,.jpg,.jpeg,.png,.webp",
     required: false,
     icon: faIdCard,
+    capture: "environment",
   },
   {
     kind: "SELFIE",
@@ -44,6 +55,7 @@ const KINDS = [
     accept: ".jpg,.jpeg,.png,.webp",
     required: true,
     icon: faCamera,
+    capture: "user",
   },
   {
     kind: "ADDRESS",
@@ -51,6 +63,7 @@ const KINDS = [
     accept: ".pdf,.jpg,.jpeg,.png,.webp",
     required: false,
     icon: faFileLines,
+    capture: "environment",
   },
 ];
 
@@ -121,6 +134,19 @@ export default function AccountKyc() {
       }
       if (needs.length && needs.some((kind) => !documents.find((d) => d.kind === kind))) {
         throw new Error(`Please re-upload: ${needs.join(", ")}`);
+      }
+      const saved = latest?.documents || [];
+      const hasSide = (kind) =>
+        documents.some((d) => d.kind === kind) ||
+        saved.some((d) => d.kind === kind && d.status !== "NEEDS_REUPLOAD");
+      const hasLegacyAadhaar = saved.some(
+        (d) => d.kind === "AADHAAR" && d.status !== "NEEDS_REUPLOAD"
+      );
+      if (
+        !hasLegacyAadhaar &&
+        !(hasSide("AADHAAR_FRONT") && hasSide("AADHAAR_BACK"))
+      ) {
+        throw new Error("Upload both the front and the back of your Aadhaar card.");
       }
       const result = await api("/v1/kyc/submit", {
         method: "POST",
@@ -201,9 +227,9 @@ export default function AccountKyc() {
         <div className="account-card">
           <h2>{rejected ? "Re-submit documents" : "Submit documents"}</h2>
           <p className="account-hint">
-            PDF, JPG, PNG or WebP · max 8 MB. Self-drive needs driving licence, Aadhaar
-            (or address proof), and a selfie. Numbers are hashed; we only keep the last 4
-            digits.
+            PDF, JPG, PNG or WebP · max 8 MB. Use Camera for a new photo, or Upload to
+            pick one from your phone. Aadhaar needs the front and the back. Numbers are
+            hashed; we only keep the last 4 digits.
           </p>
           <form onSubmit={submit}>
             <div className="kyc-grid">
@@ -211,11 +237,15 @@ export default function AccountKyc() {
                 const must = needs.includes(item.kind) || (item.required && !needs.length);
                 const current = (latest?.documents || []).find((d) => d.kind === item.kind);
                 const selected = files[item.kind];
-                const inputId = `kyc-file-${item.kind}`;
+                const cameraId = `kyc-camera-${item.kind}`;
+                const fileId = `kyc-file-${item.kind}`;
+                const takeFile = (list) => {
+                  const file = list?.[0];
+                  setFiles((prev) => ({ ...prev, [item.kind]: file || undefined }));
+                };
                 return (
-                  <label
+                  <div
                     key={item.kind}
-                    htmlFor={inputId}
                     className={`kyc-drop ${needs.includes(item.kind) ? "needs" : ""} ${
                       selected ? "has-file" : ""
                     }`}
@@ -227,21 +257,36 @@ export default function AccountKyc() {
                       {item.label}
                       {must ? " *" : ""}
                     </strong>
-                    <span className="kyc-drop-action">
-                      <FontAwesomeIcon icon={faCloudArrowUp} />
+                    <span className="kyc-drop-file">
                       {selected?.name ||
-                        (current ? `${prettyStatus(current.status)} on file` : "Choose file")}
+                        (current ? `${prettyStatus(current.status)} on file` : "No photo yet")}
                     </span>
+                    <div className="kyc-drop-actions">
+                      <label htmlFor={cameraId} className="kyc-action">
+                        <FontAwesomeIcon icon={faCamera} />
+                        Camera
+                      </label>
+                      <label htmlFor={fileId} className="kyc-action">
+                        <FontAwesomeIcon icon={faCloudArrowUp} />
+                        Upload
+                      </label>
+                    </div>
                     <input
-                      id={inputId}
+                      id={cameraId}
+                      className="kyc-file-input"
+                      type="file"
+                      accept="image/*"
+                      capture={item.capture}
+                      onChange={(e) => takeFile(e.target.files)}
+                    />
+                    <input
+                      id={fileId}
+                      className="kyc-file-input"
                       type="file"
                       accept={item.accept}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        setFiles((prev) => ({ ...prev, [item.kind]: file || undefined }));
-                      }}
+                      onChange={(e) => takeFile(e.target.files)}
                     />
-                  </label>
+                  </div>
                 );
               })}
             </div>

@@ -1172,8 +1172,11 @@ export class DocumentEngine {
       return;
     }
     if (!kinds.has("DL")) throw new BadRequestException("Driving licence is required for self-drive");
-    if (!kinds.has("AADHAAR") && !kinds.has("ADDRESS")) {
-      throw new BadRequestException("Aadhaar or address proof is required");
+    const hasAadhaar =
+      kinds.has("AADHAAR") ||
+      (kinds.has("AADHAAR_FRONT") && kinds.has("AADHAAR_BACK"));
+    if (!hasAadhaar && !kinds.has("ADDRESS")) {
+      throw new BadRequestException("Aadhaar front and back, or address proof, is required");
     }
     if (!kinds.has("SELFIE")) throw new BadRequestException("Selfie with ID is required");
   }

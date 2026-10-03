@@ -458,52 +458,50 @@ export default function Checkout() {
               </div>
             </section>
 
-            <section className="checkout-card" aria-labelledby="checkout-offer-heading">
-              <div className="checkout-card-row">
-                <div className="checkout-icon-box">
+            <section className="checkout-card checkout-card--promo" aria-labelledby="checkout-offer-heading">
+              <div className="checkout-promo-head">
+                <span className="checkout-promo-icon" aria-hidden="true">
                   <IconTag />
-                </div>
-                <div className="checkout-card-copy checkout-card-copy--offer">
-                  <h2 id="checkout-offer-heading">Have a promo code?</h2>
-                  <form className="checkout-offer" onSubmit={applyOffer}>
-                    <div className="checkout-offer-row">
-                      <label htmlFor="checkout-promo" className="checkout-sr-only">
-                        Promo code
-                      </label>
-                      <input
-                        id="checkout-promo"
-                        type="text"
-                        autoComplete="off"
-                        placeholder="Enter code"
-                        value={code}
-                        onChange={(e) => {
-                          setCode(e.target.value);
-                          setOfferMessage("");
-                          setOfferError("");
-                        }}
-                        disabled={busy || applying || expired}
-                      />
-                      <button
-                        type="submit"
-                        className="checkout-offer-apply"
-                        disabled={busy || applying || expired || !String(code).trim()}
-                      >
-                        {applying ? "Applying…" : "Apply"}
-                      </button>
-                    </div>
-                    {offerMessage ? (
-                      <p className="checkout-offer-ok" role="status">
-                        {offerMessage}
-                      </p>
-                    ) : null}
-                    {offerError ? (
-                      <p className="checkout-offer-bad" role="alert">
-                        {offerError}
-                      </p>
-                    ) : null}
-                  </form>
-                </div>
+                </span>
+                <h2 id="checkout-offer-heading">Have a promo code?</h2>
               </div>
+              <form className="checkout-offer" onSubmit={applyOffer}>
+                <div className="checkout-offer-row">
+                  <label htmlFor="checkout-promo" className="checkout-sr-only">
+                    Promo code
+                  </label>
+                  <input
+                    id="checkout-promo"
+                    type="text"
+                    autoComplete="off"
+                    placeholder="Enter code"
+                    value={code}
+                    onChange={(e) => {
+                      setCode(e.target.value.toUpperCase());
+                      setOfferMessage("");
+                      setOfferError("");
+                    }}
+                    disabled={busy || applying || expired}
+                  />
+                  <button
+                    type="submit"
+                    className="checkout-offer-apply"
+                    disabled={busy || applying || expired || !String(code).trim()}
+                  >
+                    {applying ? "Applying…" : "Apply"}
+                  </button>
+                </div>
+                {offerMessage ? (
+                  <p className="checkout-offer-ok" role="status">
+                    {offerMessage}
+                  </p>
+                ) : null}
+                {offerError ? (
+                  <p className="checkout-offer-bad" role="alert">
+                    {offerError}
+                  </p>
+                ) : null}
+              </form>
             </section>
 
             <aside className="checkout-note">

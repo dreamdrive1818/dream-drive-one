@@ -49,7 +49,14 @@ export default function CarDetail() {
   const [availabilityError, setAvailabilityError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [quoteError, setQuoteError] = useState("");
-  const [month, setMonth] = useState(() => monthKey());
+  const [month, setMonth] = useState(() => {
+    const from = searchParams.get("from");
+    const parsed = from ? new Date(from) : null;
+    if (parsed && !Number.isNaN(parsed.getTime())) return monthKey(parsed);
+    return monthKey();
+  });
+  const [calSlide, setCalSlide] = useState("");
+  const swipeX = useRef(null);
   const [busyDays, setBusyDays] = useState([]);
   const [cities, setCities] = useState([]);
   const [airports, setAirports] = useState([]);
@@ -64,6 +71,15 @@ export default function CarDetail() {
     () => parseFleetFilters(searchParams),
     [searchParams]
   );
+
+  useEffect(() => {
+    const source = context.from || context.to;
+    if (!source) return;
+    const parsed = new Date(source);
+    if (Number.isNaN(parsed.getTime())) return;
+    const next = monthKey(parsed);
+    setMonth((current) => (current === next ? current : next));
+  }, [context.from, context.to]);
 
   const dateError = useMemo(
     () =>
@@ -310,6 +326,23 @@ export default function CarDetail() {
   const selectedFromDay = context.from ? isoDate(new Date(context.from)) : "";
   const selectedToDay = context.to ? isoDate(new Date(context.to)) : "";
   const todayKey = isoDate(new Date());
+
+  function goMonth(delta) {
+    setCalSlide(delta > 0 ? "is-next" : "is-prev");
+    setMonth((current) => shiftMonth(current, delta));
+  }
+
+  function onCalTouchStart(event) {
+    swipeX.current = event.changedTouches[0]?.clientX ?? null;
+  }
+
+  function onCalTouchEnd(event) {
+    if (swipeX.current == null) return;
+    const dx = (event.changedTouches[0]?.clientX ?? swipeX.current) - swipeX.current;
+    swipeX.current = null;
+    if (Math.abs(dx) < 48) return;
+    goMonth(dx < 0 ? 1 : -1);
+  }
 
   function pickDay(day) {
     const key = isoDate(day);
@@ -643,12 +676,17 @@ export default function CarDetail() {
                 </p>
               )}
 
-              <div className="car-detail-calendar" aria-label="Availability calendar">
+              <div
+                className="car-detail-calendar"
+                aria-label="Availability calendar. Swipe sideways to change month."
+                onTouchStart={onCalTouchStart}
+                onTouchEnd={onCalTouchEnd}
+              >
                 <div className="car-detail-calendar-nav">
                   <button
                     type="button"
                     className="car-detail-cal-btn"
-                    onClick={() => setMonth((m) => shiftMonth(m, -1))}
+                    onClick={() => goMonth(-1)}
                   >
                     ‹
                   </button>
@@ -661,7 +699,7 @@ export default function CarDetail() {
                   <button
                     type="button"
                     className="car-detail-cal-btn"
-                    onClick={() => setMonth((m) => shiftMonth(m, 1))}
+                    onClick={() => goMonth(1)}
                   >
                     ›
                   </button>
@@ -671,7 +709,10 @@ export default function CarDetail() {
                     <span key={`${d}-${i}`}>{d}</span>
                   ))}
                 </div>
-                <div className="car-detail-cal-grid">
+                <div
+                  key={`${month}-${calSlide}`}
+                  className={`car-detail-cal-grid${calSlide ? ` ${calSlide}` : ""}`}
+                >
                   {calendarDays.map((day, i) => {
                     if (!day) return <span key={`e-${i}`} className="car-detail-cal-empty" />;
                     const key = isoDate(day);
