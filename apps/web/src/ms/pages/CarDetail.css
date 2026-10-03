@@ -361,6 +361,8 @@
   border-radius: 12px;
   padding: 0.85rem;
   background: #f8fcff;
+  touch-action: pan-y;
+  overflow: hidden;
 }
 
 .car-detail-calendar-nav {
@@ -387,6 +389,24 @@
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
   text-align: center;
+}
+
+.car-detail-cal-grid.is-next {
+  animation: car-cal-next 0.22s ease;
+}
+
+.car-detail-cal-grid.is-prev {
+  animation: car-cal-prev 0.22s ease;
+}
+
+@keyframes car-cal-next {
+  from { opacity: 0.35; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes car-cal-prev {
+  from { opacity: 0.35; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
 }
 
 .car-detail-cal-week {

@@ -67,6 +67,12 @@ export default function Search() {
   const [searched, setSearched] = useState(false);
   const [maxRentalDays, setMaxRentalDays] = useState(30);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [locMsg, setLocMsg] = useState("");
+  const [locBusy, setLocBusy] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualBusy, setManualBusy] = useState(false);
+  const [manualMsg, setManualMsg] = useState("");
+  const [manual, setManual] = useState({ name: "", phone: "", place: "", note: "" });
 
   const filters = useMemo(
     () => parseFleetFilters(searchParams),
@@ -259,6 +265,91 @@ export default function Search() {
 
   function handleToLocalChange(local) {
     setFilters({ to: datetimeLocalToIso(local) });
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) {
+      setLocMsg("This browser cannot read your location. Use manual booking.");
+      setManualOpen(true);
+      return;
+    }
+    setLocBusy(true);
+    setLocMsg("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          const addr = data.address || {};
+          const labels = [addr.city, addr.town, addr.village, addr.municipality, addr.state_district, addr.county]
+            .filter(Boolean)
+            .map((part) => String(part).toLowerCase());
+          const match = cities.find((city) =>
+            labels.some(
+              (label) =>
+                label.includes(city.name.toLowerCase()) ||
+                city.name.toLowerCase().includes(label)
+            )
+          );
+          if (!match) {
+            setLocMsg("Your area is not in the city list. Send a manual booking instead.");
+            setManual((prev) => ({ ...prev, place: data.display_name || prev.place }));
+            setManualOpen(true);
+            return;
+          }
+          setFilters({ cityId: match.id });
+          setLocMsg(`Location set to ${match.name}.`);
+        } catch {
+          setLocMsg("Could not read that location. Enter it under manual booking.");
+          setManualOpen(true);
+        } finally {
+          setLocBusy(false);
+        }
+      },
+      () => {
+        setLocBusy(false);
+        setLocMsg("Allow location access, or enter the place under manual booking.");
+      },
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
+  }
+
+  async function submitManual(e) {
+    e.preventDefault();
+    if (!manual.name.trim()) {
+      setManualMsg("Name is required.");
+      return;
+    }
+    setManualBusy(true);
+    setManualMsg("");
+    try {
+      await api("/v1/public/contact", {
+        method: "POST",
+        body: {
+          name: manual.name.trim(),
+          phone: manual.phone.trim(),
+          city: manual.place.trim() || selectedCity?.name || "",
+          source: "manual-booking",
+          message: [
+            manual.note.trim(),
+            filters.from ? `Pickup ${filters.from}` : "",
+            filters.to ? `Return ${filters.to}` : "",
+            rentalLabel ? `Rental ${rentalLabel}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        },
+      });
+      setManualMsg("Request sent. Our team will confirm this booking.");
+      setManual({ name: "", phone: "", place: "", note: "" });
+    } catch (err) {
+      setManualMsg(err.message || "Could not send the request.");
+    } finally {
+      setManualBusy(false);
+    }
   }
 
   function handleMinPriceChange(rupees) {
@@ -470,6 +561,73 @@ export default function Search() {
             {!loading && <FontAwesomeIcon icon={faArrowRight} />}
           </button>
         </form>
+
+        <div className="fleet-search-extras">
+          <button
+            type="button"
+            className="fleet-search-extra"
+            onClick={useCurrentLocation}
+            disabled={locBusy || citiesLoading}
+          >
+            {locBusy ? "Finding location…" : "Use current location"}
+          </button>
+          <button
+            type="button"
+            className={`fleet-search-extra${manualOpen ? " is-on" : ""}`}
+            onClick={() => {
+              setManualOpen((open) => !open);
+              setManualMsg("");
+            }}
+          >
+            Manual booking
+          </button>
+        </div>
+        {locMsg ? <p className="fleet-search-extra-note">{locMsg}</p> : null}
+        {manualOpen ? (
+          <form className="fleet-manual" onSubmit={submitManual}>
+            <p className="fleet-manual-lead">
+              Tell us the place and we will arrange the car if it is not in the list.
+            </p>
+            <div className="fleet-manual-grid">
+              <label>
+                Name
+                <input
+                  value={manual.name}
+                  onChange={(e) => setManual((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                />
+              </label>
+              <label>
+                Phone
+                <input
+                  value={manual.phone}
+                  inputMode="tel"
+                  onChange={(e) => setManual((prev) => ({ ...prev, phone: e.target.value }))}
+                />
+              </label>
+              <label className="fleet-manual-wide">
+                Pickup place
+                <input
+                  value={manual.place}
+                  onChange={(e) => setManual((prev) => ({ ...prev, place: e.target.value }))}
+                  placeholder="Area, landmark, or city"
+                />
+              </label>
+              <label className="fleet-manual-wide">
+                Note
+                <input
+                  value={manual.note}
+                  onChange={(e) => setManual((prev) => ({ ...prev, note: e.target.value }))}
+                  placeholder="Car type or anything else"
+                />
+              </label>
+            </div>
+            <button type="submit" className="fleet-search-submit" disabled={manualBusy}>
+              {manualBusy ? "Sending…" : "Send booking request"}
+            </button>
+            {manualMsg ? <p className="fleet-search-extra-note">{manualMsg}</p> : null}
+          </form>
+        ) : null}
 
         {dateError && (
           <p className="fleet-search-validation" role="alert">

@@ -1,7 +1,15 @@
 import { createHash, timingSafeEqual } from "crypto";
 import { BadRequestException } from "@nestjs/common";
 
-export const KYC_KINDS = ["AADHAAR", "PAN", "DL", "SELFIE", "ADDRESS"] as const;
+export const KYC_KINDS = [
+  "AADHAAR",
+  "AADHAAR_FRONT",
+  "AADHAAR_BACK",
+  "PAN",
+  "DL",
+  "SELFIE",
+  "ADDRESS",
+] as const;
 export type KycKind = (typeof KYC_KINDS)[number];
 
 export const KYC_MIME = new Set([
@@ -28,6 +36,10 @@ export function normalizeKind(kind: string | undefined): KycKind {
     AADHAAR: "AADHAAR",
     AADHAR: "AADHAAR",
     UID: "AADHAAR",
+    AADHAAR_FRONT: "AADHAAR_FRONT",
+    AADHAR_FRONT: "AADHAAR_FRONT",
+    AADHAAR_BACK: "AADHAAR_BACK",
+    AADHAR_BACK: "AADHAAR_BACK",
     PAN: "PAN",
     SELFIE: "SELFIE",
     SELFIE_WITH_ID: "SELFIE",
