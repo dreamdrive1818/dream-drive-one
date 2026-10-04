@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import "./ContactPopup.css";
 import { useLocalContext } from "../../context/LocalContext";
 import { toast } from "react-toastify";
@@ -8,9 +9,14 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import api from "../../api/http";
 import { trackWhatsApp } from "../../utils/trackLead";
 
+const MOBILE_QUERY = "(max-width: 768px)";
+const DESKTOP_DELAY_MS = 1000;
+const MOBILE_DELAY_MS = 20000;
+
 const ContactPopup = () => {
   const [visible, setVisible] = useState(false);
   const [toggleButtonVisible, setToggleButtonVisible] = useState(false);
+  const { pathname } = useLocation();
   const { webinfo } = useLocalContext();
   const [formData, setFormData] = useState({
     name: "",
@@ -20,8 +26,20 @@ const ContactPopup = () => {
   });
 
   useEffect(() => {
-    setTimeout(() => setVisible(true), 1000);
+    const mobile = window.matchMedia(MOBILE_QUERY).matches;
+    const delay = mobile ? MOBILE_DELAY_MS : DESKTOP_DELAY_MS;
+    const timer = window.setTimeout(() => {
+      const stillMobile = window.matchMedia(MOBILE_QUERY).matches;
+      if (stillMobile && window.location.pathname.startsWith("/account")) return;
+      setVisible(true);
+    }, delay);
+    return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!window.matchMedia(MOBILE_QUERY).matches) return;
+    if (pathname.startsWith("/account")) setVisible(false);
+  }, [pathname]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));

@@ -25,6 +25,8 @@ const PUBLIC = [
   /^\/v1\/auth\/dev$/,
   /^\/v1\/auth\/google$/,
   /^\/v1\/auth\/facebook$/,
+  /^\/v1\/auth\/password\/forgot$/,
+  /^\/v1\/auth\/password\/reset$/,
   /^\/v1\/webhooks\//,
 ];
 
@@ -79,7 +81,10 @@ export class AuthMiddleware implements NestMiddleware {
       res.status(404).json({ error: "not found" });
       return;
     }
-    if (path === "/v1/auth/otp/send" && !rateLimitOtp(req.ip ?? "local", 3)) {
+    if (
+      (path === "/v1/auth/otp/send" || path === "/v1/auth/password/forgot") &&
+      !rateLimitOtp(req.ip ?? "local", 3)
+    ) {
       res.status(429).json({ error: "Too many OTP requests" });
       return;
     }

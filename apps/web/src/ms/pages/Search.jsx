@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -38,6 +38,42 @@ import {
 } from "../fleetSearch";
 import "./Search.css";
 
+function formatPickupPlace(addr, displayName) {
+  const parts = [
+    addr.road || addr.neighbourhood || addr.suburb,
+    addr.suburb || addr.city_district,
+    addr.city || addr.town || addr.village,
+  ].filter(Boolean);
+  const unique = [];
+  for (const part of parts) {
+    if (!unique.some((item) => item.toLowerCase() === String(part).toLowerCase())) {
+      unique.push(part);
+    }
+  }
+  if (unique.length) return unique.join(", ");
+  const fallback = String(displayName || "").split(",").slice(0, 3).join(",").trim();
+  return fallback;
+}
+
+function matchCityFromAddress(cities, addr, displayName) {
+  const blob = [
+    addr.city,
+    addr.town,
+    addr.village,
+    addr.municipality,
+    addr.state_district,
+    addr.county,
+    addr.state,
+    displayName,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return (
+    cities.find((city) => blob.includes(String(city.name || "").toLowerCase())) || null
+  );
+}
+
 const EMPTY_FILTERS = {
   cityId: "",
   from: "",
@@ -69,6 +105,8 @@ export default function Search() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locMsg, setLocMsg] = useState("");
   const [locBusy, setLocBusy] = useState(false);
+  const [pickupPlace, setPickupPlace] = useState("");
+  const askedLocation = useRef(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualBusy, setManualBusy] = useState(false);
   const [manualMsg, setManualMsg] = useState("");
@@ -267,10 +305,9 @@ export default function Search() {
     setFilters({ to: datetimeLocalToIso(local) });
   }
 
-  function useCurrentLocation() {
+  const applyCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setLocMsg("This browser cannot read your location. Use manual booking.");
-      setManualOpen(true);
+      setLocMsg("This browser cannot read your location.");
       return;
     }
     setLocBusy(true);
@@ -284,38 +321,35 @@ export default function Search() {
           );
           const data = await res.json();
           const addr = data.address || {};
-          const labels = [addr.city, addr.town, addr.village, addr.municipality, addr.state_district, addr.county]
-            .filter(Boolean)
-            .map((part) => String(part).toLowerCase());
-          const match = cities.find((city) =>
-            labels.some(
-              (label) =>
-                label.includes(city.name.toLowerCase()) ||
-                city.name.toLowerCase().includes(label)
-            )
-          );
-          if (!match) {
-            setLocMsg("Your area is not in the city list. Send a manual booking instead.");
-            setManual((prev) => ({ ...prev, place: data.display_name || prev.place }));
-            setManualOpen(true);
-            return;
+          const place = formatPickupPlace(addr, data.display_name);
+          setPickupPlace(place);
+          setManual((prev) => ({ ...prev, place: place || prev.place }));
+          const match = matchCityFromAddress(cities, addr, data.display_name);
+          if (match) {
+            setFilters({ cityId: match.id });
+            setLocMsg("");
+          } else {
+            setLocMsg("Pickup location is set. Choose the nearest city we serve.");
           }
-          setFilters({ cityId: match.id });
-          setLocMsg(`Location set to ${match.name}.`);
         } catch {
-          setLocMsg("Could not read that location. Enter it under manual booking.");
-          setManualOpen(true);
+          setLocMsg("Could not turn that location into an address. Type the pickup place.");
         } finally {
           setLocBusy(false);
         }
       },
       () => {
         setLocBusy(false);
-        setLocMsg("Allow location access, or enter the place under manual booking.");
+        setLocMsg("Allow location access to fill the pickup place and city.");
       },
       { enableHighAccuracy: true, timeout: 12000 }
     );
-  }
+  }, [cities, setFilters]);
+
+  useEffect(() => {
+    if (!cities.length || askedLocation.current) return;
+    askedLocation.current = true;
+    applyCurrentLocation();
+  }, [cities, applyCurrentLocation]);
 
   async function submitManual(e) {
     e.preventDefault();
@@ -496,6 +530,16 @@ export default function Search() {
           aria-label="Search cars"
         >
           <div className="fleet-search-bar-fields">
+            <div className="fleet-search-bar-field fleet-search-bar-field--place">
+              <label htmlFor="fleet-pickup-place">Pickup location</label>
+              <input
+                id="fleet-pickup-place"
+                value={pickupPlace}
+                placeholder={locBusy ? "Finding your location…" : "Area, landmark, or address"}
+                onChange={(e) => setPickupPlace(e.target.value)}
+              />
+            </div>
+
             <div className="fleet-search-bar-field">
               <label htmlFor="fleet-city">City</label>
               <select
@@ -515,7 +559,7 @@ export default function Search() {
             </div>
 
             <div className="fleet-search-bar-field">
-              <label htmlFor="fleet-from">Pickup</label>
+              <label htmlFor="fleet-from">Pickup time</label>
               <input
                 id="fleet-from"
                 type="datetime-local"
@@ -566,7 +610,7 @@ export default function Search() {
           <button
             type="button"
             className="fleet-search-extra"
-            onClick={useCurrentLocation}
+            onClick={applyCurrentLocation}
             disabled={locBusy || citiesLoading}
           >
             {locBusy ? "Finding location…" : "Use current location"}
@@ -608,8 +652,11 @@ export default function Search() {
               <label className="fleet-manual-wide">
                 Pickup place
                 <input
-                  value={manual.place}
-                  onChange={(e) => setManual((prev) => ({ ...prev, place: e.target.value }))}
+                  value={manual.place || pickupPlace}
+                  onChange={(e) => {
+                    setPickupPlace(e.target.value);
+                    setManual((prev) => ({ ...prev, place: e.target.value }));
+                  }}
                   placeholder="Area, landmark, or city"
                 />
               </label>

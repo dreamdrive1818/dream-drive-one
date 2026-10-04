@@ -28,6 +28,8 @@ export default function AuthForm({
     register,
     loginGoogle,
     loginFacebook,
+    requestPasswordReset,
+    resetPassword,
   } = useAuth();
   const { auth: authFlags, webinfo } = useLocalContext() || {};
   const logo = webinfo?.logo;
@@ -181,6 +183,8 @@ export default function AuthForm({
     setMode("register");
     setOtpSent(false);
     setOtpCode("");
+    setPassword("");
+    setConfirmPassword("");
     setResendSeconds(0);
     setTabHighlight(true);
     setError("");
@@ -292,6 +296,59 @@ export default function AuthForm({
     }
   }
 
+  async function handleResetSend(e) {
+    e?.preventDefault();
+    resetMessages();
+    const emailErr = loginEmailError();
+    if (emailErr) {
+      setFieldErrors({ email: emailErr });
+      setError(emailErr);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await requestPasswordReset(email);
+      setOtpSent(true);
+      setResendSeconds(OTP_RESEND_SECONDS);
+      setInfo(
+        data?.devCode
+          ? `We sent a reset code to your email. Dev code: ${data.devCode}`
+          : "We sent a 6-digit reset code to your email."
+      );
+    } catch (err) {
+      if (isUserNotFoundError(err)) bounceToCreateAccount();
+      else setError(err.message || "Could not send a reset code.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResetSubmit(e) {
+    e.preventDefault();
+    resetMessages();
+    const nextErrors = {
+      email: loginEmailError(),
+      otp: otpCode.trim().length < 4 ? "Enter the 6-digit code from your email." : "",
+      password: validatePassword(password),
+      confirmPassword: validateConfirmPassword(password, confirmPassword),
+    };
+    const first = Object.values(nextErrors).find(Boolean);
+    if (first) {
+      setFieldErrors(nextErrors);
+      setError(first);
+      return;
+    }
+    setLoading(true);
+    try {
+      await resetPassword(email, otpCode, password);
+      finish();
+    } catch (err) {
+      setError(err.message || "Could not reset your password.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleGoogle() {
     resetMessages();
     setLoading(true);
@@ -350,6 +407,18 @@ export default function AuthForm({
     setMode("password");
     setOtpSent(false);
     setOtpCode("");
+    setPassword("");
+    setConfirmPassword("");
+    setResendSeconds(0);
+  }
+
+  function switchToReset() {
+    resetMessages();
+    setMode("reset");
+    setOtpSent(false);
+    setOtpCode("");
+    setPassword("");
+    setConfirmPassword("");
     setResendSeconds(0);
   }
 
@@ -375,12 +444,16 @@ export default function AuthForm({
       ? "Create account"
       : mode === "otp"
         ? "Email sign-in"
-        : "Welcome back";
+        : mode === "reset"
+          ? "Reset password"
+          : "Welcome back";
   const lead =
     mode === "register"
       ? "Set up an account to book cars and track your trips."
       : mode === "otp"
         ? "We’ll email you a one-time code — no password needed."
+        : mode === "reset"
+          ? "We’ll email a 6-digit code so you can set a new password."
         : compact
           ? "Sign in to continue your booking."
           : "Sign in to manage bookings, checkout, and account details.";
@@ -443,8 +516,8 @@ export default function AuthForm({
           <button
             type="button"
             role="tab"
-            aria-selected={mode === "password"}
-            className={`customer-login-tab${mode === "password" ? " is-active" : ""}`}
+            aria-selected={mode === "password" || mode === "reset"}
+            className={`customer-login-tab${mode === "password" || mode === "reset" ? " is-active" : ""}`}
             onClick={switchToPassword}
             disabled={loading}
           >
@@ -513,7 +586,17 @@ export default function AuthForm({
               </div>
 
               <div className="customer-login-field">
-                <label htmlFor={`${idPrefix}-password`}>Password</label>
+                <div className="customer-login-field-head">
+                  <label htmlFor={`${idPrefix}-password`}>Password</label>
+                  <button
+                    type="button"
+                    className="customer-login-forgot"
+                    onClick={switchToReset}
+                    disabled={loading}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <div className="customer-login-input-wrap">
                   <input
                     id={`${idPrefix}-password`}
@@ -554,6 +637,148 @@ export default function AuthForm({
                   Don’t have an account? Create account
                 </button>
               ) : null}
+            </form>
+          ) : mode === "reset" && canPassword ? (
+            <form onSubmit={otpSent ? handleResetSubmit : handleResetSend} noValidate>
+              <div className="customer-login-field">
+                <label htmlFor={`${idPrefix}-reset-email`}>Email</label>
+                <input
+                  id={`${idPrefix}-reset-email`}
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@gmail.com"
+                  required
+                  disabled={loading || otpSent}
+                  className={fieldErrors.email ? "is-invalid" : ""}
+                />
+                {fieldErrors.email ? (
+                  <p className="customer-login-field-error">{fieldErrors.email}</p>
+                ) : null}
+              </div>
+
+              {otpSent ? (
+                <>
+                  <p className="customer-login-otp-hint">
+                    Enter the 6-digit code sent to <strong>{email}</strong>, then choose a new password.
+                  </p>
+                  <div className="customer-login-field">
+                    <label htmlFor={`${idPrefix}-reset-code`}>Verification code</label>
+                    <input
+                      id={`${idPrefix}-reset-code`}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="123456"
+                      required
+                      disabled={loading}
+                      className={fieldErrors.otp ? "is-invalid" : ""}
+                    />
+                    {fieldErrors.otp ? (
+                      <p className="customer-login-field-error">{fieldErrors.otp}</p>
+                    ) : null}
+                  </div>
+                  <div className="customer-login-field">
+                    <label htmlFor={`${idPrefix}-reset-password`}>New password</label>
+                    <div className="customer-login-input-wrap">
+                      <input
+                        id={`${idPrefix}-reset-password`}
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="At least 8 characters"
+                        required
+                        minLength={8}
+                        disabled={loading}
+                        className={fieldErrors.password ? "is-invalid" : ""}
+                      />
+                      <button
+                        type="button"
+                        className="customer-login-password-toggle"
+                        onClick={() => setShowPassword((v) => !v)}
+                        disabled={loading}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                    {fieldErrors.password ? (
+                      <p className="customer-login-field-error">{fieldErrors.password}</p>
+                    ) : null}
+                  </div>
+                  <div className="customer-login-field">
+                    <label htmlFor={`${idPrefix}-reset-confirm`}>Confirm new password</label>
+                    <div className="customer-login-input-wrap">
+                      <input
+                        id={`${idPrefix}-reset-confirm`}
+                        type={showConfirmPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter your password"
+                        required
+                        minLength={8}
+                        disabled={loading}
+                        className={fieldErrors.confirmPassword ? "is-invalid" : ""}
+                      />
+                      <button
+                        type="button"
+                        className="customer-login-password-toggle"
+                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        disabled={loading}
+                        aria-label={
+                          showConfirmPassword ? "Hide confirm password" : "Show confirm password"
+                        }
+                      >
+                        {showConfirmPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                    {fieldErrors.confirmPassword ? (
+                      <p className="customer-login-field-error">{fieldErrors.confirmPassword}</p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="submit"
+                    className="customer-login-submit"
+                    disabled={loading || otpCode.length < 4}
+                  >
+                    {loading ? "Updating…" : "Update password"}
+                  </button>
+                  <button
+                    type="button"
+                    className="customer-login-link-btn"
+                    onClick={handleResetSend}
+                    disabled={loading || resendSeconds > 0}
+                  >
+                    {resendSeconds > 0
+                      ? `Resend code in ${resendSeconds}s`
+                      : "Resend reset code"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="submit"
+                  className="customer-login-submit"
+                  disabled={loading || !email.trim()}
+                >
+                  {loading ? "Sending…" : "Send reset code"}
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="customer-login-link-btn"
+                onClick={switchToPassword}
+                disabled={loading}
+              >
+                Back to sign in
+              </button>
             </form>
           ) : mode === "register" && canRegister ? (
             <form onSubmit={handleRegisterSubmit} noValidate>

@@ -133,6 +133,43 @@ export class IdentityController {
     return this.identity.verifyOtp(body.email, body.code, clientIp(req));
   }
 
+  @Post("v1/auth/password/forgot")
+  async forgotPassword(@Body() body: { email?: string }) {
+    if (!body?.email) throw new BadRequestException("email required");
+    const code = await this.identity.issuePasswordReset(body.email);
+    try {
+      await internalFetch(serviceUrls().notification, "/internal/notify", {
+        method: "POST",
+        body: JSON.stringify({
+          template: "otp",
+          to: body.email,
+          data: { code, purpose: "password-reset" },
+          ref: "password-reset",
+        }),
+      });
+    } catch {
+      // still return ok in dev so reset is unblocked if mail is not configured
+    }
+    const expose = process.env.NODE_ENV !== "production";
+    return { ok: true, ...(expose ? { devCode: code } : {}) };
+  }
+
+  @Post("v1/auth/password/reset")
+  resetPassword(
+    @Req() req: Request,
+    @Body() body: { email?: string; code?: string; password?: string }
+  ) {
+    if (!body?.email || !body?.code || !body?.password) {
+      throw new BadRequestException("email, code and password required");
+    }
+    return this.identity.resetPasswordWithOtp(
+      body.email,
+      body.code,
+      body.password,
+      clientIp(req)
+    );
+  }
+
   @Get("v1/me")
   me(@Req() req: Request) {
     return this.identity.me(currentUser(req).id);

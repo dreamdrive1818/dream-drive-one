@@ -187,6 +187,43 @@ export function AuthProvider({ children }) {
     [applySession, refresh, requireSession]
   );
 
+  const requestPasswordReset = useCallback(async (email) => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) {
+      throw new Error("Email is required.");
+    }
+    const data = await api("/v1/auth/password/forgot", {
+      method: "POST",
+      body: { email: normalized },
+    });
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+    return data;
+  }, []);
+
+  const resetPassword = useCallback(
+    async (email, code, password) => {
+      const normalized = email.trim().toLowerCase();
+      const data = await api("/v1/auth/password/reset", {
+        method: "POST",
+        body: {
+          email: normalized,
+          code: String(code).trim(),
+          password,
+        },
+      });
+      if (data?.error) throw new Error(data.error);
+      if (!data?.token) {
+        throw new Error("Password was updated, but a session token was not issued.");
+      }
+      const me = await applySession(data.token, data.user);
+      if (me) return me;
+      return requireSession(refresh);
+    },
+    [applySession, refresh, requireSession]
+  );
+
   const sendOtp = useCallback(async (email) => {
     const normalized = email.trim().toLowerCase();
     if (!normalized) {
@@ -246,6 +283,8 @@ export function AuthProvider({ children }) {
       loginFacebook,
       loginDev,
       sendOtp,
+      requestPasswordReset,
+      resetPassword,
       verifyOtp,
       loginOtp: async (email, code) => {
         const result = await verifyOtp(email, code);
@@ -266,6 +305,8 @@ export function AuthProvider({ children }) {
       loginFacebook,
       loginDev,
       sendOtp,
+      requestPasswordReset,
+      resetPassword,
       verifyOtp,
       logout,
     ]
