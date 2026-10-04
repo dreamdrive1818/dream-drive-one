@@ -4,9 +4,11 @@ import Hero2 from "../hero/Hero2/Hero2";
 import FleetCarousel from "../fleetCarousel/FleetCarousel";
 import WhyChoose from "../whychooseus/WhyChooseUs";
 import HowItWorks from "../HowItWorks/HowItWorks";
+import PopularGetaways from "./PopularGetaways";
 import Achievements from "../Achievements/Achievements";
 import Testimonial from "../Testimonial/Testimonial";
 import Blogs from "../blogs/Blogs";
+import BookNowBanner from "../Booknow/BookNowBanner";
 import Contact from "../contact/Contact";
 import "./Home.css";
 import { usePageSeoSuppression } from "../../utils/usePageSeoSuppression";
@@ -34,9 +36,11 @@ const Home = () => {
       <FleetCarousel />
       <WhyChoose />
       <HowItWorks />
+      <PopularGetaways />
       <Achievements />
       <Testimonial />
       <Blogs />
+      <BookNowBanner />
       <Contact />
     </div>
   );
