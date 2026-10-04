@@ -20,7 +20,6 @@ import {
   faCheck,
   faKey,
 } from "@fortawesome/free-solid-svg-icons";
-import BookNowBanner from "../Booknow/BookNowBanner";
 import { TYPE_OPTIONS } from "../../ms/fleetSearch";
 import "./HowItWorks.css";
 
@@ -418,7 +417,6 @@ const HowItWorks = () => {
   };
 
   return (
-    <>
       <motion.section
         ref={sectionRef}
         className="how-it-works"
@@ -844,8 +842,6 @@ const HowItWorks = () => {
           ))}
         </motion.div>
       </motion.section>
-      <BookNowBanner />
-    </>
   );
 };
 
