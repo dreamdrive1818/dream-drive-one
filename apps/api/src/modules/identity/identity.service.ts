@@ -594,6 +594,93 @@ export class IdentityService {
     };
   }
 
+  private resetOtpKey(email: string) {
+    return `reset:${email}`;
+  }
+
+  async issuePasswordReset(emailRaw: string) {
+    await assertAuthMethod("password");
+    const email = emailRaw.toLowerCase().trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException("Valid email required");
+    }
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, status: true },
+    });
+    if (!user) throw new UnauthorizedException("No account found with this email");
+    if (user.status === UserStatus.DISABLED) {
+      throw new UnauthorizedException("Account disabled");
+    }
+    const key = this.resetOtpKey(email);
+    const now = new Date();
+    const existing = await this.loadOtp(key);
+    let windowStart = existing ? new Date(existing.windowStart) : now;
+    let windowCount = existing?.windowCount ?? 0;
+    if (now.getTime() - windowStart.getTime() > OTP_WINDOW_MS) {
+      windowStart = now;
+      windowCount = 0;
+    }
+    if (windowCount >= OTP_MAX_SEND) {
+      throw new BadRequestException("Too many reset requests. Try again in 15 minutes.");
+    }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await this.saveOtp(key, {
+      codeHash: hashOtp(key, code),
+      expiresAt: new Date(now.getTime() + OTP_TTL_MS),
+      attempts: 0,
+      windowStart,
+      windowCount: windowCount + 1,
+    });
+    return code;
+  }
+
+  async resetPasswordWithOtp(emailRaw: string, code: string, password: string, ip?: string) {
+    await assertAuthMethod("password");
+    const email = emailRaw.toLowerCase().trim();
+    if (!password || password.length < 8) {
+      throw new BadRequestException("Password must be at least 8 characters");
+    }
+    const key = this.resetOtpKey(email);
+    const row = await this.loadOtp(key);
+    if (!row || row.expiresAt < Date.now()) {
+      throw new BadRequestException("Invalid or expired OTP");
+    }
+    if (row.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.clearOtp(key);
+      throw new BadRequestException("Too many attempts. Request a new OTP.");
+    }
+    if (!hashesMatch(row.codeHash, hashOtp(key, code.trim()))) {
+      await this.saveOtp(key, {
+        codeHash: row.codeHash,
+        expiresAt: new Date(row.expiresAt),
+        attempts: row.attempts + 1,
+        windowStart: new Date(row.windowStart),
+        windowCount: row.windowCount,
+      });
+      throw new BadRequestException("Invalid or expired OTP");
+    }
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { roles: { include: { role: true } }, profile: true, addresses: true, staffScopes: STAFF_SCOPE_INCLUDE },
+    });
+    if (!user) throw new UnauthorizedException("No account found with this email");
+    if (user.status === UserStatus.DISABLED) {
+      throw new UnauthorizedException("Account disabled");
+    }
+    await this.clearOtp(key);
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await hashPassword(password), issuedPassword: null },
+      include: { roles: { include: { role: true } }, profile: true, addresses: true, staffScopes: STAFF_SCOPE_INCLUDE },
+    });
+    await invalidateUserProfile(updated.id);
+    void this.audit({ actorId: updated.id, action: "auth.password-reset", entityId: updated.id, ip });
+    return {
+      token: mintSessionToken({ email: updated.email, uid: updated.firebaseUid }),
+      user: this.present(updated),
+    };
+  }
 
   async loginStaffWithPassword(emailRaw: string, password: string, ip?: string) {
     const email = String(emailRaw || "").toLowerCase().trim();

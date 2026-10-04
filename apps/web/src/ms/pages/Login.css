@@ -518,6 +518,40 @@ body.auth-shell .fade-in-bottom {
   margin-bottom: 1.6rem;
 }
 
+.customer-login-field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.customer-login-field-head label {
+  margin-bottom: 0;
+}
+
+.customer-login-forgot {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #0e7c86;
+  font-size: 1.25rem;
+  font-weight: 650;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.customer-login-forgot:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.customer-login-forgot:disabled {
+  color: #8a9aa3;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 .customer-login-field label {
   display: block;
   font-size: 1.3rem;

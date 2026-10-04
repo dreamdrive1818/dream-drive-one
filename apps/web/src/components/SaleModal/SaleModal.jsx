@@ -11,6 +11,9 @@ import { useLocalContext } from "../../context/LocalContext";
 import "./SaleModal.css";
 
 const SESSION_KEY = "dreamdrive_sale_modal_dismissed";
+const MOBILE_QUERY = "(max-width: 768px)";
+const DESKTOP_DELAY_MS = 900;
+const MOBILE_DELAY_MS = 30000;
 const PLACEHOLDER_IMAGE = /placehold\.co|placeholder\.com|dummyimage\.com/i;
 
 const SaleModal = () => {
@@ -28,7 +31,11 @@ const SaleModal = () => {
   useEffect(() => {
     if (isAdmin || !promoBanner) return;
     if (sessionStorage.getItem(SESSION_KEY) === "1") return;
-    const timer = setTimeout(() => setOpen(true), 900);
+    const mobile = window.matchMedia(MOBILE_QUERY).matches;
+    const timer = setTimeout(() => {
+      if (window.matchMedia(MOBILE_QUERY).matches && window.location.pathname.startsWith("/account")) return;
+      setOpen(true);
+    }, mobile ? MOBILE_DELAY_MS : DESKTOP_DELAY_MS);
     return () => clearTimeout(timer);
   }, [isAdmin, promoBanner]);
 

@@ -61,7 +61,7 @@
 
 .fleet-search-bar-fields {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(14rem, 1.35fr) repeat(4, minmax(0, 1fr));
   min-width: 0;
 }
 
@@ -844,6 +844,10 @@
 
   .fleet-search-bar-fields {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .fleet-search-bar-field--place {
+    grid-column: 1 / -1;
   }
 
   .fleet-search-bar-field + .fleet-search-bar-field::before {
