@@ -73,6 +73,7 @@ export default function Search() {
   const [pickupPlace, setPickupPlace] = useState(() => searchParams.get("pickupPlace") || "");
   const askedLocation = useRef(false);
   const presetPlace = useRef(searchParams.get("pickupPlace") || "");
+  const resultsRef = useRef(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualBusy, setManualBusy] = useState(false);
   const [manualMsg, setManualMsg] = useState("");
@@ -242,10 +243,21 @@ export default function Search() {
     };
   }, [filtersOpen]);
 
+  function revealResults() {
+    const node = resultsRef.current;
+    if (!node) return;
+    node.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
-    if (dateError) return;
+    if (!filters.cityId || dateError) return;
+    const place = pickupPlace.trim();
+    if (place && place !== (filters.pickupPlace || "")) {
+      setFilters({ pickupPlace: place });
+    }
     runSearch(filters);
+    revealResults();
   }
 
   function handleClear() {
@@ -548,7 +560,7 @@ export default function Search() {
           <button
             type="submit"
             className="fleet-search-submit"
-            disabled={loading || !filters.cityId || Boolean(dateError)}
+            disabled={!filters.cityId || Boolean(dateError)}
           >
             {loading ? "Searching…" : "Search"}
             {!loading && <FontAwesomeIcon icon={faArrowRight} />}
@@ -636,7 +648,7 @@ export default function Search() {
             {renderFilterPanel("")}
           </aside>
 
-          <div className="fleet-search-main">
+          <div className="fleet-search-main" id="fleet-results" ref={resultsRef}>
             <div className="fleet-search-toolbar">
               <div className="fleet-search-toolbar-left">
                 <button
