@@ -27,7 +27,23 @@ export async function internalFetch<T = unknown>(
   if (init.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
-  const res = await fetch(`${base}${path}`, { ...init, headers });
+  const timeout = new AbortController();
+  const timer = setTimeout(() => timeout.abort(), 6000);
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      ...init,
+      headers,
+      signal: init.signal ?? timeout.signal,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new BadGatewayException("Internal service timed out");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   const text = await res.text();
   let json: unknown = null;
   try {

@@ -228,6 +228,7 @@ model CustomerProfile {
   id             String    @id @default(cuid())
   userId         String    @unique
   fullName       String
+  dateOfBirth    DateTime?
   kycStatus      KycStatus @default(NOT_STARTED)
   kycApprovedAt  DateTime?
   kycValidUntil  DateTime?
@@ -342,6 +343,8 @@ model Vehicle {
   bookings       Booking[]
   jobs           MaintenanceJob[]
   inspections    Inspection[]
+
+  @@index([carModelId, status])
 }
 
 model VehicleDocument {
@@ -392,6 +395,8 @@ model AvailabilityBlock {
   endsAt    DateTime
   reason    String
   vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, startsAt, endsAt])
 }
 
 model Driver {
@@ -460,6 +465,8 @@ model MaintenanceJob {
   vehicle     Vehicle              @relation(fields: [vehicleId], references: [id])
   workshop    Workshop?            @relation(fields: [workshopId], references: [id])
   parts       MaintenancePart[]
+
+  @@index([vehicleId, status])
 }
 
 model MaintenancePart {
@@ -547,12 +554,17 @@ model CarModel {
   published     Boolean  @default(false)
   featured      Boolean  @default(false)
   displayOrder  Int      @default(999)
+  /// Online amount that reserves the car. Default ₹500. Balance is collected later.
+  tokenPaise    Int      @default(50000)
   city          City     @relation(fields: [cityId], references: [id])
   images        CarImage[]
   vehicles      Vehicle[]
   pricingRules      PricingRule[]
   reviews           Review[]
   subscriptionPlans SubscriptionPlan[]
+
+  @@index([published, cityId])
+  @@index([published, featured, displayOrder])
 }
 
 model CarImage {
@@ -561,6 +573,8 @@ model CarImage {
   url        String
   sortOrder  Int      @default(0)
   carModel   CarModel @relation(fields: [carModelId], references: [id], onDelete: Cascade)
+
+  @@index([carModelId, sortOrder])
 }
 
 model PricingRule {
@@ -576,6 +590,8 @@ model PricingRule {
   startsOn     DateTime?
   endsOn       DateTime?
   carModel     CarModel   @relation(fields: [carModelId], references: [id], onDelete: Cascade)
+
+  @@index([carModelId, rentalType])
 }
 
 model CatalogSettings {
@@ -659,6 +675,7 @@ model Quote {
   endsAt      DateTime
   amountPaise Int
   depositPaise Int       @default(0)
+  tokenPaise   Int       @default(50000)
   offerId     String?
   expiresAt   DateTime
   payload     Json
@@ -681,6 +698,8 @@ model Booking {
   dropBranchId    String
   amountPaise     Int
   depositPaise    Int           @default(0)
+  tokenPaise      Int           @default(50000)
+  termsAcceptedAt DateTime?
   offerId         String?
   flightNumber    String?
   terminalId      String?
@@ -714,6 +733,10 @@ model Booking {
   tickets      Ticket[]
   ledgerEntries LedgerEntry[]
   lead         Lead?
+
+  @@index([carModelId, status])
+  @@index([vehicleId, status, startsAt])
+  @@index([status, startsAt, endsAt])
 }
 
 model BookingStatusHistory {

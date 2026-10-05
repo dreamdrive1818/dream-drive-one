@@ -175,6 +175,7 @@ export default function BookingDetailPage() {
         <div className="card">
           <h3>Amount</h3>
           <strong>{rupees(booking.amountPaise)}</strong>
+          <p className="muted">Token {rupees(booking.tokenPaise || 50000)}</p>
           <p className="muted">Deposit {rupees(booking.depositPaise)}</p>
         </div>
         <div className="card">

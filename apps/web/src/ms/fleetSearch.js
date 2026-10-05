@@ -48,6 +48,7 @@ export const TRANSMISSION_OPTIONS = [
 
 const FILTER_KEYS = [
   "cityId",
+  "pickupPlace",
   "from",
   "to",
   "rentalType",
@@ -70,6 +71,7 @@ export function parseFleetFilters(searchParams) {
   const get = (key) => searchParams.get(key) || "";
   return {
     cityId: get("cityId"),
+    pickupPlace: get("pickupPlace"),
     from: get("from"),
     to: get("to"),
     rentalType: get("rentalType") || "SELF_DRIVE",
@@ -253,6 +255,12 @@ export function primaryImageUrl(car) {
 export function formatInr(paise) {
   if (paise == null) return "—";
   return `₹${(paise / 100).toLocaleString("en-IN")}`;
+}
+
+/** Token collected now. Defaults to ₹500 and never exceeds the trip total. */
+export function tokenDuePaise(tokenPaise, amountPaise) {
+  const configured = tokenPaise > 0 ? tokenPaise : 50000;
+  return Math.min(configured, Math.max(0, amountPaise || 0));
 }
 
 export function sortedCarImages(car) {

@@ -274,6 +274,19 @@ const SETTING_DEFAULTS: Record<string, { label: string; group: string; value: st
   ...AUTH_SETTING_DEFAULTS,
 };
 
+const DEFAULT_BOOKING_TERMS = `<h2>1. Token booking</h2>
+<p>Paying the token amount reserves the selected car for your trip. The token is set for each car and shown before you pay. It is not the full rental charge.</p>
+<h2>2. Details collected at payment</h2>
+<p>Before the token is taken we confirm your full name, date of birth, email address, and mobile number. Driving licence and identity documents are completed in KYC after the token payment.</p>
+<h2>3. Balance</h2>
+<p>The remaining rental amount, and any security deposit, is payable before the vehicle is handed over.</p>
+<h2>4. Vehicle use</h2>
+<p>Only a verified driver may operate a self-drive vehicle. The car must not be used for racing, ride-sharing, towing, or any illegal purpose. GPS tracking must not be tampered with.</p>
+<h2>5. Damage and return</h2>
+<p>The vehicle must be returned in the condition it was delivered, at the agreed time and place. The hirer is responsible for traffic fines, fuel difference, and damage not covered by the booking.</p>
+<h2>6. Cancellation</h2>
+<p>Cancellation and refund of the token follow the policy shown on your booking. Dream Drive may refuse handover if KYC is incomplete or these terms are breached.</p>`;
+
 @Injectable()
 export class CmsService {
   private settingsSeeded = false;
@@ -300,20 +313,43 @@ export class CmsService {
     });
     const have = new Set(existing.map((row) => row.key));
     const missing = keys.filter((key) => !have.has(key));
-    if (!missing.length) return;
-    await prisma.siteSetting.createMany({
-      data: missing.map((key) => ({
-        key,
-        value: SETTING_DEFAULTS[key].value,
-        label: SETTING_DEFAULTS[key].label,
-        group: SETTING_DEFAULTS[key].group,
-      })),
-      skipDuplicates: true,
+    if (missing.length) {
+      await prisma.siteSetting.createMany({
+        data: missing.map((key) => ({
+          key,
+          value: SETTING_DEFAULTS[key].value,
+          label: SETTING_DEFAULTS[key].label,
+          group: SETTING_DEFAULTS[key].group,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    await this.ensureTermsPage();
+  }
+
+  private async ensureTermsPage() {
+    const existing = await prisma.cmsPage.findUnique({ where: { slug: "terms" } });
+    if (existing) return;
+    await prisma.cmsPage.create({
+      data: {
+        slug: "terms",
+        title: "Terms & Conditions",
+        excerpt: "Please read these terms before paying the booking token.",
+        body: DEFAULT_BOOKING_TERMS,
+        kind: "LEGAL",
+        published: true,
+        metadata: {
+          create: {
+            title: "Terms & Conditions | Dream Drive",
+            description: "Booking token, customer details, and hire terms for Dream Drive.",
+          },
+        },
+      },
     });
   }
 
   async publicConfig() {
-    return remember("dd:public-config", 120, () => this.publicConfigUncached());
+    return remember("dd:public-config", 300, () => this.publicConfigUncached());
   }
 
   private async publicConfigUncached() {
@@ -384,7 +420,7 @@ export class CmsService {
   }
 
   async home() {
-    return remember("dd:home", 90, () => this.homeUncached());
+    return remember("dd:home", 300, () => this.homeUncached());
   }
 
   private async homeUncached() {
@@ -408,7 +444,11 @@ export class CmsService {
       }),
       prisma.carModel.findMany({
         where: { published: true, featured: true },
-        include: { images: { orderBy: { sortOrder: "asc" } }, pricingRules: true, city: true },
+        include: {
+          images: { orderBy: { sortOrder: "asc" }, take: 3, select: { url: true } },
+          pricingRules: { select: { rentalType: true, dailyPaise: true } },
+          city: { select: { id: true, name: true, slug: true } },
+        },
         orderBy: { displayOrder: "asc" },
         take: 8,
       }),
@@ -434,14 +474,17 @@ export class CmsService {
         transmission: car.transmission,
         city: car.city,
         images: car.images.map((img) => img.url),
-        pricePaise: car.pricingRules[0]?.dailyPaise ?? 0,
+        pricePaise:
+          car.pricingRules.find((rule) => rule.rentalType === "SELF_DRIVE")?.dailyPaise ??
+          car.pricingRules[0]?.dailyPaise ??
+          0,
       })),
       config,
     };
   }
 
   async publicPages(kind?: string) {
-    return remember(`dd:pages:${kind || "all"}`, 90, async () => {
+    return remember(`dd:pages:${kind || "all"}`, 180, async () => {
       const rows = await prisma.cmsPage.findMany({
         where: {
           published: true,
@@ -455,6 +498,7 @@ export class CmsService {
   }
 
   async publicPage(slug: string) {
+    if (slug === "terms") await this.seedSettings();
     const page = await prisma.cmsPage.findFirst({
       where: { slug, published: true },
       include: { metadata: true },
@@ -464,7 +508,7 @@ export class CmsService {
   }
 
   async banners(placement?: string) {
-    return remember(`dd:banners:${placement || "all"}`, 60, async () => {
+    return remember(`dd:banners:${placement || "all"}`, 180, async () => {
       const rows = await this.activeBanners(new Date(), placement);
       return rows.map(presentBanner);
     });
@@ -487,7 +531,7 @@ export class CmsService {
 
   async blogs(query: { category?: string; take?: number }) {
     const take = Math.min(Math.max(query.take ?? 50, 1), 100);
-    return remember(`dd:blogs:${query.category || ""}:${take}`, 60, async () => {
+    return remember(`dd:blogs:${query.category || ""}:${take}`, 180, async () => {
       const categoryFilter = query.category
         ? {
             OR: [
@@ -577,7 +621,7 @@ export class CmsService {
   }
 
   async testimonials() {
-    return remember("dd:testimonials", 90, async () => {
+    return remember("dd:testimonials", 300, async () => {
       const rows = await prisma.testimonial.findMany({
         where: { active: true },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
@@ -657,7 +701,8 @@ export class CmsService {
     });
   }
 
-  listPages() {
+  async listPages() {
+    await this.seedSettings();
     return prisma.cmsPage.findMany({
       include: { metadata: true },
       orderBy: [{ kind: "asc" }, { slug: "asc" }],

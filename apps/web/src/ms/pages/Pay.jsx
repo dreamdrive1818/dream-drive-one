@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
-import { formatInr, RENTAL_TYPE_LABELS } from "../fleetSearch";
+import { formatInr, tokenDuePaise, RENTAL_TYPE_LABELS } from "../fleetSearch";
 import { CheckoutSkeleton } from "../../components/Skeleton/Skeleton";
 import AuthModal from "../AuthModal";
 import "./Checkout.css";
@@ -23,8 +23,11 @@ function loadRazorpay() {
   });
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function nextAfterToken(booking) {
+  if (booking.rentalType === "SELF_DRIVE") {
+    return `/account/kyc?booking=${encodeURIComponent(booking.publicId || booking.id)}`;
+  }
+  return `/checkout/success?booking=${booking.publicId}&type=${booking.rentalType}`;
 }
 
 export default function Pay() {
@@ -39,6 +42,11 @@ export default function Pay() {
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [phone, setPhone] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [terms, setTerms] = useState(null);
 
   useEffect(() => {
     if (!ready) return;
@@ -49,7 +57,7 @@ export default function Pay() {
     setAuthOpen(false);
     if (!bookingId) return;
     Promise.all([
-      api(`/v1/bookings/${bookingId}`),
+      api(`/v1/bookings/${bookingId}`, { cache: false }),
       api("/v1/me/wallet").catch(() => null),
     ])
       .then(([row, w]) => {
@@ -60,21 +68,21 @@ export default function Pay() {
           return;
         }
         if (row.status && !["HOLD", "AWAITING_PAYMENT"].includes(row.status)) {
-          navigate(`/checkout/success?booking=${row.publicId}&type=${row.rentalType}`, { replace: true });
+          navigate(nextAfterToken(row), { replace: true });
         }
       })
       .catch((e) => setLoadError(e.message || "Could not load this booking."));
+    api("/v1/public/pages/terms")
+      .then(setTerms)
+      .catch(() => setTerms(null));
   }, [ready, user, bookingId, navigate]);
 
-  async function pollPayment(paymentId) {
-    for (let i = 0; i < 12; i += 1) {
-      const payment = await api(`/v1/payments/${paymentId}`).catch(() => null);
-      if (payment?.status === "SUCCESS") return payment;
-      if (payment?.status === "FAILED") throw new Error("Payment failed");
-      await sleep(1500);
-    }
-    return api(`/v1/payments/${paymentId}`);
-  }
+  useEffect(() => {
+    if (!user) return;
+    setFullName((current) => current || user.fullName || "");
+    setDateOfBirth((current) => current || user.dateOfBirth || "");
+    setPhone((current) => current || user.phone || "");
+  }, [user]);
 
   async function openRazorpay(order) {
     const Razorpay = await loadRazorpay();
@@ -115,28 +123,52 @@ export default function Pay() {
 
   async function pay() {
     if (!booking) return;
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      setError("Enter your full name.");
+      return;
+    }
+    if (!dateOfBirth) {
+      setError("Enter your date of birth.");
+      return;
+    }
+    if (!/^[6-9]\d{9}$/.test(phone.replace(/\D/g, "").replace(/^91/, "").replace(/^0/, ""))) {
+      setError("Enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (!termsAccepted) {
+      setError("Accept the terms and conditions to pay the token.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
+      await api(`/v1/bookings/${booking.id}/essentials`, {
+        method: "POST",
+        body: {
+          fullName: fullName.trim(),
+          dateOfBirth,
+          phone,
+          email: user?.email || "",
+          termsAccepted: true,
+        },
+      });
+      const due = tokenDuePaise(booking.tokenPaise, booking.amountPaise);
       const walletPaise =
         useWallet && wallet?.balancePaise > 0
-          ? Math.min(wallet.balancePaise, booking.amountPaise || 0)
+          ? Math.min(wallet.balancePaise, due)
           : 0;
       const order = await api("/v1/payments/orders", {
         method: "POST",
         body: { bookingId: booking.id, kind: "TOKEN", walletPaise },
       });
-      if (order.paidInFull) {
-        navigate(`/checkout/success?booking=${booking.publicId}&type=${booking.rentalType}`);
-        return;
+      if (!order.paidInFull) {
+        if (order.mock) {
+          await api("/v1/payments/verify", { method: "POST", body: { paymentId: order.paymentId } });
+        } else {
+          await openRazorpay(order);
+        }
       }
-      if (order.mock) {
-        await api("/v1/payments/verify", { method: "POST", body: { paymentId: order.paymentId } });
-      } else {
-        await openRazorpay(order);
-      }
-      await pollPayment(order.paymentId).catch(() => null);
-      navigate(`/checkout/success?booking=${booking.publicId}&type=${booking.rentalType}`);
+      navigate(nextAfterToken(booking));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -164,6 +196,11 @@ export default function Pay() {
     );
   }
 
+  const due = tokenDuePaise(booking.tokenPaise, booking.amountPaise);
+  const balance = Math.max(0, (booking.amountPaise || 0) - due);
+  const walletApplied = useWallet && wallet?.balancePaise > 0 ? Math.min(wallet.balancePaise, due) : 0;
+  const selfDrive = booking.rentalType === "SELF_DRIVE";
+
   return (
     <div className="checkout-page">
       <div className="checkout-inner">
@@ -177,24 +214,77 @@ export default function Pay() {
               <span aria-current="page">Payment</span>
             </nav>
             <h1>Pay token</h1>
-            <p>Complete payment for booking {booking.publicId}. Status updates only after the server confirms the payment.</p>
+            <p>
+              Booking {booking.publicId}. We only take the token now. Licence and ID documents come next, in KYC.
+            </p>
           </div>
         </header>
 
         <ol className="checkout-steps" aria-label="Booking steps">
           <li className="is-done"><span className="checkout-step-dot" aria-hidden="true">1</span><span className="checkout-step-label">Car</span></li>
           <li className="is-done"><span className="checkout-step-dot" aria-hidden="true">2</span><span className="checkout-step-label">Review</span></li>
-          <li className="is-current" aria-current="step"><span className="checkout-step-dot" aria-hidden="true">3</span><span className="checkout-step-label">Payment</span></li>
-          <li><span className="checkout-step-dot" aria-hidden="true">4</span><span className="checkout-step-label">Confirmed</span></li>
+          <li className="is-current" aria-current="step"><span className="checkout-step-dot" aria-hidden="true">3</span><span className="checkout-step-label">Token</span></li>
+          <li><span className="checkout-step-dot" aria-hidden="true">4</span><span className="checkout-step-label">{selfDrive ? "KYC" : "Confirmed"}</span></li>
         </ol>
 
         <div className="checkout-layout">
           <div className="checkout-main">
             <section className="checkout-card">
-              <h2 style={{ marginTop: 0 }}>{booking.publicId}</h2>
-              <p>{RENTAL_TYPE_LABELS[booking.rentalType] || booking.rentalType}</p>
-              <p>{new Date(booking.startsAt).toLocaleString("en-IN")} → {new Date(booking.endsAt).toLocaleString("en-IN")}</p>
-              <p>Status: {booking.status?.replace(/_/g, " ")}</p>
+              <h2 style={{ marginTop: 0 }}>Your details</h2>
+              <p className="checkout-essentials-lead">
+                {RENTAL_TYPE_LABELS[booking.rentalType] || booking.rentalType}
+                {" · "}
+                {new Date(booking.startsAt).toLocaleString("en-IN")} → {new Date(booking.endsAt).toLocaleString("en-IN")}
+              </p>
+              <div className="checkout-fields">
+                <label>
+                  Full name
+                  <input value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" required />
+                </label>
+                <label>
+                  Date of birth
+                  <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} required />
+                </label>
+                <label>
+                  Email
+                  <input value={user?.email || ""} readOnly autoComplete="email" />
+                </label>
+                <label>
+                  Mobile number
+                  <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="10-digit mobile"
+                    required
+                  />
+                </label>
+              </div>
+              <label className="checkout-terms">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                />
+                <span>
+                  I have read and agree to the{" "}
+                  <Link to="/termsandconditions" target="_blank" rel="noreferrer">
+                    Terms & Conditions
+                  </Link>
+                  .
+                </span>
+              </label>
+              {terms?.body ? (
+                <div
+                  className="checkout-terms-box"
+                  dangerouslySetInnerHTML={{ __html: terms.body }}
+                />
+              ) : (
+                <p className="checkout-essentials-lead">
+                  The token reserves the car. The remaining rental is due before handover.
+                </p>
+              )}
             </section>
           </div>
           <aside className="checkout-summary">
@@ -204,10 +294,20 @@ export default function Pay() {
             </div>
             <div className="checkout-summary-body">
               <div className="checkout-price-rows">
-                <div className="checkout-price-row checkout-price-row--total">
-                  <span>Pay now</span>
+                <div className="checkout-price-row">
+                  <span>Trip total</span>
                   <strong>{formatInr(booking.amountPaise)}</strong>
                 </div>
+                <div className="checkout-price-row checkout-price-row--total">
+                  <span>Pay now</span>
+                  <strong>{formatInr(Math.max(0, due - walletApplied))}</strong>
+                </div>
+                {balance > 0 ? (
+                  <div className="checkout-price-row">
+                    <span>Balance before handover</span>
+                    <strong>{formatInr(balance)}</strong>
+                  </div>
+                ) : null}
                 {(wallet?.balancePaise || 0) > 0 && (
                   <label className="checkout-price-row" style={{ cursor: "pointer" }}>
                     <span>
@@ -220,20 +320,25 @@ export default function Pay() {
                       Use wallet ({formatInr(wallet.balancePaise)})
                     </span>
                     <strong>
-                      −{formatInr(Math.min(wallet.balancePaise, booking.amountPaise || 0))}
+                      −{formatInr(Math.min(wallet.balancePaise, due))}
                     </strong>
                   </label>
                 )}
               </div>
+              <p className="checkout-essentials-lead">
+                {selfDrive
+                  ? "After the token you’ll upload your licence and ID."
+                  : "The rest of the rental is collected before the trip."}
+              </p>
               {error ? <p className="checkout-error" role="alert">{error}</p> : null}
-              <button type="button" className="checkout-cta" onClick={pay} disabled={busy}>
+              <button type="button" className="checkout-cta" onClick={pay} disabled={busy || !termsAccepted}>
                 {busy ? (
                   <span className="checkout-cta-busy">
                     <ClipLoader color="#fff" size={18} />
                     Processing…
                   </span>
                 ) : (
-                  "Pay now"
+                  `Pay ${formatInr(Math.max(0, due - walletApplied))} token`
                 )}
               </button>
               <Link to={`/account/bookings/${booking.id}`} className="checkout-secondary-link">

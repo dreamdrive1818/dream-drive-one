@@ -27,7 +27,7 @@ import {
 @Injectable()
 export class FleetEngine {
   cities() {
-    return remember("dd:cities", 180, () =>
+    return remember("dd:cities", 600, () =>
       prisma.city.findMany({
         where: { active: true },
         include: { branches: { where: { active: true } } },
@@ -818,14 +818,16 @@ export class FleetEngine {
   }
 
   listAirports(cityId?: string) {
-    return prisma.airportTerminal.findMany({
+    return remember(`dd:airports:${cityId || "all"}`, 300, () =>
+      prisma.airportTerminal.findMany({
       where: {
         active: true,
         ...(cityId ? { cityId } : {}),
       },
       include: { city: { select: { id: true, name: true, slug: true } } },
       orderBy: { name: "asc" },
-    });
+    })
+    );
   }
 
   adminAirports(cityId?: string) {

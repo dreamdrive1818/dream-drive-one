@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -16,6 +17,7 @@ import { addMinutes, daysBetween, hoursBetween, hourInIst, isNightHour, nightsBe
 import type { AuthUser } from "../../lib/auth";
 import { freezeBookingCommission } from "../../lib/commission";
 import { assertPartnerContractActive, bookingScopeWhere, dlCovers, insuranceCovers } from "../../lib/vehicle-rules";
+import { DEFAULT_TOKEN_PAISE } from "../../lib/token";
 
 const HOLD_MINUTES = Number(process.env.HOLD_MINUTES ?? 15);
 const QUOTE_TTL_MINUTES = Number(process.env.QUOTE_TTL_MINUTES ?? 20);
@@ -146,6 +148,7 @@ export class BookingEngine {
         endsAt: priced.endsAt,
         amountPaise: priced.amountPaise,
         depositPaise: priced.depositPaise,
+        tokenPaise: priced.tokenPaise,
         offerId: priced.offerId,
         expiresAt: addMinutes(new Date(), QUOTE_TTL_MINUTES),
         payload: priced.payload,
@@ -237,6 +240,7 @@ export class BookingEngine {
         dropBranchId: payload.dropBranchId || payload.pickupBranchId,
         amountPaise: quote.amountPaise,
         depositPaise: quote.depositPaise,
+        tokenPaise: quote.tokenPaise > 0 ? quote.tokenPaise : DEFAULT_TOKEN_PAISE,
         offerId: quote.offerId,
         flightNumber: payload.flightNumber ?? null,
         terminalId: payload.terminalId ?? null,
@@ -531,6 +535,7 @@ export class BookingEngine {
           dropBranchId: priced.payload.dropBranchId,
           amountPaise: priced.amountPaise,
           depositPaise: priced.depositPaise,
+          tokenPaise: priced.tokenPaise,
           vehicleId: reserved.vehicleId,
           tripDirection: priced.payload.tripDirection ?? null,
         },
@@ -713,6 +718,66 @@ export class BookingEngine {
       update: { driverId },
       include: { driver: { select: { id: true, fullName: true, phone: true } } },
     });
+  }
+
+  async saveEssentials(
+    userId: string,
+    bookingId: string,
+    body: {
+      fullName?: string;
+      dateOfBirth?: string;
+      phone?: string;
+      email?: string;
+      termsAccepted?: boolean;
+    }
+  ) {
+    const booking = await this.require(bookingId);
+    if (booking.userId !== userId) throw new BadRequestException("Not your booking");
+    if (!["HOLD", "AWAITING_PAYMENT"].includes(booking.status)) {
+      throw new BadRequestException("This booking is no longer waiting for the token");
+    }
+    if (body.termsAccepted !== true) {
+      throw new BadRequestException("Accept the terms and conditions to continue");
+    }
+
+    const fullName = String(body.fullName || "").trim().replace(/\s+/g, " ");
+    if (fullName.length < 2) throw new BadRequestException("Enter your full name");
+    const dateOfBirth = parseDateOfBirth(body.dateOfBirth);
+    const phone = this.normalizePhone(String(body.phone || ""));
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
+    if (!user) throw new NotFoundException("User not found");
+    const email = String(body.email || user.email).trim().toLowerCase();
+    if (!email || email !== user.email.toLowerCase()) {
+      throw new BadRequestException("Email must match the account used to sign in");
+    }
+    if (user.profile?.kycStatus === "APPROVED") {
+      const locked = (user.profile.fullName || "").trim().toLowerCase();
+      if (locked && locked !== fullName.toLowerCase()) {
+        throw new ForbiddenException("Name is locked to the approved KYC record");
+      }
+    }
+
+    const taken = await prisma.user.findFirst({
+      where: { phone, NOT: { id: userId } },
+      select: { id: true },
+    });
+    if (taken) throw new BadRequestException("Phone already in use");
+
+    await prisma.user.update({ where: { id: userId }, data: { phone } });
+    await prisma.customerProfile.upsert({
+      where: { userId },
+      create: { userId, fullName, dateOfBirth },
+      update: { fullName, dateOfBirth },
+    });
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { termsAcceptedAt: booking.termsAcceptedAt ?? new Date() },
+    });
+    return this.get(booking.id);
   }
 
   async paymentCaptured(id: string) {
@@ -1214,14 +1279,16 @@ export class BookingEngine {
   }
 
   listPackages() {
-    return prisma.tourPackage.findMany({
+    return remember("dd:packages", 300, () =>
+      prisma.tourPackage.findMany({
       where: { published: true },
       include: {
         daysDetail: { orderBy: { dayNumber: "asc" } },
         city: { select: { id: true, name: true, slug: true } },
       },
       orderBy: { name: "asc" },
-    });
+    })
+    );
   }
 
   async getPackage(slugOrId: string) {
@@ -1617,7 +1684,8 @@ export class BookingEngine {
       breakdown,
     };
 
-    return { startsAt, endsAt, amountPaise, depositPaise, offerId, payload };
+    const tokenPaise = model.tokenPaise > 0 ? model.tokenPaise : DEFAULT_TOKEN_PAISE;
+    return { startsAt, endsAt, amountPaise, depositPaise, tokenPaise, offerId, payload };
   }
 
   private pickPriceRule(
@@ -2008,4 +2076,20 @@ function formatIst(date: Date) {
 
 function formatInr(paise: number) {
   return `₹${(paise / 100).toLocaleString("en-IN")}`;
+}
+
+function parseDateOfBirth(value?: string) {
+  const raw = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    throw new BadRequestException("Enter a valid date of birth");
+  }
+  const dob = new Date(`${raw}T00:00:00.000Z`);
+  if (Number.isNaN(dob.getTime())) throw new BadRequestException("Enter a valid date of birth");
+  const now = new Date();
+  let age = now.getUTCFullYear() - dob.getUTCFullYear();
+  const month = now.getUTCMonth() - dob.getUTCMonth();
+  if (month < 0 || (month === 0 && now.getUTCDate() < dob.getUTCDate())) age -= 1;
+  if (age < 18) throw new BadRequestException("You must be at least 18 years old");
+  if (age > 100) throw new BadRequestException("Enter a valid date of birth");
+  return dob;
 }

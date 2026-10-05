@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "crypto";
 import { prisma } from "../../lib/prisma";
+import { remember } from "../../lib/cache";
 import type { AuthUser } from "../../lib/auth";
 import { bookingScopeWhere, vehicleScopeWhere } from "../../lib/vehicle-rules";
 import type { LeadStatus, TicketStatus } from "@prisma/client";
@@ -579,6 +580,10 @@ export class PlatformEngine {
   }
 
   async publicCarReviews(idOrSlug: string) {
+    return remember(`dd:reviews:${idOrSlug}`, 120, () => this.publicCarReviewsUncached(idOrSlug));
+  }
+
+  private async publicCarReviewsUncached(idOrSlug: string) {
     const car = await prisma.carModel.findFirst({
       where: { published: true, OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
       select: { id: true, name: true, slug: true },

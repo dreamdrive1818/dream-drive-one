@@ -36,43 +36,8 @@ import {
   defaultSearchDates,
   localDateYmd,
 } from "../fleetSearch";
+import { lookupPickup, requestLiveCoords } from "../livePickup";
 import "./Search.css";
-
-function formatPickupPlace(addr, displayName) {
-  const parts = [
-    addr.road || addr.neighbourhood || addr.suburb,
-    addr.suburb || addr.city_district,
-    addr.city || addr.town || addr.village,
-  ].filter(Boolean);
-  const unique = [];
-  for (const part of parts) {
-    if (!unique.some((item) => item.toLowerCase() === String(part).toLowerCase())) {
-      unique.push(part);
-    }
-  }
-  if (unique.length) return unique.join(", ");
-  const fallback = String(displayName || "").split(",").slice(0, 3).join(",").trim();
-  return fallback;
-}
-
-function matchCityFromAddress(cities, addr, displayName) {
-  const blob = [
-    addr.city,
-    addr.town,
-    addr.village,
-    addr.municipality,
-    addr.state_district,
-    addr.county,
-    addr.state,
-    displayName,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return (
-    cities.find((city) => blob.includes(String(city.name || "").toLowerCase())) || null
-  );
-}
 
 const EMPTY_FILTERS = {
   cityId: "",
@@ -105,8 +70,9 @@ export default function Search() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locMsg, setLocMsg] = useState("");
   const [locBusy, setLocBusy] = useState(false);
-  const [pickupPlace, setPickupPlace] = useState("");
+  const [pickupPlace, setPickupPlace] = useState(() => searchParams.get("pickupPlace") || "");
   const askedLocation = useRef(false);
+  const presetPlace = useRef(searchParams.get("pickupPlace") || "");
   const [manualOpen, setManualOpen] = useState(false);
   const [manualBusy, setManualBusy] = useState(false);
   const [manualMsg, setManualMsg] = useState("");
@@ -306,48 +272,31 @@ export default function Search() {
   }
 
   const applyCurrentLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      setLocMsg("This browser cannot read your location.");
-      return;
-    }
     setLocBusy(true);
     setLocMsg("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await res.json();
-          const addr = data.address || {};
-          const place = formatPickupPlace(addr, data.display_name);
-          setPickupPlace(place);
-          setManual((prev) => ({ ...prev, place: place || prev.place }));
-          const match = matchCityFromAddress(cities, addr, data.display_name);
-          if (match) {
-            setFilters({ cityId: match.id });
-            setLocMsg("");
-          } else {
-            setLocMsg("Pickup location is set. Choose the nearest city we serve.");
-          }
-        } catch {
-          setLocMsg("Could not turn that location into an address. Type the pickup place.");
-        } finally {
-          setLocBusy(false);
+    requestLiveCoords()
+      .then((coords) => lookupPickup(coords, cities))
+      .then(({ place, city }) => {
+        setPickupPlace(place);
+        setManual((prev) => ({ ...prev, place: place || prev.place }));
+        if (city) {
+          setFilters({ cityId: city.id, pickupPlace: place });
+          setLocMsg("");
+        } else {
+          if (place) setFilters({ pickupPlace: place });
+          setLocMsg("Pickup location is set. Choose the nearest city we serve.");
         }
-      },
-      () => {
-        setLocBusy(false);
-        setLocMsg("Allow location access to fill the pickup place and city.");
-      },
-      { enableHighAccuracy: true, timeout: 12000 }
-    );
+      })
+      .catch((err) => {
+        setLocMsg(err?.message || "Could not turn that location into an address. Type the pickup place.");
+      })
+      .finally(() => setLocBusy(false));
   }, [cities, setFilters]);
 
   useEffect(() => {
     if (!cities.length || askedLocation.current) return;
     askedLocation.current = true;
+    if (presetPlace.current) return;
     applyCurrentLocation();
   }, [cities, applyCurrentLocation]);
 

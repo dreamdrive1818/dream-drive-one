@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { prisma } from "../../lib/prisma";
-import { NOTIFICATION_TEMPLATES } from "./templates";
+import { MAIL_REV, NOTIFICATION_TEMPLATES } from "./templates";
 
 const MAX_ATTEMPTS = 3;
 const BACKOFF_MINUTES = [5, 15, 45];
@@ -270,12 +270,9 @@ export class NotifyEngine {
     }
     if ("error" in mail) return { ok: false, error: mail.error };
     try {
-      const nodemailer = require("nodemailer") as {
-        createTransport: (opts: unknown) => { sendMail: (opts: unknown) => Promise<unknown> };
-      };
-      const transport = nodemailer.createTransport(mail.transport);
+      const pooled = smtpPool(mailboxFor(template), mail);
       const html = looksLikeHtml(body) ? body : wrapPlain(body);
-      await transport.sendMail({
+      await pooled.sendMail({
         from: mail.from,
         to,
         subject,
@@ -326,6 +323,45 @@ const MAILBOX_DEFAULTS: Record<Mailbox, { user: string; passKey: string; fromNam
 
 function mailboxFor(template: string): Mailbox {
   return TEMPLATE_MAILBOX[template] ?? "support";
+}
+
+type SmtpClient = { sendMail: (opts: unknown) => Promise<unknown> };
+const smtpClients = new Map<Mailbox, SmtpClient>();
+
+function smtpPool(
+  mailbox: Mailbox,
+  mail: { from: string; transport: Record<string, unknown> }
+): SmtpClient {
+  const existing = smtpClients.get(mailbox);
+  if (existing) return existing;
+  const nodemailer = require("nodemailer") as {
+    createTransport: (opts: unknown) => SmtpClient;
+  };
+  const client = nodemailer.createTransport({
+    ...mail.transport,
+    pool: true,
+    maxConnections: 2,
+    connectionTimeout: 8_000,
+    greetingTimeout: 8_000,
+    socketTimeout: 12_000,
+  });
+  smtpClients.set(mailbox, client);
+  return client;
+}
+
+export async function syncMailTemplates() {
+  for (const tpl of NOTIFICATION_TEMPLATES) {
+    const existing = await prisma.notificationTemplate.findUnique({
+      where: { key: tpl.key },
+      select: { body: true },
+    });
+    if (existing?.body.includes(MAIL_REV)) continue;
+    await prisma.notificationTemplate.upsert({
+      where: { key: tpl.key },
+      create: tpl,
+      update: { channel: tpl.channel, subject: tpl.subject, body: tpl.body },
+    });
+  }
 }
 
 /** Hostinger SMTP for the mailbox that owns this message; otherwise Gmail. */

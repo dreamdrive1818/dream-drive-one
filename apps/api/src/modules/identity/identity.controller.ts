@@ -14,6 +14,7 @@ import {
 import type { Request } from "express";
 import { RoleName } from "@prisma/client";
 import { IdentityService } from "./identity.service";
+import { NotifyEngine } from "../notification/notify.service";
 import {
   assertInternal,
   clientIp,
@@ -25,7 +26,22 @@ import { internalFetch, serviceUrls } from "../../lib/http";
 
 @Controller()
 export class IdentityController {
-  constructor(private readonly identity: IdentityService) {}
+  constructor(
+    private readonly identity: IdentityService,
+    private readonly notify: NotifyEngine
+  ) {}
+
+  private queueMail(input: {
+    template: string;
+    to: string;
+    data: Record<string, string>;
+    ref: string;
+  }) {
+    const job = this.notify.send(input).catch((err) => {
+      console.error("mail send failed", err instanceof Error ? err.message : err);
+    });
+    return Promise.race([job, new Promise((resolve) => setTimeout(resolve, 1200))]);
+  }
 
   @Post("v1/auth/sync")
   async sync(@Req() req: Request, @Body() body: { fullName?: string }) {
@@ -105,19 +121,12 @@ export class IdentityController {
   async sendOtp(@Body() body: { email?: string }) {
     if (!body?.email) throw new BadRequestException("email required");
     const code = await this.identity.issueOtp(body.email);
-    try {
-      await internalFetch(serviceUrls().notification, "/internal/notify", {
-        method: "POST",
-        body: JSON.stringify({
-          template: "otp",
-          to: body.email,
-          data: { code },
-          ref: "auth-otp",
-        }),
-      });
-    } catch {
-      // still return ok in dev so login is unblocked if mail is not configured
-    }
+    await this.queueMail({
+      template: "otp",
+      to: body.email,
+      data: { code },
+      ref: "auth-otp",
+    });
     const expose = process.env.NODE_ENV !== "production";
     return { ok: true, ...(expose ? { devCode: code } : {}) };
   }
@@ -137,19 +146,12 @@ export class IdentityController {
   async forgotPassword(@Body() body: { email?: string }) {
     if (!body?.email) throw new BadRequestException("email required");
     const code = await this.identity.issuePasswordReset(body.email);
-    try {
-      await internalFetch(serviceUrls().notification, "/internal/notify", {
-        method: "POST",
-        body: JSON.stringify({
-          template: "otp",
-          to: body.email,
-          data: { code, purpose: "password-reset" },
-          ref: "password-reset",
-        }),
-      });
-    } catch {
-      // still return ok in dev so reset is unblocked if mail is not configured
-    }
+    await this.queueMail({
+      template: "otp",
+      to: body.email,
+      data: { code, purpose: "password-reset" },
+      ref: "password-reset",
+    });
     const expose = process.env.NODE_ENV !== "production";
     return { ok: true, ...(expose ? { devCode: code } : {}) };
   }
@@ -188,19 +190,12 @@ export class IdentityController {
     const actor = currentUser(req);
     const { user, otpCode, pendingPhone } = await this.identity.patchMe(actor.id, body);
     if (otpCode) {
-      try {
-        await internalFetch(serviceUrls().notification, "/internal/notify", {
-          method: "POST",
-          body: JSON.stringify({
-            template: "otp",
-            to: user.email,
-            data: { code: otpCode, purpose: "phone-change" },
-            ref: "phone-change",
-          }),
-        });
-      } catch {
-        // login still works if mail is not configured
-      }
+      await this.queueMail({
+        template: "otp",
+        to: user.email,
+        data: { code: otpCode, purpose: "phone-change" },
+        ref: "phone-change",
+      });
     }
     const expose = process.env.NODE_ENV !== "production";
     return {

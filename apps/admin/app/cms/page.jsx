@@ -99,6 +99,18 @@ export default function CmsPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState("");
   const [settingsMsg, setSettingsMsg] = useState("");
+  const [termsForm, setTermsForm] = useState({
+    id: "",
+    title: "Terms & Conditions",
+    body: "",
+    excerpt: "Please read these terms before paying the booking token.",
+    metaTitle: "Terms & Conditions | Dream Drive",
+    metaDescription: "Booking token, customer details, and hire terms for Dream Drive.",
+    published: true,
+  });
+  const [termsReady, setTermsReady] = useState(false);
+  const [termsMsg, setTermsMsg] = useState("");
+  const [termsSaving, setTermsSaving] = useState(false);
 
   function load() {
     api("/v1/admin/cms/pages").then(setPages).catch((e) => setError(e.message));
@@ -116,6 +128,22 @@ export default function CmsPage() {
   }
 
   useEffect(() => { load(); loadSettings(); }, []);
+
+  useEffect(() => {
+    if (termsReady) return;
+    const row = pages.find((p) => p.slug === "terms");
+    if (!row) return;
+    setTermsForm({
+      id: row.id,
+      title: row.title || "Terms & Conditions",
+      body: row.body || "",
+      excerpt: row.excerpt || "",
+      metaTitle: row.metadata?.title || "Terms & Conditions | Dream Drive",
+      metaDescription: row.metadata?.description || "Booking token, customer details, and hire terms for Dream Drive.",
+      published: Boolean(row.published),
+    });
+    setTermsReady(true);
+  }, [pages, termsReady]);
 
   function editPage(row) {
     setEditingId(row.id);
@@ -154,6 +182,40 @@ export default function CmsPage() {
       load();
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function saveTerms(e) {
+    e.preventDefault();
+    setTermsSaving(true);
+    setTermsMsg("");
+    setError("");
+    try {
+      const payload = {
+        slug: "terms",
+        title: termsForm.title || "Terms & Conditions",
+        body: termsForm.body,
+        excerpt: termsForm.excerpt,
+        kind: "LEGAL",
+        published: Boolean(termsForm.published),
+        metadata: {
+          title: termsForm.metaTitle || "Terms & Conditions | Dream Drive",
+          description: termsForm.metaDescription || "Booking token and hire terms for Dream Drive.",
+        },
+      };
+      if (termsForm.id) {
+        await api(`/v1/admin/cms/pages/${termsForm.id}`, { method: "PATCH", body: payload });
+      } else {
+        const created = await api("/v1/admin/cms/pages", { method: "POST", body: payload });
+        if (created?.id) setTermsForm((current) => ({ ...current, id: created.id }));
+      }
+      setTermsMsg("Terms saved");
+      setTermsReady(false);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setTermsSaving(false);
     }
   }
 
@@ -222,6 +284,7 @@ export default function CmsPage() {
       <div className="tabs">
         <button className={tab === "auth" ? "active" : ""} type="button" onClick={() => setTab("auth")}>Sign-in</button>
         <button className={tab === "settings" ? "active" : ""} type="button" onClick={() => setTab("settings")}>Site Settings</button>
+        <button className={tab === "terms" ? "active" : ""} type="button" onClick={() => setTab("terms")}>Booking terms</button>
         <button className={tab === "pages" ? "active" : ""} type="button" onClick={() => setTab("pages")}>Pages & SEO</button>
         <button className={tab === "testimonials" ? "active" : ""} type="button" onClick={() => setTab("testimonials")}>Testimonials</button>
       </div>
@@ -290,6 +353,41 @@ export default function CmsPage() {
                 {settingsSaving ? "Saving…" : "Save settings"}
               </button>
               {settingsMsg && <span style={{ color: "green" }}>{settingsMsg}</span>}
+            </div>
+          </form>
+        </div>
+      )}
+
+      {tab === "terms" && (
+        <div className="stack">
+          <form className="card" onSubmit={saveTerms}>
+            <h3>Booking terms & conditions</h3>
+            <p className="muted">
+              Shown on the token payment page and at /termsandconditions. Customers must tick the box before paying.
+              HTML is allowed.
+            </p>
+            <label>Title
+              <input value={termsForm.title} onChange={(e) => setTermsForm({ ...termsForm, title: e.target.value })} />
+            </label>
+            <label>Intro
+              <input value={termsForm.excerpt} onChange={(e) => setTermsForm({ ...termsForm, excerpt: e.target.value })} />
+            </label>
+            <label>Terms
+              <textarea rows={16} value={termsForm.body} onChange={(e) => setTermsForm({ ...termsForm, body: e.target.value })} />
+            </label>
+            <label>Meta title
+              <input value={termsForm.metaTitle} onChange={(e) => setTermsForm({ ...termsForm, metaTitle: e.target.value })} />
+            </label>
+            <label>Meta description
+              <textarea rows={3} value={termsForm.metaDescription} onChange={(e) => setTermsForm({ ...termsForm, metaDescription: e.target.value })} />
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={termsForm.published} onChange={(e) => setTermsForm({ ...termsForm, published: e.target.checked })} style={{ width: "auto" }} />
+              Published
+            </label>
+            <div className="row" style={{ alignItems: "center", gap: 12 }}>
+              <button type="submit" disabled={termsSaving}>{termsSaving ? "Saving…" : "Save terms"}</button>
+              {termsMsg && <span style={{ color: "green" }}>{termsMsg}</span>}
             </div>
           </form>
         </div>

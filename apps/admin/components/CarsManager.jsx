@@ -16,6 +16,7 @@ const EMPTY = {
   featured: false,
   displayOrder: 999,
   imageUrl: "",
+  tokenRupees: 500,
 };
 
 const RENTAL_TYPES = [
@@ -65,6 +66,7 @@ export default function CarsManager({ hideTitle = false }) {
       featured: Boolean(row.featured),
       displayOrder: row.displayOrder ?? 999,
       imageUrl: "",
+      tokenRupees: Math.round((row.tokenPaise ?? 50000) / 100),
     });
     setImages((row.images || []).map((img) => img.url));
     setPrice((p) => ({ ...p, carModelId: row.id }));
@@ -77,6 +79,7 @@ export default function CarsManager({ hideTitle = false }) {
       ...form,
       seats: Number(form.seats),
       displayOrder: Number(form.displayOrder),
+      tokenPaise: Math.round(Number(form.tokenRupees) * 100),
       images: images.map((url) => ({ url })),
     };
     try {
@@ -164,7 +167,17 @@ export default function CarsManager({ hideTitle = false }) {
           <label>Fuel<input value={form.fuel} onChange={(e) => setForm({ ...form, fuel: e.target.value })} /></label>
           <label>Transmission<input value={form.transmission} onChange={(e) => setForm({ ...form, transmission: e.target.value })} /></label>
           <label>Order<input type="number" value={form.displayOrder} onChange={(e) => setForm({ ...form, displayOrder: e.target.value })} /></label>
+          <label>Token to pay now (₹)
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={form.tokenRupees}
+              onChange={(e) => setForm({ ...form, tokenRupees: e.target.value })}
+            />
+          </label>
         </div>
+        <p className="muted">Customers pay this token online. The rest of the rental is collected before handover. Default is ₹500.</p>
         <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })} style={{ width: "auto" }} />
           Published
@@ -282,6 +295,7 @@ export default function CarsManager({ hideTitle = false }) {
             <tr>
               <th>Name</th>
               <th>City</th>
+              <th>Token</th>
               <th>Published</th>
               <th>Featured</th>
               <th>Vehicles</th>
@@ -293,6 +307,7 @@ export default function CarsManager({ hideTitle = false }) {
               <tr key={c.id}>
                 <td>{c.name}</td>
                 <td>{c.city?.name}</td>
+                <td>₹{Math.round((c.tokenPaise ?? 50000) / 100).toLocaleString("en-IN")}</td>
                 <td>
                   <button type="button" className="ghost" onClick={() => toggle(c, "published")}>
                     {c.published ? "yes" : "no"}
