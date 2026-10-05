@@ -1455,6 +1455,7 @@ export class IdentityService {
     roles: { role: { name: RoleName } }[];
     profile?: {
       fullName: string;
+      dateOfBirth?: Date | null;
       kycStatus: string;
       pendingPhone?: string | null;
       kycValidUntil?: Date | null;
@@ -1482,6 +1483,9 @@ export class IdentityService {
       status: user.status,
       createdAt: user.createdAt,
       fullName: user.profile?.fullName ?? null,
+      dateOfBirth: user.profile?.dateOfBirth
+        ? user.profile.dateOfBirth.toISOString().slice(0, 10)
+        : null,
       kycStatus,
       kycValidUntil: user.profile?.kycValidUntil ?? null,
       nameLocked: kycStatus === "APPROVED",

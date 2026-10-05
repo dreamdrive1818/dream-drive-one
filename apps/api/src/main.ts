@@ -65,7 +65,7 @@ async function bootstrap() {
     res.setHeader("X-XSS-Protection", "0");
     const path = (req.originalUrl ?? req.url ?? "").split("?")[0];
     if (req.method === "GET" && path.startsWith("/v1/public/")) {
-      res.setHeader("Cache-Control", "public, max-age=20, stale-while-revalidate=60");
+      res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     }
     const started = Date.now();
     res.on("finish", () => {
@@ -111,7 +111,7 @@ async function bootstrap() {
   });
   await app.listen(port, "0.0.0.0");
   console.log(`api listening on ${port}`);
-  void (async () => {
+  const warm = async () => {
     await warmPublicCache();
     const base = `http://127.0.0.1:${port}`;
     await Promise.allSettled([
@@ -120,8 +120,17 @@ async function bootstrap() {
       fetch(`${base}/v1/public/catalog-config`),
       fetch(`${base}/v1/public/cities`),
       fetch(`${base}/v1/public/config`),
+      fetch(`${base}/v1/public/blogs`),
+      fetch(`${base}/v1/public/testimonials`),
+      fetch(`${base}/v1/public/airports`),
+      fetch(`${base}/v1/public/packages`),
     ]);
-  })();
+  };
+  void warm();
+  const refresh = setInterval(() => {
+    void warm();
+  }, 4 * 60 * 1000);
+  refresh.unref?.();
 }
 
 bootstrap();

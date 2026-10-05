@@ -12,6 +12,7 @@ import { buildInvoicePdf } from "./invoice-pdf";
 import type { AuthUser } from "../../lib/auth";
 import { bookingScopeWhere } from "../../lib/vehicle-rules";
 import { allocateInvoiceNumber } from "../../lib/invoice-series";
+import { tokenDuePaise } from "../../lib/token";
 
 /** Dream-Drive operates from Karnataka. */
 const SUPPLIER_STATE = "KA";
@@ -46,6 +47,7 @@ export class PaymentEngine {
     });
     if (!booking) throw new NotFoundException("Booking not found");
     if (booking.userId !== userId) throw new BadRequestException("Not your booking");
+    if (kind === "TOKEN") await this.assertTokenCheckout(booking);
 
     const amountPaise =
       kind === "DEPOSIT"
@@ -589,7 +591,7 @@ export class PaymentEngine {
   }
 
   /** Token due after prior TOKEN + WALLET successes (BALANCE is separate). */
-  private async remainingToken(booking: { id: string; amountPaise: number }) {
+  private async remainingToken(booking: { id: string; amountPaise: number; tokenPaise?: number }) {
     const paid = await prisma.payment.aggregate({
       where: {
         bookingId: booking.id,
@@ -598,7 +600,24 @@ export class PaymentEngine {
       },
       _sum: { amountPaise: true },
     });
-    return Math.max(0, booking.amountPaise - (paid._sum.amountPaise ?? 0));
+    return Math.max(0, tokenDuePaise(booking.tokenPaise, booking.amountPaise) - (paid._sum.amountPaise ?? 0));
+  }
+
+  private async assertTokenCheckout(booking: {
+    userId: string;
+    termsAcceptedAt: Date | null;
+  }) {
+    if (!booking.termsAcceptedAt) {
+      throw new BadRequestException("Accept the terms and conditions before paying the token");
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: booking.userId },
+      include: { profile: true },
+    });
+    if (!user?.email) throw new BadRequestException("Email is required");
+    if (!user.phone) throw new BadRequestException("Phone number is required");
+    if (!user.profile?.fullName?.trim()) throw new BadRequestException("Name is required");
+    if (!user.profile.dateOfBirth) throw new BadRequestException("Date of birth is required");
   }
 
   private async markSuccess(paymentId: string, razorpayPaymentId: string, eventId: string) {
@@ -612,7 +631,7 @@ export class PaymentEngine {
     await prisma.paymentAttempt.create({
       data: { paymentId, payload: { eventId, razorpayPaymentId } },
     });
-    await this.afterSuccess(paymentId).catch((err) => {
+    void this.afterSuccess(paymentId).catch((err) => {
       console.error("payment afterSuccess failed", paymentId, err);
     });
     return prisma.payment.findUnique({ where: { id: paymentId } });

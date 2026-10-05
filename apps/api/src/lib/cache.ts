@@ -53,8 +53,9 @@ function getRedis(): Redis | null {
     const url = normalizeRedisUrl(raw);
     const useTls = /upstash\.io/i.test(url) || url.startsWith("rediss://");
     redis = new Redis(url, {
+      lazyConnect: true,
       maxRetriesPerRequest: 1,
-      connectTimeout: 1500,
+      connectTimeout: 2500,
       commandTimeout: REDIS_WAIT_MS,
       enableReadyCheck: true,
       enableOfflineQueue: false,
@@ -162,6 +163,17 @@ export async function remember<T>(key: string, ttlSec: number, load: () => Promi
   return run;
 }
 
+let redisRetry: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleRedisRetry() {
+  if (redisRetry) return;
+  redisRetry = setTimeout(() => {
+    redisRetry = null;
+    void pingRedis();
+  }, 30_000);
+  redisRetry.unref?.();
+}
+
 export async function pingRedis() {
   const client = getRedis();
   if (!client) {
@@ -169,6 +181,9 @@ export async function pingRedis() {
     return false;
   }
   try {
+    if (client.status !== "ready") {
+      await withTimeout(client.connect(), 2500);
+    }
     await withTimeout(client.ping(), 800);
     redisReady = true;
     console.log("redis cache: ready");
@@ -176,12 +191,7 @@ export async function pingRedis() {
   } catch (err) {
     redisReady = false;
     console.warn("redis cache: ping failed —", err instanceof Error ? err.message : err);
-    try {
-      client.disconnect();
-    } catch {
-      // ignore
-    }
-    redis = null;
+    scheduleRedisRetry();
     return false;
   }
 }
@@ -231,6 +241,9 @@ const PUBLIC_PREFIXES = [
   "dd:blogs:",
   "dd:testimonials",
   "dd:auth-settings",
+  "dd:packages",
+  "dd:airports:",
+  "dd:reviews:",
 ];
 
 async function flushRedisPrefixes(client: Redis, prefixes: string[]) {

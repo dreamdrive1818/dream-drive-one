@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faIdCard,
@@ -69,6 +69,8 @@ const KINDS = [
 
 export default function AccountKyc() {
   const { user, refresh } = useAuth();
+  const [params] = useSearchParams();
+  const bookingRef = params.get("booking") || "";
   const [payload, setPayload] = useState({
     cases: [],
     reusable: false,
@@ -151,6 +153,7 @@ export default function AccountKyc() {
       const result = await api("/v1/kyc/submit", {
         method: "POST",
         body: {
+          bookingId: bookingRef || undefined,
           documents,
           aadhaarNumber: aadhaarNumber.replace(/\s+/g, "") || undefined,
           panNumber: panNumber.trim() || undefined,
@@ -184,7 +187,9 @@ export default function AccountKyc() {
         <p className="account-eyebrow">Verification</p>
         <h1>KYC</h1>
         <p className="account-lead">
-          Upload your IDs once — we reuse approved KYC for future self-drive trips.
+          {bookingRef
+            ? `Token received for ${bookingRef}. Upload your licence and ID to finish this booking.`
+            : "Upload your IDs once — we reuse approved KYC for future self-drive trips."}
         </p>
       </header>
 

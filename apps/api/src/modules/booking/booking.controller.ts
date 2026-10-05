@@ -68,6 +68,22 @@ export class BookingController {
     return this.bookings.createBooking(currentUser(req).id, body.quoteId);
   }
 
+  @Post("v1/bookings/:id/essentials")
+  essentials(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body()
+    body: {
+      fullName?: string;
+      dateOfBirth?: string;
+      phone?: string;
+      email?: string;
+      termsAccepted?: boolean;
+    }
+  ) {
+    return this.bookings.saveEssentials(currentUser(req).id, id, body ?? {});
+  }
+
   @Get("v1/bookings/:id")
   async get(@Req() req: Request, @Param("id") id: string) {
     const booking = await this.bookings.get(id);

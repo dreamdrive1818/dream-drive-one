@@ -19,7 +19,7 @@ export function ttlForPath(path) {
     p.startsWith("/v1/public/home") ||
     p.startsWith("/v1/public/config")
   ) {
-    return 45_000;
+    return 120_000;
   }
   if (p.startsWith("/v1/admin/bookings")) return 18_000;
   if (p.startsWith("/v1/admin/vehicles")) return 20_000;

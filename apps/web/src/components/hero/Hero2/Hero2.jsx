@@ -25,6 +25,7 @@ import {
   defaultSearchDates,
   localDateYmd,
 } from "../../../ms/fleetSearch";
+import { lookupPickup, requestLiveCoords } from "../../../ms/livePickup";
 
 /** Project-owned scenic hero stage (marketing asset in /public). */
 const HERO_STAGE = "/hero-road-presence.jpg";
@@ -53,6 +54,9 @@ const Hero2 = () => {
   const defaults = defaultSearchDates();
   const [cities, setCities] = useState([]);
   const [cityId, setCityId] = useState("");
+  const [pickupPlace, setPickupPlace] = useState("");
+  const [locBusy, setLocBusy] = useState(true);
+  const [locMsg, setLocMsg] = useState("");
   const [fromDate, setFromDate] = useState(defaults.fromDate);
   const [toDate, setToDate] = useState(defaults.toDate);
   const [rentalType, setRentalType] = useState("SELF_DRIVE");
@@ -80,13 +84,50 @@ const Hero2 = () => {
   );
 
   useEffect(() => {
-    api("/v1/public/cities")
-      .then((rows) => {
-        const list = Array.isArray(rows) ? rows : [];
-        setCities(list);
+    let cancelled = false;
+    setLocBusy(true);
+    const citiesPromise = api("/v1/public/cities")
+      .then((rows) => (Array.isArray(rows) ? rows : []))
+      .catch(() => []);
+    const coordsPromise = requestLiveCoords().catch((err) => err);
+
+    Promise.all([citiesPromise, coordsPromise]).then(async ([list, coordsOrErr]) => {
+      if (cancelled) return;
+      setCities(list);
+      const denied = coordsOrErr instanceof Error || !coordsOrErr?.latitude;
+      if (denied) {
         if (list[0]?.id) setCityId(list[0].id);
-      })
-      .catch(() => {});
+        setLocMsg(
+          coordsOrErr instanceof Error
+            ? coordsOrErr.message
+            : "Could not read your location."
+        );
+        setLocBusy(false);
+        return;
+      }
+      try {
+        const { place, city } = await lookupPickup(coordsOrErr, list);
+        if (cancelled) return;
+        if (place) setPickupPlace(place);
+        if (city?.id) {
+          setCityId(city.id);
+          setLocMsg("");
+        } else if (list[0]?.id) {
+          setCityId(list[0].id);
+          setLocMsg("Pickup location is set. Choose the nearest city we serve.");
+        }
+      } catch (err) {
+        if (cancelled) return;
+        if (list[0]?.id) setCityId(list[0].id);
+        setLocMsg(err?.message || "Could not turn that location into an address.");
+      } finally {
+        if (!cancelled) setLocBusy(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const goFleet = () => go(navigate, heroBanner?.link);
@@ -107,6 +148,7 @@ const Hero2 = () => {
     setSearchError("");
     const params = filtersToSearchParams({
       cityId,
+      pickupPlace,
       from,
       to,
       rentalType,
@@ -381,6 +423,22 @@ const Hero2 = () => {
         >
           {[
             {
+              id: "hero2-place",
+              label: (
+                <>
+                  <FontAwesomeIcon icon={faLocationDot} /> Pickup location
+                </>
+              ),
+              control: (
+                <input
+                  id="hero2-place"
+                  value={pickupPlace}
+                  placeholder={locBusy ? "Finding your location…" : "Area or address"}
+                  onChange={(e) => setPickupPlace(e.target.value)}
+                />
+              ),
+            },
+            {
               id: "hero2-city",
               label: (
                 <>
@@ -393,7 +451,9 @@ const Hero2 = () => {
                   value={cityId}
                   onChange={(e) => setCityId(e.target.value)}
                 >
-                  {cities.length === 0 && <option value="">Ranchi</option>}
+                  {!cityId && (
+                    <option value="">{locBusy ? "Finding city…" : "Select city"}</option>
+                  )}
                   {cities.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -501,6 +561,7 @@ const Hero2 = () => {
             <FontAwesomeIcon icon={faArrowRight} className="hero2-v2-cta-arrow" />
           </motion.button>
 
+          {locMsg ? <p className="hero2-v2-loc">{locMsg}</p> : null}
           {searchError ? (
             <p className="hero2-v2-error" role="alert">
               {searchError}

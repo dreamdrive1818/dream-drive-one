@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
-import { RENTAL_TYPE_LABELS, formatInr } from "../fleetSearch";
+import { RENTAL_TYPE_LABELS, formatInr, tokenDuePaise } from "../fleetSearch";
 import { loadQuoteHandoff, saveQuoteHandoff } from "../quoteStorage";
 import { CheckoutSkeleton } from "../../components/Skeleton/Skeleton";
 import AuthModal from "../AuthModal";
@@ -224,7 +224,7 @@ export default function Checkout() {
 
   useEffect(() => {
     if (!user || !quoteId) return;
-    api(`/v1/quotes/${quoteId}`)
+    api(`/v1/quotes/${quoteId}`, { cache: false })
       .then((row) => {
         setQuote(row);
         saveQuoteHandoff(row, row.carModel);
@@ -316,6 +316,8 @@ export default function Checkout() {
   const expired = isQuoteExpired(quote.expiresAt);
   const hasAmount = quote.amountPaise != null;
   const hasDeposit = quote.depositPaise != null;
+  const payNowPaise = hasAmount ? tokenDuePaise(quote.tokenPaise, quote.amountPaise) : 0;
+  const balancePaise = hasAmount ? Math.max(0, quote.amountPaise - payNowPaise) : 0;
   const imageUrl =
     quote.imageUrl ||
     quote.coverUrl ||
@@ -574,10 +576,22 @@ export default function Checkout() {
                   </div>
                 ) : null}
                 {hasAmount ? (
-                  <div className="checkout-price-row checkout-price-row--total">
-                    <span>Amount due</span>
-                    <strong>{formatInr(quote.amountPaise)}</strong>
-                  </div>
+                  <>
+                    <div className="checkout-price-row">
+                      <span>Trip total</span>
+                      <strong>{formatInr(quote.amountPaise)}</strong>
+                    </div>
+                    <div className="checkout-price-row checkout-price-row--total">
+                      <span>Pay now (token)</span>
+                      <strong>{formatInr(payNowPaise)}</strong>
+                    </div>
+                    {balancePaise > 0 ? (
+                      <div className="checkout-price-row">
+                        <span>Balance before handover</span>
+                        <strong>{formatInr(balancePaise)}</strong>
+                      </div>
+                    ) : null}
+                  </>
                 ) : (
                   <p className="checkout-empty">
                     Amount will show here when the quote includes a price.

@@ -427,13 +427,15 @@
   z-index: 5;
   display: grid;
   grid-template-columns:
-    minmax(0, 1.15fr)
+    minmax(0, 1.45fr)
     auto
-    minmax(0, 1fr)
+    minmax(0, 0.95fr)
     auto
-    minmax(0, 1fr)
+    minmax(0, 0.9fr)
     auto
-    minmax(0, 1.2fr)
+    minmax(0, 0.9fr)
+    auto
+    minmax(0, 1.05fr)
     auto;
   align-items: end;
   gap: 0.6rem 0.9rem;
@@ -547,12 +549,26 @@
   background: var(--primary-hover, #0c6b74);
 }
 
-.hero2-v2-error {
+.hero2-v2-error,
+.hero2-v2-loc {
   grid-column: 1 / -1;
   margin: 0.2rem 0 0;
   font-size: 1.3rem;
   font-weight: 600;
+}
+
+.hero2-v2-error {
   color: #dc2626;
+}
+
+.hero2-v2-loc {
+  color: #64748b;
+  font-weight: 550;
+}
+
+.hero2-v2-field input::placeholder {
+  color: #94a3b8;
+  font-weight: 550;
 }
 
 .hero2-v2-scroll {
@@ -639,6 +655,10 @@
     margin-right: 0;
   }
 
+  .hero2-v2-field--place {
+    grid-column: 1 / -1;
+  }
+
   .hero2-v2-sep {
     display: none;
   }
@@ -703,28 +723,37 @@
     font-size: 1.4rem;
   }
 
-  .hero2-v2-field--city {
+  .hero2-v2-field--place {
     order: 1;
+    grid-column: 1 / -1;
   }
 
-  .hero2-v2-field--rental {
+  .hero2-v2-field--city {
     order: 2;
   }
 
-  .hero2-v2-field--from {
+  .hero2-v2-field--rental {
     order: 3;
   }
 
-  .hero2-v2-field--to {
+  .hero2-v2-field--from {
     order: 4;
   }
 
-  .hero2-v2-submit {
+  .hero2-v2-field--to {
     order: 5;
   }
 
-  .hero2-v2-error {
+  .hero2-v2-submit {
     order: 6;
+  }
+
+  .hero2-v2-loc {
+    order: 7;
+  }
+
+  .hero2-v2-error {
+    order: 8;
   }
 
   .hero2-v2-actions {

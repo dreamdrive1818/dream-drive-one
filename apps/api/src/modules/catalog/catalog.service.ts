@@ -62,7 +62,7 @@ export class CatalogService {
       updatedAt: new Date(),
     };
     try {
-      return await remember("dd:settings", 180, async () => {
+      return await remember("dd:settings", 600, async () => {
         const existing = await prisma.catalogSettings.findUnique({ where: { id: "default" } });
         if (existing) return existing;
         return prisma.catalogSettings.create({
@@ -84,7 +84,7 @@ export class CatalogService {
   }
 
   async publicConfig() {
-    return remember("dd:catcfg", 120, async () => {
+    return remember("dd:catcfg", 300, async () => {
       const settings = await this.getSettings();
       return {
         bufferHours: settings.bufferHours,
@@ -180,7 +180,7 @@ export class CatalogService {
     const { from, to } = this.parseRange(query.from, query.to, rentalType);
     if (from && to) await this.assertRentalLength(from, to, rentalType);
 
-    return remember(searchCacheKey({ ...query, rentalType }), from && to ? 45 : 90, () =>
+    return remember(searchCacheKey({ ...query, rentalType }), from && to ? 90 : 300, () =>
       this.searchUncached(query, rentalType, from, to)
     );
   }
@@ -235,8 +235,9 @@ export class CatalogService {
     });
 
     const ids = models.map((m) => m.id);
+    const needPopularity = query.sort === "popularity";
     const [counts, avail] = await Promise.all([
-      ids.length
+      needPopularity && ids.length
         ? prisma.booking.groupBy({
             by: ["carModelId"],
             where: {
@@ -305,7 +306,7 @@ export class CatalogService {
   }
 
   async bySlug(slug: string) {
-    return remember(carCacheKey(slug), 60, async () => {
+    return remember(carCacheKey(slug), 180, async () => {
       const model = await prisma.carModel.findUnique({
         where: { slug },
         include: { images: { orderBy: { sortOrder: "asc" } }, pricingRules: true, city: true },
@@ -326,7 +327,7 @@ export class CatalogService {
       const range = this.parseRange(from, to);
       await this.assertRentalLength(range.from!, range.to!, "SELF_DRIVE");
     }
-    return remember(availabilityCacheKey(id, from, to, month), 20, () =>
+    return remember(availabilityCacheKey(id, from, to, month), 45, () =>
       this.availabilityUncached(id, from, to, month)
     );
   }
@@ -731,6 +732,7 @@ export class CatalogService {
         published: Boolean(body.published ?? false),
         featured: Boolean(body.featured ?? false),
         displayOrder: Number(body.displayOrder ?? 999),
+        tokenPaise: tokenPaiseFrom(body, 50000),
         images: Array.isArray(body.images)
           ? {
               create: (body.images as { url?: string }[])
@@ -762,6 +764,7 @@ export class CatalogService {
         published: body.published != null ? Boolean(body.published) : undefined,
         featured: body.featured != null ? Boolean(body.featured) : undefined,
         displayOrder: body.displayOrder != null ? Number(body.displayOrder) : undefined,
+        tokenPaise: body.tokenPaise != null ? tokenPaiseFrom(body) : undefined,
       },
     });
     if (Array.isArray(body.images)) {
@@ -1162,4 +1165,14 @@ export class CatalogService {
     if (value && RENTAL_TYPES.has(value)) return value as RentalType;
     return "SELF_DRIVE";
   }
+}
+
+function tokenPaiseFrom(body: Record<string, unknown>, fallback = 50000) {
+  if (body.tokenPaise == null || body.tokenPaise === "") return fallback;
+  const n = Math.round(Number(body.tokenPaise));
+  if (!Number.isFinite(n) || n < 100) {
+    throw new BadRequestException("Token amount must be at least ₹1");
+  }
+  if (n > 10_000_000) throw new BadRequestException("Token amount is too high");
+  return n;
 }
