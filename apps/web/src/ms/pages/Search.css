@@ -236,6 +236,10 @@
 }
 
 /* Layout: sidebar + results */
+.fleet-search-main {
+  scroll-margin-top: 9rem;
+}
+
 .fleet-search-layout {
   display: grid;
   grid-template-columns: 26rem minmax(0, 1fr);
