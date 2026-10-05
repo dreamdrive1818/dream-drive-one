@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -10,6 +10,7 @@ import {
   faBan,
   faCalendarCheck,
   faCalendarDays,
+  faChevronRight,
   faCarSide,
   faCheck,
   faCircleCheck,
@@ -119,6 +120,31 @@ function labelStatus(status) {
   return STEP_META[status]?.label || String(status || "").replace(/_/g, " ").toLowerCase();
 }
 
+function accountBookingHref(booking, user) {
+  const dest = `/account/bookings/${booking.id || booking.publicId}`;
+  if (user) return dest;
+  return `/login?redirect=${encodeURIComponent(dest)}`;
+}
+
+function payHref(booking) {
+  return `/checkout/pay?booking=${encodeURIComponent(booking.publicId || booking.id)}`;
+}
+
+function stepReached(step, booking, statusIndex, history) {
+  if (step === "HOLD") return true;
+  if (booking.status === step) return true;
+  if (statusIndex >= STEPS.indexOf(step) && STEPS.includes(booking.status)) return true;
+  return (history || []).some((h) => h.to === step);
+}
+
+function stageHref(step, bookingId) {
+  return `/track/${encodeURIComponent(bookingId)}?stage=${encodeURIComponent(step)}`;
+}
+
+function timelineHref(bookingId) {
+  return `/track/${encodeURIComponent(bookingId)}`;
+}
+
 function formatWhen(value) {
   if (!value) return "—";
   const d = new Date(value);
@@ -207,9 +233,142 @@ function StagesCard() {
   );
 }
 
+function StageView({ booking, step, user, bookingId, motionProps, copied, copyValue }) {
+  const hist = (booking.history || []).find((h) => h.to === step);
+  const [title, text] = STATUS_COPY[step] || [STEP_META[step]?.label || step, ""];
+  const payable = ["HOLD", "AWAITING_PAYMENT"].includes(booking.status);
+  const signUrl = (booking.agreements || [])
+    .map((a) => a.signUrl || a.envelope?.signUrl)
+    .find(Boolean);
+  const pickup = booking.pickupBranch;
+  const drop = booking.dropBranch;
+  const driver = booking.driverAssignment?.driver;
+  const facts = [
+    booking.tourPackage?.name ? ["Tour package", booking.tourPackage.name] : null,
+    pickup?.name ? ["Pickup", [pickup.name, pickup.city?.name].filter(Boolean).join(", ")] : null,
+    drop?.name && drop.id !== pickup?.id
+      ? ["Drop", [drop.name, drop.city?.name].filter(Boolean).join(", ")]
+      : null,
+    booking.vehicle?.registration ? ["Vehicle", booking.vehicle.registration] : null,
+    driver?.fullName ? ["Driver", driver.fullName] : null,
+    ["Trip starts", formatWhen(booking.startsAt)],
+    ["Trip ends", formatWhen(booking.endsAt)],
+    ["Amount", formatInr(booking.amountPaise)],
+  ].filter(Boolean);
+
+  return (
+    <Shell label={title} motionProps={motionProps}>
+      <motion.div className="trk-topbar" variants={rise}>
+        <Link to={timelineHref(bookingId)} className="trk-back">
+          <FontAwesomeIcon icon={faArrowLeft} />
+          Back to timeline
+        </Link>
+      </motion.div>
+
+      <motion.header className={`trk-status trk-status--${STATUS_TONE[step] || "pending"}`} variants={rise}>
+        <div className="trk-status-main">
+          <p className="trk-status-kicker">
+            <span>{STEP_META[step]?.label}</span>
+            <span aria-hidden="true">•</span>
+            <span>Booking {booking.publicId}</span>
+          </p>
+          <h1>
+            <span className="trk-status-icon" aria-hidden="true">
+              <FontAwesomeIcon icon={STEP_META[step]?.icon || faClock} />
+            </span>
+            {title}
+          </h1>
+          {text ? <p className="trk-status-text">{text}</p> : null}
+        </div>
+      </motion.header>
+
+      <motion.section className="trk-card trk-stage-card" variants={rise}>
+        <div className="trk-card-head">
+          <h2>{STEP_META[step]?.label} details</h2>
+          {hist?.createdAt ? <time>{formatWhen(hist.createdAt)}</time> : null}
+        </div>
+        {hist?.reason ? <p className="trk-stage-reason">{hist.reason}</p> : null}
+        <dl className="trk-details">
+          {facts.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="trk-stage-actions">
+          {step === "HOLD" && payable ? (
+            <Link className="trk-btn trk-btn--primary" to={payHref(booking)}>
+              Complete payment
+              <FontAwesomeIcon icon={faArrowRight} />
+            </Link>
+          ) : null}
+          {step === "AWAITING_PAYMENT" && payable ? (
+            <Link className="trk-btn trk-btn--primary" to={payHref(booking)}>
+              Pay now
+              <FontAwesomeIcon icon={faArrowRight} />
+            </Link>
+          ) : null}
+          {step === "AWAITING_KYC" ? (
+            <Link
+              className="trk-btn trk-btn--primary"
+              to={user ? "/account/kyc" : `/login?redirect=${encodeURIComponent("/account/kyc")}`}
+            >
+              Open documents
+              <FontAwesomeIcon icon={faArrowRight} />
+            </Link>
+          ) : null}
+          {step === "AWAITING_SIGNATURE" ? (
+            signUrl ? (
+              <a className="trk-btn trk-btn--primary" href={signUrl} target="_blank" rel="noreferrer">
+                Sign agreement
+                <FontAwesomeIcon icon={faArrowRight} />
+              </a>
+            ) : (
+              <Link
+                className="trk-btn trk-btn--primary"
+                to={
+                  user
+                    ? "/account/agreements"
+                    : `/login?redirect=${encodeURIComponent("/account/agreements")}`
+                }
+              >
+                Open agreements
+                <FontAwesomeIcon icon={faArrowRight} />
+              </Link>
+            )
+          ) : null}
+          {["CONFIRMED", "HANDOVER", "ONGOING", "RETURN_PENDING", "COMPLETED"].includes(step) ? (
+            <Link className="trk-btn trk-btn--primary" to={accountBookingHref(booking, user)}>
+              Open full booking
+              <FontAwesomeIcon icon={faArrowRight} />
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            className="trk-btn trk-btn--outline"
+            onClick={() =>
+              copyValue(
+                [`${title} · ${booking.publicId}`, hist?.reason, `Track: ${timelineHref(booking.publicId)}`]
+                  .filter(Boolean)
+                  .join("\n"),
+                "stage"
+              )
+            }
+          >
+            <FontAwesomeIcon icon={copied === "stage" ? faCheck : faCopy} />
+            {copied === "stage" ? "Copied" : "Copy details"}
+          </button>
+        </div>
+      </motion.section>
+    </Shell>
+  );
+}
+
 export default function Track() {
   const navigate = useNavigate();
   const { bookingId } = useParams();
+  const [params] = useSearchParams();
   const { user, ready } = useAuth();
   const reduceMotion = useReducedMotion();
   const [booking, setBooking] = useState(null);
@@ -542,6 +701,20 @@ export default function Track() {
   const driver = booking.driverAssignment?.driver;
   const statusIndex = STEPS.indexOf(booking.status);
   const history = booking.history || [];
+  const stage = params.get("stage");
+  if (STEP_META[stage]) {
+    return (
+      <StageView
+        booking={booking}
+        step={stage}
+        user={user}
+        bookingId={booking.publicId || bookingId}
+        motionProps={motionProps}
+        copied={copied}
+        copyValue={copyValue}
+      />
+    );
+  }
   const terminated = ["CANCELLED", "NO_SHOW"].includes(booking.status);
   const visibleSteps = STEPS.filter((step) => {
     if (
@@ -677,13 +850,11 @@ export default function Track() {
               const hist = history.find((h) => h.to === step);
               const current = booking.status === step;
               const done = statusIndex >= stepIdx || Boolean(hist);
-              return (
-                <li
-                  key={step}
-                  className={["trk-step", done ? "is-done" : "", current ? "is-current" : ""]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
+              const href = stepReached(step, booking, statusIndex, history)
+                ? stageHref(step, booking.publicId || bookingId)
+                : null;
+              const inner = (
+                <>
                   <span className="trk-step-marker" aria-hidden="true">
                     <FontAwesomeIcon icon={done && !current ? faCircleCheck : STEP_META[step].icon} />
                   </span>
@@ -692,9 +863,35 @@ export default function Track() {
                       <strong>{STEP_META[step].label}</strong>
                       {hist?.createdAt ? <time>{formatStamp(hist.createdAt)}</time> : null}
                       {current && !hist?.createdAt ? <em>Current</em> : null}
+                      {href ? (
+                        <span className="trk-step-open">
+                          Open
+                          <FontAwesomeIcon icon={faChevronRight} />
+                        </span>
+                      ) : null}
                     </div>
                     {hist?.reason ? <p>{hist.reason}</p> : null}
                   </div>
+                </>
+              );
+              return (
+                <li
+                  key={step}
+                  className={["trk-step", done ? "is-done" : "", current ? "is-current" : "", href ? "is-link" : ""]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {href ? (
+                    <Link
+                      to={href}
+                      className="trk-step-link"
+                      aria-label={`Open ${STEP_META[step].label} page`}
+                    >
+                      {inner}
+                    </Link>
+                  ) : (
+                    inner
+                  )}
                 </li>
               );
             })}

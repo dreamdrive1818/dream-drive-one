@@ -894,6 +894,59 @@
   padding-bottom: 1.6rem;
 }
 
+.trk-step-link {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 1.6rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 12px;
+}
+
+.trk-step.is-link {
+  cursor: pointer;
+}
+
+.trk-step.is-link:hover .trk-step-row strong,
+.trk-step.is-link:focus-within .trk-step-row strong {
+  color: #0e7c86;
+}
+
+.trk-step-link:focus-visible {
+  outline: 2px solid #0e7c86;
+  outline-offset: 4px;
+}
+
+.trk-step-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  font-size: 1.2rem;
+  font-weight: 650;
+  color: #0e7c86;
+}
+
+.trk-stage-card {
+  margin-top: 0.4rem;
+}
+
+.trk-stage-reason {
+  margin: 0 0 1.6rem;
+  font-size: 1.45rem;
+  line-height: 1.5;
+  color: #516074;
+}
+
+.trk-stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
 .trk-step:last-child {
   padding-bottom: 0;
 }
