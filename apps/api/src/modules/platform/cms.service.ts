@@ -225,6 +225,98 @@ function presentTestimonial(row: {
   };
 }
 
+const GETAWAY_SECTION_ID = "home-getaways";
+
+const DEFAULT_GETAWAY_SECTION = {
+  id: GETAWAY_SECTION_ID,
+  eyebrow: "Trip ideas",
+  title: "Popular getaways from",
+  highlight: "Ranchi",
+  lead: "Netarhat, Patratu, and Hundru — self-drive days out with an SUV from Dream Drive.",
+  ctaLabel: "Browse our fleet",
+  ctaHref: "/fleet",
+  guideLabel: "Read the weekend guide",
+  guideHref: "/blogs/weekend-drives-from-ranchi",
+  enabled: true,
+};
+
+const DEFAULT_GETAWAY_CARDS = [
+  {
+    id: "getaway-patratu",
+    name: "Patratu Valley",
+    blurb: "A short scenic drive, ideal for a day trip in a compact SUV.",
+    imageUrl: "/getaway-patratu.jpg",
+    chip: "Weekend",
+    sortOrder: 0,
+  },
+  {
+    id: "getaway-netarhat",
+    name: "Netarhat",
+    blurb: "Plan an overnight stay and start early for the hill roads.",
+    imageUrl: "/getaway-netarhat.jpg",
+    chip: "Weekend",
+    sortOrder: 1,
+  },
+  {
+    id: "getaway-hundru",
+    name: "Hundru",
+    blurb: "Waterfalls and greens — a familiar weekend run from Ranchi.",
+    imageUrl: "/getaway-hundru.jpg",
+    chip: "Weekend",
+    sortOrder: 2,
+  },
+];
+
+function presentGetaway(row: {
+  id: string;
+  name: string;
+  blurb: string;
+  imageUrl: string;
+  chip: string;
+  href: string | null;
+  sortOrder: number;
+  active: boolean;
+}) {
+  return {
+    id: row.id,
+    name: row.name,
+    blurb: row.blurb || "",
+    imageUrl: row.imageUrl,
+    chip: row.chip || "Weekend",
+    href: row.href || "",
+    sortOrder: row.sortOrder,
+    active: row.active,
+  };
+}
+
+function presentGetawaySection(
+  section: {
+    eyebrow: string;
+    title: string;
+    highlight: string;
+    lead: string;
+    ctaLabel: string;
+    ctaHref: string;
+    guideLabel: string;
+    guideHref: string;
+    enabled: boolean;
+  },
+  cards: ReturnType<typeof presentGetaway>[]
+) {
+  return {
+    enabled: section.enabled,
+    eyebrow: section.eyebrow,
+    title: section.title,
+    highlight: section.highlight,
+    lead: section.lead,
+    ctaLabel: section.ctaLabel,
+    ctaHref: section.ctaHref,
+    guideLabel: section.guideLabel,
+    guideHref: section.guideHref,
+    cards,
+  };
+}
+
 function presentBanner(row: {
   id: string;
   title: string;
@@ -325,6 +417,7 @@ export class CmsService {
       });
     }
     await this.ensureTermsPage();
+    await this.ensureGetaways();
   }
 
   private async ensureTermsPage() {
@@ -425,7 +518,7 @@ export class CmsService {
 
   private async homeUncached() {
     const now = new Date();
-    const [page, banners, blogs, testimonials, fleet, config] = await Promise.all([
+    const [page, banners, blogs, testimonials, fleet, config, getaways] = await Promise.all([
       prisma.cmsPage.findFirst({
         where: { slug: "home", published: true },
         include: { metadata: true },
@@ -453,6 +546,7 @@ export class CmsService {
         take: 8,
       }),
       this.publicConfig(),
+      this.publicGetaways(),
     ]);
     return {
       page: page ? presentPage(page) : null,
@@ -479,6 +573,7 @@ export class CmsService {
           car.pricingRules[0]?.dailyPaise ??
           0,
       })),
+      getaways,
       config,
     };
   }
@@ -1236,6 +1331,110 @@ export class CmsService {
       throw new NotFoundException("Testimonial not found");
     });
     await this.audit(actorId, "cms.testimonial.delete", id);
+    return { ok: true };
+  }
+
+  private async ensureGetaways() {
+    const existing = await prisma.homeGetawaySection.findUnique({
+      where: { id: GETAWAY_SECTION_ID },
+    });
+    if (existing) return existing;
+    const section = await prisma.homeGetawaySection.create({ data: DEFAULT_GETAWAY_SECTION });
+    const count = await prisma.homeGetaway.count();
+    if (!count) {
+      await prisma.homeGetaway.createMany({
+        data: DEFAULT_GETAWAY_CARDS.map((card) => ({ ...card, active: true })),
+        skipDuplicates: true,
+      });
+    }
+    return section;
+  }
+
+  async publicGetaways() {
+    const section = await this.ensureGetaways();
+    const cards = await prisma.homeGetaway.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    return presentGetawaySection(section, cards.map(presentGetaway));
+  }
+
+  async adminGetaways() {
+    const section = await this.ensureGetaways();
+    const cards = await prisma.homeGetaway.findMany({
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    return presentGetawaySection(section, cards.map(presentGetaway));
+  }
+
+  async updateGetawaySection(body: Record<string, unknown>, actorId?: string) {
+    await this.ensureGetaways();
+    const row = await prisma.homeGetawaySection.update({
+      where: { id: GETAWAY_SECTION_ID },
+      data: {
+        eyebrow: str(body.eyebrow),
+        title: str(body.title),
+        highlight: str(body.highlight),
+        lead: body.lead != null ? String(body.lead) : undefined,
+        ctaLabel: str(body.ctaLabel),
+        ctaHref: str(body.ctaHref),
+        guideLabel: str(body.guideLabel),
+        guideHref: str(body.guideHref),
+        enabled: bool(body.enabled),
+      },
+    });
+    await this.audit(actorId, "cms.getaways.section.update", row.id);
+    return this.adminGetaways();
+  }
+
+  async createGetawayCard(body: Record<string, unknown>, actorId?: string) {
+    await this.ensureGetaways();
+    const name = str(body.name);
+    const imageUrl = str(body.imageUrl);
+    if (!name || !imageUrl) throw new BadRequestException("name and imageUrl required");
+    const last = await prisma.homeGetaway.findFirst({
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+    const row = await prisma.homeGetaway.create({
+      data: {
+        name,
+        blurb: str(body.blurb) || "",
+        imageUrl,
+        chip: str(body.chip) || "Weekend",
+        href: str(body.href),
+        sortOrder: int(body.sortOrder, (last?.sortOrder ?? -1) + 1) ?? 0,
+        active: bool(body.active) ?? true,
+      },
+    });
+    await this.audit(actorId, "cms.getaways.card.create", row.id);
+    return presentGetaway(row);
+  }
+
+  async updateGetawayCard(id: string, body: Record<string, unknown>, actorId?: string) {
+    const existing = await prisma.homeGetaway.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("Getaway not found");
+    const row = await prisma.homeGetaway.update({
+      where: { id },
+      data: {
+        name: str(body.name),
+        blurb: body.blurb != null ? String(body.blurb) : undefined,
+        imageUrl: str(body.imageUrl),
+        chip: str(body.chip),
+        href: body.href !== undefined ? str(body.href) ?? null : undefined,
+        sortOrder: int(body.sortOrder),
+        active: bool(body.active),
+      },
+    });
+    await this.audit(actorId, "cms.getaways.card.update", id);
+    return presentGetaway(row);
+  }
+
+  async deleteGetawayCard(id: string, actorId?: string) {
+    await prisma.homeGetaway.delete({ where: { id } }).catch(() => {
+      throw new NotFoundException("Getaway not found");
+    });
+    await this.audit(actorId, "cms.getaways.card.delete", id);
     return { ok: true };
   }
 

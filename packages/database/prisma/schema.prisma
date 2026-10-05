@@ -1207,6 +1207,35 @@ model Testimonial {
   createdAt DateTime @default(now())
 }
 
+model HomeGetawaySection {
+  id         String   @id @default("home-getaways")
+  eyebrow    String   @default("Trip ideas")
+  title      String   @default("Popular getaways from")
+  highlight  String   @default("Ranchi")
+  lead       String   @default("Netarhat, Patratu, and Hundru — self-drive days out with an SUV from Dream Drive.")
+  ctaLabel   String   @default("Browse our fleet")
+  ctaHref    String   @default("/fleet")
+  guideLabel String   @default("Read the weekend guide")
+  guideHref  String   @default("/blogs/weekend-drives-from-ranchi")
+  enabled    Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+}
+
+model HomeGetaway {
+  id        String   @id @default(cuid())
+  name      String
+  blurb     String   @default("")
+  imageUrl  String
+  chip      String   @default("Weekend")
+  href      String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}
+
 model Offer {
   id             String      @id @default(cuid())
   code           String      @unique

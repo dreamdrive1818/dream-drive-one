@@ -67,6 +67,7 @@ export const NAV = [
   ["/packages", "Trips & tours", ["SALES", "FLEET_OPS"], "Growth"],
   ["/cms", "CMS", ["SALES"], "Content"],
   ["/banners", "Banners", ["SALES"], "Content"],
+  ["/getaways", "Getaways", ["SALES"], "Content"],
   ["/blogs", "Blogs", ["SALES"], "Content"],
   ["/media", "Media", ["SALES"], "Content"],
   ["/audit", "Audit", [], "System"],

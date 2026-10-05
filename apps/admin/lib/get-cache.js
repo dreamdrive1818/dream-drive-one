@@ -68,6 +68,7 @@ function relatedPrefixes(path) {
   if (/cities|branch/i.test(p)) {
     out.push("/v1/admin/cities", "/v1/admin/branches", "/v1/public/cities");
   }
+  if (/getaway/i.test(p)) out.push("/v1/admin/cms/getaways", "/v1/public/home");
   if (p === "/v1/me" || p.startsWith("/v1/me?")) out.push("/v1/me", "/v1/me/dashboard");
   return [...new Set(out)];
 }

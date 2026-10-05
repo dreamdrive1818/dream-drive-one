@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import "./Header.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRightToBracket, faBars, faTimes } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import { useAuth } from "../../ms/AuthContext";
@@ -137,13 +137,17 @@ const Header = () => {
           </button>
           <button
             type="button"
-            className={`dd-header-text${signedIn ? " dd-header-account" : ""}`}
+            className={signedIn ? "dd-header-text dd-header-account" : "dd-header-signin"}
             onClick={goAuth}
             disabled={!authReady}
             aria-busy={!authReady}
             title={signedIn ? displayName : "Sign in"}
           >
-            {signedIn ? <UserAvatar name={displayName} photoUrl={photoUrl} /> : null}
+            {signedIn ? (
+              <UserAvatar name={displayName} photoUrl={photoUrl} />
+            ) : (
+              <FontAwesomeIcon icon={faArrowRightToBracket} className="dd-header-signin-icon" />
+            )}
             <span className="dd-header-account-name">{authLabel}</span>
           </button>
           <a
@@ -200,11 +204,15 @@ const Header = () => {
             </button>
             <button
               type="button"
-              className={signedIn ? "dd-header-drawer-account" : undefined}
+              className={signedIn ? "dd-header-drawer-account" : "dd-header-drawer-signin"}
               onClick={goAuth}
               disabled={!authReady}
             >
-              {signedIn ? <UserAvatar name={displayName} photoUrl={photoUrl} /> : null}
+              {signedIn ? (
+                <UserAvatar name={displayName} photoUrl={photoUrl} />
+              ) : (
+                <FontAwesomeIcon icon={faArrowRightToBracket} />
+              )}
               <span>
                 {signedIn ? (
                   <>

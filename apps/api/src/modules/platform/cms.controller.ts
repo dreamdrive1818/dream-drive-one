@@ -365,4 +365,38 @@ export class CmsController {
     const actor = requireRoles(req, "SALES", "SUPER_ADMIN");
     return this.cms.deleteTestimonial(id, actor.id);
   }
+
+  @Get("v1/admin/cms/getaways")
+  adminGetaways(@Req() req: Request) {
+    requireRoles(req, "SALES", "SUPER_ADMIN");
+    return this.cms.adminGetaways();
+  }
+
+  @Patch("v1/admin/cms/getaways")
+  updateGetawaySection(@Req() req: Request, @Body() body: Record<string, unknown>) {
+    const actor = requireRoles(req, "SALES", "SUPER_ADMIN");
+    return this.cms.updateGetawaySection(body, actor.id);
+  }
+
+  @Post("v1/admin/cms/getaways/cards")
+  createGetawayCard(@Req() req: Request, @Body() body: Record<string, unknown>) {
+    const actor = requireRoles(req, "SALES", "SUPER_ADMIN");
+    return this.cms.createGetawayCard(body, actor.id);
+  }
+
+  @Patch("v1/admin/cms/getaways/cards/:id")
+  updateGetawayCard(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    const actor = requireRoles(req, "SALES", "SUPER_ADMIN");
+    return this.cms.updateGetawayCard(id, body, actor.id);
+  }
+
+  @Delete("v1/admin/cms/getaways/cards/:id")
+  deleteGetawayCard(@Req() req: Request, @Param("id") id: string) {
+    const actor = requireRoles(req, "SALES", "SUPER_ADMIN");
+    return this.cms.deleteGetawayCard(id, actor.id);
+  }
 }

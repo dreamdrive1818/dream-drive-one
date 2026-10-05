@@ -99,6 +99,47 @@ body.monsoon-sale .dd-chrome .dd-header {
   flex-shrink: 0;
 }
 
+.dd-header-signin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 4.2rem;
+  padding: 0.8rem 1.6rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, #14959c 0%, #0b7a82 100%);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.4rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(14, 124, 134, 0.25);
+  transition:
+    translate 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.dd-header-signin:hover:not(:disabled) {
+  translate: 0 -2px;
+  filter: brightness(1.05);
+  box-shadow: 0 6px 16px rgba(14, 124, 134, 0.35);
+}
+
+.dd-header-signin:focus-visible {
+  outline: 3px solid rgba(14, 124, 134, 0.4);
+  outline-offset: 3px;
+}
+
+.dd-header-signin:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.dd-header-signin-icon {
+  font-size: 1.35rem;
+}
+
 .dd-header-account {
   display: inline-flex;
   align-items: center;
@@ -251,6 +292,33 @@ body.monsoon-sale .dd-chrome .dd-header {
   color: var(--primary-color);
 }
 
+.dd-header-drawer-signin {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.6rem;
+  padding: 1.15rem 1.6rem !important;
+  border: 0 !important;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #14959c 0%, #0b7a82 100%);
+  color: #ffffff !important;
+  font-family: inherit !important;
+  font-size: 1.7rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 8px 20px rgba(14, 124, 134, 0.22);
+}
+
+.dd-header-drawer-signin:hover {
+  color: #ffffff !important;
+  filter: brightness(1.05);
+}
+
+.dd-header-drawer-signin:focus-visible {
+  outline: 3px solid rgba(14, 124, 134, 0.4);
+  outline-offset: 3px;
+}
+
 .dd-header-drawer-account {
   display: flex;
   align-items: center;
@@ -337,5 +405,19 @@ body.monsoon-sale .dd-chrome .dd-header {
 
   .dd-header-inner {
     padding: 0.6rem 1.2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dd-header-signin,
+  .dd-header-drawer-signin,
+  .dd-header-wa {
+    transition: none;
+  }
+
+  .dd-header-signin:hover:not(:disabled),
+  .dd-header-wa:hover {
+    translate: none;
+    transform: none;
   }
 }

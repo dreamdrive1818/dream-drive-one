@@ -71,6 +71,19 @@
   gap: 1.6rem;
 }
 
+.pg-getaways-card-btn {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: inherit;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
 .pg-getaways-card {
   height: 100%;
   display: flex;
