@@ -757,6 +757,56 @@ async function main() {
     },
   });
 
+  await prisma.homeGetawaySection.upsert({
+    where: { id: "home-getaways" },
+    update: {},
+    create: {
+      id: "home-getaways",
+      eyebrow: "Trip ideas",
+      title: "Popular getaways from",
+      highlight: "Ranchi",
+      lead: "Netarhat, Patratu, and Hundru — self-drive days out with an SUV from Dream Drive.",
+      ctaLabel: "Browse our fleet",
+      ctaHref: "/fleet",
+      guideLabel: "Read the weekend guide",
+      guideHref: "/blogs/weekend-drives-from-ranchi",
+      enabled: true,
+    },
+  });
+  const getaways = [
+    {
+      id: "getaway-patratu",
+      name: "Patratu Valley",
+      blurb: "A short scenic drive, ideal for a day trip in a compact SUV.",
+      imageUrl: "/getaway-patratu.jpg",
+      chip: "Weekend",
+      sortOrder: 0,
+    },
+    {
+      id: "getaway-netarhat",
+      name: "Netarhat",
+      blurb: "Plan an overnight stay and start early for the hill roads.",
+      imageUrl: "/getaway-netarhat.jpg",
+      chip: "Weekend",
+      sortOrder: 1,
+    },
+    {
+      id: "getaway-hundru",
+      name: "Hundru",
+      blurb: "Waterfalls and greens — a familiar weekend run from Ranchi.",
+      imageUrl: "/getaway-hundru.jpg",
+      chip: "Weekend",
+      sortOrder: 2,
+    },
+  ];
+  for (const trip of getaways) {
+    await prisma.homeGetaway.upsert({
+      where: { id: trip.id },
+      update: { name: trip.name, blurb: trip.blurb, imageUrl: trip.imageUrl, chip: trip.chip, sortOrder: trip.sortOrder, active: true },
+      create: { ...trip, active: true },
+    });
+  }
+
   const { NOTIFICATION_TEMPLATES } = await import("./notification-templates");
   for (const tpl of NOTIFICATION_TEMPLATES) {
     await prisma.notificationTemplate.upsert({

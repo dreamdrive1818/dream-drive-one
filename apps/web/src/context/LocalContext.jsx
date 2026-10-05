@@ -36,6 +36,7 @@ export const LocalProvider = ({ children }) => {
     blogs: [],
     testimonials: [],
     fleet: [],
+    getaways: null,
   });
   const [auth, setAuth] = useState(DEFAULT_AUTH);
   const [webinfo, setwebinfo] = useState({
@@ -95,6 +96,7 @@ export const LocalProvider = ({ children }) => {
           blogs: data.blogs || [],
           testimonials: data.testimonials || [],
           fleet: data.fleet || [],
+          getaways: data.getaways || null,
         });
         applyConfig(data.config || {});
         if (data.page?.seoTitle || data.page?.seoDescription) {
