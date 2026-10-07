@@ -57,6 +57,7 @@ export default function HomeSearchBar() {
       to,
       rentalType,
     });
+    params.set("go", "1");
     navigate(`/fleet?${params.toString()}`);
   }
 

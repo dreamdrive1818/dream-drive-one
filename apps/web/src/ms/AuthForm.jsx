@@ -53,6 +53,7 @@ export default function AuthForm({
   const [fieldErrors, setFieldErrors] = useState({});
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [otpDevCode, setOtpDevCode] = useState("");
   const [resendSeconds, setResendSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -183,6 +184,7 @@ export default function AuthForm({
     setMode("register");
     setOtpSent(false);
     setOtpCode("");
+    setOtpDevCode("");
     setPassword("");
     setConfirmPassword("");
     setResendSeconds(0);
@@ -228,10 +230,24 @@ export default function AuthForm({
     }
     setLoading(true);
     try {
-      await sendOtp(email);
+      const data = await sendOtp(email);
       setOtpSent(true);
       setResendSeconds(OTP_RESEND_SECONDS);
-      setInfo("We sent a verification code to your email.");
+      if (data?.devCode) {
+        setOtpDevCode(String(data.devCode));
+        setInfo(
+          data.emailSent === false
+            ? "Email is not configured or could not be sent. Use the verification code shown below."
+            : isLocalDev()
+              ? "Email delivery may be off — use the verification code below."
+              : "We also show your code below for testing."
+        );
+      } else {
+        setOtpDevCode("");
+        setInfo(
+          "We sent a verification code to your email. Check spam and Promotions if it does not arrive within a minute."
+        );
+      }
     } catch (err) {
       if (isUserNotFoundError(err)) bounceToCreateAccount();
       else setError(err.message || "Could not send verification code.");
@@ -407,6 +423,7 @@ export default function AuthForm({
     setMode("password");
     setOtpSent(false);
     setOtpCode("");
+    setOtpDevCode("");
     setPassword("");
     setConfirmPassword("");
     setResendSeconds(0);
@@ -417,6 +434,7 @@ export default function AuthForm({
     setMode("reset");
     setOtpSent(false);
     setOtpCode("");
+    setOtpDevCode("");
     setPassword("");
     setConfirmPassword("");
     setResendSeconds(0);
@@ -427,6 +445,7 @@ export default function AuthForm({
     setMode("register");
     setOtpSent(false);
     setOtpCode("");
+    setOtpDevCode("");
     setResendSeconds(0);
   }
 
@@ -436,6 +455,7 @@ export default function AuthForm({
     setPassword("");
     setOtpSent(false);
     setOtpCode("");
+    setOtpDevCode("");
     setResendSeconds(0);
   }
 
@@ -585,9 +605,32 @@ export default function AuthForm({
                 ) : null}
               </div>
 
-              <div className="customer-login-field">
-                <div className="customer-login-field-head">
+              <div className="customer-login-password-block">
+                <div className="customer-login-field customer-login-field--password">
                   <label htmlFor={`${idPrefix}-password`}>Password</label>
+                  <div className="customer-login-input-wrap">
+                    <input
+                      id={`${idPrefix}-password`}
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Your password"
+                      required
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      className="customer-login-password-toggle"
+                      onClick={() => setShowPassword((v) => !v)}
+                      disabled={loading}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+                <div className="customer-login-forgot-row">
                   <button
                     type="button"
                     className="customer-login-forgot"
@@ -595,27 +638,6 @@ export default function AuthForm({
                     disabled={loading}
                   >
                     Forgot password?
-                  </button>
-                </div>
-                <div className="customer-login-input-wrap">
-                  <input
-                    id={`${idPrefix}-password`}
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Your password"
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="customer-login-password-toggle"
-                    onClick={() => setShowPassword((v) => !v)}
-                    disabled={loading}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? "Hide" : "Show"}
                   </button>
                 </div>
               </div>
@@ -942,6 +964,15 @@ export default function AuthForm({
                   <p className="customer-login-otp-hint">
                     Enter the 6-digit code sent to <strong>{email}</strong>.
                   </p>
+                  {otpDevCode ? (
+                    <div className="customer-login-otp-dev" role="status" aria-live="polite">
+                      <p className="customer-login-otp-dev-kicker">Your verification code</p>
+                      <p className="customer-login-otp-dev-code">{otpDevCode}</p>
+                      <p className="customer-login-otp-dev-note">
+                        Enter this code above if it did not arrive by email.
+                      </p>
+                    </div>
+                  ) : null}
                   <div className="customer-login-field">
                     <label htmlFor={`${idPrefix}-otp-code`}>Verification code</label>
                     <input

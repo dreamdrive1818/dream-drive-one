@@ -153,6 +153,7 @@ const Hero2 = () => {
       to,
       rentalType,
     });
+    params.set("go", "1");
     navigate(`/fleet?${params.toString()}`);
   };
 

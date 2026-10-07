@@ -235,6 +235,23 @@
   padding: 0.9rem 1.1rem;
 }
 
+.fleet-search-prompt {
+  margin: 0 0 1.8rem;
+  padding: 1rem 1.2rem;
+  font-size: 1.35rem;
+  line-height: 1.5;
+  color: #475569;
+  background: rgba(14, 124, 134, 0.06);
+  border: 1px solid rgba(14, 124, 134, 0.12);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.fleet-search-prompt strong {
+  color: #0e7c86;
+  font-weight: 700;
+}
+
 /* Layout: sidebar + results */
 .fleet-search-main {
   scroll-margin-top: 9rem;
@@ -245,6 +262,7 @@
   grid-template-columns: 26rem minmax(0, 1fr);
   gap: 2.2rem;
   align-items: start;
+  margin-bottom: 2rem;
 }
 
 .fleet-search-sidebar {

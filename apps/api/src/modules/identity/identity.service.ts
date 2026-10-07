@@ -23,6 +23,7 @@ import {
   assertCanCreateViaSocial,
   getAuthSettings,
 } from "../../lib/auth-settings";
+import { resolveAuthTestOtp } from "../../lib/otp-response";
 
 const BOOTSTRAP_ADMIN_EMAIL = (process.env.ADMIN_BOOTSTRAP_EMAIL || "admin@dreamdrive.test").toLowerCase();
 const BOOTSTRAP_ADMIN_PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD || "admin@123";
@@ -540,7 +541,7 @@ export class IdentityService {
     if (windowCount >= OTP_MAX_SEND) {
       throw new BadRequestException("Too many OTP requests. Try again in 15 minutes.");
     }
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const code = resolveAuthTestOtp() ?? String(Math.floor(100000 + Math.random() * 900000));
     await this.saveOtp(email, {
       codeHash: hashOtp(email, code),
       expiresAt: new Date(now.getTime() + OTP_TTL_MS),

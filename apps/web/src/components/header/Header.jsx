@@ -66,6 +66,7 @@ const Header = () => {
   const firstName = signedIn ? userFirstName(displayName) : "";
   const photoUrl = auth?.user?.photoUrl || auth?.user?.avatarUrl || auth?.user?.picture || "";
   const authLabel = !authReady ? "…" : signedIn ? firstName : "Sign in";
+  const drawerAuthLabel = !authReady ? "…" : signedIn ? displayName : "Sign up";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { webinfo } = useLocalContext();
@@ -186,58 +187,76 @@ const Header = () => {
               <FontAwesomeIcon icon={faTimes} />
             </button>
           </div>
-          <nav className="dd-header-drawer-nav" aria-label="Mobile">
-            {NAV_LINKS.map((link) => (
+          <div className="dd-header-drawer-body">
+            <nav className="dd-header-drawer-nav" aria-label="Mobile">
+              <p className="dd-header-drawer-label">Explore</p>
+              {NAV_LINKS.map((link) => (
+                <button
+                  key={link.route}
+                  type="button"
+                  className="dd-header-drawer-link"
+                  onClick={() => handleRoute(link.route)}
+                >
+                  {link.label}
+                </button>
+              ))}
+              <p className="dd-header-drawer-label dd-header-drawer-label--spaced">Company</p>
               <button
-                key={link.route}
                 type="button"
-                onClick={() => handleRoute(link.route)}
+                className="dd-header-drawer-link"
+                onClick={() => handleRoute("/about")}
               >
-                {link.label}
+                About
               </button>
-            ))}
-            <button type="button" onClick={() => handleRoute("/about")}>
-              About
-            </button>
-            <button type="button" onClick={() => handleRoute("/contact")}>
-              Contact
-            </button>
-            <button
-              type="button"
-              className={signedIn ? "dd-header-drawer-account" : "dd-header-drawer-signin"}
-              onClick={goAuth}
-              disabled={!authReady}
-            >
-              {signedIn ? (
-                <UserAvatar name={displayName} photoUrl={photoUrl} />
-              ) : (
-                <FontAwesomeIcon icon={faArrowRightToBracket} />
-              )}
-              <span>
+              <button
+                type="button"
+                className="dd-header-drawer-link"
+                onClick={() => handleRoute("/contact")}
+              >
+                Contact
+              </button>
+            </nav>
+
+            <div className="dd-header-drawer-footer">
+              <button
+                type="button"
+                className={signedIn ? "dd-header-drawer-account" : "dd-header-drawer-signin"}
+                onClick={goAuth}
+                disabled={!authReady}
+                aria-busy={!authReady}
+                aria-label={signedIn ? displayName : "Sign up or sign in"}
+              >
                 {signedIn ? (
-                  <>
-                    <strong>{displayName}</strong>
-                    <em>{auth.user?.email || "Account"}</em>
-                  </>
+                  <UserAvatar name={displayName} photoUrl={photoUrl} />
                 ) : (
-                  authLabel
+                  <FontAwesomeIcon icon={faArrowRightToBracket} aria-hidden="true" />
                 )}
-              </span>
-            </button>
-          </nav>
-          <a
-            href={`https://wa.me/${phoneNumber}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="dd-header-wa dd-header-wa--drawer"
-            onClick={() => {
-              trackWhatsApp();
-              setIsMobileMenuOpen(false);
-            }}
-          >
-            <FontAwesomeIcon icon={faWhatsapp} />
-            Chat on WhatsApp
-          </a>
+                <span className={signedIn ? undefined : "dd-header-drawer-signin-text"}>
+                  {signedIn ? (
+                    <>
+                      <strong>{displayName}</strong>
+                      <em>{auth.user?.email || "Account"}</em>
+                    </>
+                  ) : (
+                    drawerAuthLabel
+                  )}
+                </span>
+              </button>
+              <a
+                href={`https://wa.me/${phoneNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="dd-header-wa dd-header-wa--drawer"
+                onClick={() => {
+                  trackWhatsApp();
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                <FontAwesomeIcon icon={faWhatsapp} />
+                Chat on WhatsApp
+              </a>
+            </div>
+          </div>
         </div>,
         document.body
       ) : null}

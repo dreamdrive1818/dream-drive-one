@@ -37,7 +37,14 @@ export class NotifyEngine {
     const channel = (input.channel || tpl?.channel || fallback?.channel || "email").toLowerCase();
     const data = stringifyData(input.data ?? {});
     const subject = this.render(tpl?.subject ?? fallback?.subject ?? input.template, data);
-    const body = this.render(tpl?.body ?? fallback?.body ?? JSON.stringify(data), data);
+    let body = this.render(tpl?.body ?? fallback?.body ?? JSON.stringify(data), data);
+    const otpCode = data.code?.trim();
+    if (input.template === "otp" && otpCode && !body.includes(otpCode)) {
+      const safeFallback = fallback?.body ?? NOTIFICATION_TEMPLATES.find((t) => t.key === "otp")?.body;
+      if (safeFallback) {
+        body = this.render(safeFallback, data);
+      }
+    }
 
     const sent = await this.deliver(to, subject, body, channel, input.template);
     const attempts = 1;

@@ -23,6 +23,7 @@ import {
   requireStaff,
 } from "../../lib/auth";
 import { internalFetch, serviceUrls } from "../../lib/http";
+import { buildOtpSendResponse } from "../../lib/otp-response";
 
 @Controller()
 export class IdentityController {
@@ -31,16 +32,28 @@ export class IdentityController {
     private readonly notify: NotifyEngine
   ) {}
 
+  private async deliverMail(input: {
+    template: string;
+    to: string;
+    data: Record<string, string>;
+    ref: string;
+  }) {
+    try {
+      return await this.notify.send(input);
+    } catch (err) {
+      console.error("mail send failed", err instanceof Error ? err.message : err);
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  /** Fire-and-forget for non-OTP mail where the client does not need delivery status. */
   private queueMail(input: {
     template: string;
     to: string;
     data: Record<string, string>;
     ref: string;
   }) {
-    const job = this.notify.send(input).catch((err) => {
-      console.error("mail send failed", err instanceof Error ? err.message : err);
-    });
-    return Promise.race([job, new Promise((resolve) => setTimeout(resolve, 1200))]);
+    void this.deliverMail(input);
   }
 
   @Post("v1/auth/sync")
@@ -121,14 +134,13 @@ export class IdentityController {
   async sendOtp(@Body() body: { email?: string }) {
     if (!body?.email) throw new BadRequestException("email required");
     const code = await this.identity.issueOtp(body.email);
-    await this.queueMail({
+    const mail = await this.deliverMail({
       template: "otp",
       to: body.email,
       data: { code },
       ref: "auth-otp",
     });
-    const expose = process.env.NODE_ENV !== "production";
-    return { ok: true, ...(expose ? { devCode: code } : {}) };
+    return buildOtpSendResponse(code, mail);
   }
 
   @Post("v1/auth/otp/verify")
@@ -146,14 +158,13 @@ export class IdentityController {
   async forgotPassword(@Body() body: { email?: string }) {
     if (!body?.email) throw new BadRequestException("email required");
     const code = await this.identity.issuePasswordReset(body.email);
-    await this.queueMail({
+    const mail = await this.deliverMail({
       template: "otp",
       to: body.email,
       data: { code, purpose: "password-reset" },
       ref: "password-reset",
     });
-    const expose = process.env.NODE_ENV !== "production";
-    return { ok: true, ...(expose ? { devCode: code } : {}) };
+    return buildOtpSendResponse(code, mail);
   }
 
   @Post("v1/auth/password/reset")

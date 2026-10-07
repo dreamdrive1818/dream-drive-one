@@ -530,6 +530,22 @@ body.auth-shell .fade-in-bottom {
   margin-bottom: 0;
 }
 
+.customer-login-password-block {
+  margin-bottom: 0.4rem;
+}
+
+.customer-login-field--password {
+  margin-bottom: 0;
+}
+
+.customer-login-forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin: 0.55rem 0 1.1rem;
+  padding: 0;
+}
+
 .customer-login-forgot {
   border: none;
   background: none;
@@ -714,6 +730,40 @@ body.auth-shell .fade-in-bottom {
 .customer-login-otp-hint strong {
   color: #0b1f2a;
   font-weight: 650;
+}
+
+.customer-login-otp-dev {
+  margin: 0 0 1.6rem;
+  padding: 1.2rem 1.4rem;
+  text-align: center;
+  border-radius: 14px;
+  border: 1px solid rgba(14, 124, 134, 0.22);
+  background: linear-gradient(180deg, rgba(14, 124, 134, 0.1), rgba(14, 124, 134, 0.04));
+}
+
+.customer-login-otp-dev-kicker {
+  margin: 0 0 0.6rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0e7c86;
+}
+
+.customer-login-otp-dev-code {
+  margin: 0;
+  font-family: ui-monospace, Consolas, "Courier New", monospace;
+  font-size: clamp(2.8rem, 8vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: #0b1f2a;
+}
+
+.customer-login-otp-dev-note {
+  margin: 0.8rem 0 0;
+  font-size: 1.25rem;
+  line-height: 1.45;
+  color: #5f737c;
 }
 
 .customer-login-dev {
@@ -985,9 +1035,11 @@ body.auth-shell .fade-in-bottom {
   }
 
   .customer-login-panel-scroll {
-    overflow: visible;
-    flex: none;
-    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding: 0 0 2.4rem;
+    -webkit-overflow-scrolling: touch;
   }
 
   .customer-login-nav-btn {

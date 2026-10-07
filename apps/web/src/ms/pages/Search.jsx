@@ -66,6 +66,9 @@ export default function Search() {
   const [citiesLoading, setCitiesLoading] = useState(() => cachedCities().length === 0);
   const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
+  const [showResults, setShowResults] = useState(
+    () => searchParams.get("go") === "1"
+  );
   const [maxRentalDays, setMaxRentalDays] = useState(30);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locMsg, setLocMsg] = useState("");
@@ -83,6 +86,10 @@ export default function Search() {
     () => parseFleetFilters(searchParams),
     [searchParams]
   );
+
+  useEffect(() => {
+    if (searchParams.get("go") === "1") setShowResults(true);
+  }, [searchParams]);
 
   const dateError = useMemo(
     () => validateDateRange(filters.from, filters.to, maxRentalDays),
@@ -225,10 +232,10 @@ export default function Search() {
   }, []);
 
   useEffect(() => {
-    if (!filters.cityId || dateError) return undefined;
+    if (!showResults || !filters.cityId || dateError) return undefined;
     const timer = setTimeout(() => runSearch(filters), 280);
     return () => clearTimeout(timer);
-  }, [apiFetchKey, dateError, runSearch, filters]);
+  }, [apiFetchKey, dateError, runSearch, filters, showResults]);
 
   useEffect(() => {
     if (!filtersOpen) return undefined;
@@ -253,11 +260,16 @@ export default function Search() {
     e.preventDefault();
     if (!filters.cityId || dateError) return;
     const place = pickupPlace.trim();
-    if (place && place !== (filters.pickupPlace || "")) {
-      setFilters({ pickupPlace: place });
-    }
-    runSearch(filters);
-    revealResults();
+    const nextFilters = {
+      ...filters,
+      ...(place ? { pickupPlace: place } : {}),
+    };
+    const params = filtersToSearchParams(nextFilters);
+    params.set("go", "1");
+    setSearchParams(params, { replace: true });
+    setShowResults(true);
+    runSearch(nextFilters);
+    window.requestAnimationFrame(() => revealResults());
   }
 
   function handleClear() {
@@ -567,74 +579,10 @@ export default function Search() {
           </button>
         </form>
 
-        <div className="fleet-search-extras">
-          <button
-            type="button"
-            className="fleet-search-extra"
-            onClick={applyCurrentLocation}
-            disabled={locBusy || citiesLoading}
-          >
-            {locBusy ? "Finding location…" : "Use current location"}
-          </button>
-          <button
-            type="button"
-            className={`fleet-search-extra${manualOpen ? " is-on" : ""}`}
-            onClick={() => {
-              setManualOpen((open) => !open);
-              setManualMsg("");
-            }}
-          >
-            Manual booking
-          </button>
-        </div>
-        {locMsg ? <p className="fleet-search-extra-note">{locMsg}</p> : null}
-        {manualOpen ? (
-          <form className="fleet-manual" onSubmit={submitManual}>
-            <p className="fleet-manual-lead">
-              Tell us the place and we will arrange the car if it is not in the list.
-            </p>
-            <div className="fleet-manual-grid">
-              <label>
-                Name
-                <input
-                  value={manual.name}
-                  onChange={(e) => setManual((prev) => ({ ...prev, name: e.target.value }))}
-                  required
-                />
-              </label>
-              <label>
-                Phone
-                <input
-                  value={manual.phone}
-                  inputMode="tel"
-                  onChange={(e) => setManual((prev) => ({ ...prev, phone: e.target.value }))}
-                />
-              </label>
-              <label className="fleet-manual-wide">
-                Pickup place
-                <input
-                  value={manual.place || pickupPlace}
-                  onChange={(e) => {
-                    setPickupPlace(e.target.value);
-                    setManual((prev) => ({ ...prev, place: e.target.value }));
-                  }}
-                  placeholder="Area, landmark, or city"
-                />
-              </label>
-              <label className="fleet-manual-wide">
-                Note
-                <input
-                  value={manual.note}
-                  onChange={(e) => setManual((prev) => ({ ...prev, note: e.target.value }))}
-                  placeholder="Car type or anything else"
-                />
-              </label>
-            </div>
-            <button type="submit" className="fleet-search-submit" disabled={manualBusy}>
-              {manualBusy ? "Sending…" : "Send booking request"}
-            </button>
-            {manualMsg ? <p className="fleet-search-extra-note">{manualMsg}</p> : null}
-          </form>
+        {!showResults ? (
+          <p className="fleet-search-prompt">
+            Fill in your trip details and tap <strong>Search</strong> to see available cars.
+          </p>
         ) : null}
 
         {dateError && (
@@ -643,6 +591,7 @@ export default function Search() {
           </p>
         )}
 
+        {showResults ? (
         <div className="fleet-search-layout">
           <aside className="fleet-search-sidebar fleet-search-sidebar--desktop">
             {renderFilterPanel("")}
@@ -673,7 +622,7 @@ export default function Search() {
                       ? `${sortedCars.length} car${
                           sortedCars.length === 1 ? "" : "s"
                         } found`
-                      : "Select a city to browse cars"}
+                      : "Searching…"}
                   {!loading && searched && selectedCity?.name
                     ? ` in ${selectedCity.name}`
                     : ""}
@@ -874,6 +823,77 @@ export default function Search() {
             )}
           </div>
         </div>
+        ) : null}
+
+        <div className="fleet-search-extras">
+          <button
+            type="button"
+            className="fleet-search-extra"
+            onClick={applyCurrentLocation}
+            disabled={locBusy || citiesLoading}
+          >
+            {locBusy ? "Finding location…" : "Use current location"}
+          </button>
+          <button
+            type="button"
+            className={`fleet-search-extra${manualOpen ? " is-on" : ""}`}
+            onClick={() => {
+              setManualOpen((open) => !open);
+              setManualMsg("");
+            }}
+          >
+            Manual booking
+          </button>
+        </div>
+        {locMsg ? <p className="fleet-search-extra-note">{locMsg}</p> : null}
+        {manualOpen ? (
+          <form className="fleet-manual" onSubmit={submitManual}>
+            <p className="fleet-manual-lead">
+              Tell us the place and we will arrange the car if it is not in the list.
+            </p>
+            <div className="fleet-manual-grid">
+              <label>
+                Name
+                <input
+                  value={manual.name}
+                  onChange={(e) => setManual((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                />
+              </label>
+              <label>
+                Phone
+                <input
+                  value={manual.phone}
+                  inputMode="tel"
+                  onChange={(e) => setManual((prev) => ({ ...prev, phone: e.target.value }))}
+                />
+              </label>
+              <label className="fleet-manual-wide">
+                Pickup place
+                <input
+                  value={manual.place || pickupPlace}
+                  onChange={(e) => {
+                    setPickupPlace(e.target.value);
+                    setManual((prev) => ({ ...prev, place: e.target.value }));
+                  }}
+                  placeholder="Area, landmark, or city"
+                />
+              </label>
+              <label className="fleet-manual-wide">
+                Note
+                <input
+                  value={manual.note}
+                  onChange={(e) => setManual((prev) => ({ ...prev, note: e.target.value }))}
+                  placeholder="Car type or anything else"
+                />
+              </label>
+            </div>
+            <button type="submit" className="fleet-search-submit" disabled={manualBusy}>
+              {manualBusy ? "Sending…" : "Send booking request"}
+            </button>
+            {manualMsg ? <p className="fleet-search-extra-note">{manualMsg}</p> : null}
+          </form>
+        ) : null}
       </div>
 
       {filtersOpen ? (
