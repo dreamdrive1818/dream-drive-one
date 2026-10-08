@@ -84,7 +84,7 @@ export class CatalogService {
   }
 
   async publicConfig() {
-    return remember("dd:catcfg", 300, async () => {
+    return remember("dd:catcfg", 600, async () => {
       const settings = await this.getSettings();
       return {
         bufferHours: settings.bufferHours,
@@ -180,7 +180,7 @@ export class CatalogService {
     const { from, to } = this.parseRange(query.from, query.to, rentalType);
     if (from && to) await this.assertRentalLength(from, to, rentalType);
 
-    return remember(searchCacheKey({ ...query, rentalType }), from && to ? 90 : 300, () =>
+    return remember(searchCacheKey({ ...query, rentalType }), from && to ? 120 : 600, () =>
       this.searchUncached(query, rentalType, from, to)
     );
   }

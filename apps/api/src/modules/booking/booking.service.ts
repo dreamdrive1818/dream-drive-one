@@ -959,6 +959,7 @@ export class BookingEngine {
         createdAt: { lt: cutoff },
         payments: { none: { status: "SUCCESS" } },
       },
+      select: { id: true },
     });
     for (const booking of stale) {
       await this.setStatus(booking.id, "CANCELLED", "hold expired");
@@ -974,6 +975,7 @@ export class BookingEngine {
         status: { in: ["CONFIRMED", "AWAITING_KYC", "AWAITING_SIGNATURE"] },
         startsAt: { lt: cutoff },
       },
+      select: { id: true },
     });
     for (const booking of stale) {
       await this.setStatus(booking.id, "NO_SHOW", `not handed over within ${NO_SHOW_GRACE_HOURS}h of start`);
@@ -1026,7 +1028,7 @@ export class BookingEngine {
         windowCount: windowCount + 1,
       },
     });
-    await internalFetch(serviceUrls().notification, "/internal/notify", {
+    void internalFetch(serviceUrls().notification, "/internal/notify", {
       method: "POST",
       body: JSON.stringify({
         template: "otp",
@@ -1279,7 +1281,7 @@ export class BookingEngine {
   }
 
   listPackages() {
-    return remember("dd:packages", 300, () =>
+    return remember("dd:packages", 600, () =>
       prisma.tourPackage.findMany({
       where: { published: true },
       include: {

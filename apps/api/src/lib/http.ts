@@ -1,8 +1,9 @@
 import { BadGatewayException } from "@nestjs/common";
 
-/** All domain modules run in this process. Loopback for leftover internal HTTP. */
+/** All domain modules run in this process. Never hairpin through the public API URL. */
 export function serviceUrls() {
-  const api = process.env.API_URL ?? "http://localhost:4000";
+  const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
+  const api = `http://127.0.0.1:${port}`;
   return {
     identity: api,
     catalog: api,

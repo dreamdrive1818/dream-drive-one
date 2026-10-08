@@ -64,4 +64,12 @@ describe('Health (e2e)', () => {
       .expect(200);
     expect(response.body.service).toBe('api');
   });
+
+  it('GET /health reports redis and smtp without failing liveness', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/health')
+      .expect(200);
+    expect(['ready', 'memory']).toContain(response.body.redis);
+    expect(['configured', 'missing']).toContain(response.body.smtp);
+  });
 });

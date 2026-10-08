@@ -2,8 +2,27 @@ type MailSendResult = {
   ok?: boolean;
   mocked?: boolean;
   skipped?: boolean;
+  queued?: boolean;
   error?: string;
 };
+
+const OTP_MAIL_BUDGET_MS = 3_000;
+
+export async function awaitMailWithBudget(
+  send: Promise<MailSendResult>,
+  ms = OTP_MAIL_BUDGET_MS
+): Promise<MailSendResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<MailSendResult>((resolve) => {
+    timer = setTimeout(() => resolve({ ok: true, queued: true }), ms);
+  });
+  try {
+    return await Promise.race([send, budget]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    void send.catch(() => undefined);
+  }
+}
 
 /** True when OTP may be returned in API JSON (dev, mail failure, or explicit flag). */
 export function shouldExposeOtpCode(mail: MailSendResult) {
@@ -14,11 +33,16 @@ export function shouldExposeOtpCode(mail: MailSendResult) {
 }
 
 export function buildOtpSendResponse(code: string, mail: MailSendResult) {
-  const emailSent = Boolean(mail.ok && !mail.mocked && !mail.skipped);
-  const expose = shouldExposeOtpCode(mail);
+  const emailSent = Boolean((mail.ok && !mail.mocked && !mail.skipped) || mail.queued);
+  const expose = shouldExposeOtpCode({
+    ok: Boolean(mail.ok || mail.queued),
+    mocked: mail.mocked,
+    skipped: mail.skipped,
+  });
   return {
     ok: true as const,
     emailSent,
+    ...(mail.queued ? { queued: true as const } : {}),
     ...(expose ? { devCode: code } : {}),
   };
 }

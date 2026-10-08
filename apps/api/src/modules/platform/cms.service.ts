@@ -442,7 +442,7 @@ export class CmsService {
   }
 
   async publicConfig() {
-    return remember("dd:public-config", 300, () => this.publicConfigUncached());
+    return remember("dd:public-config", 600, () => this.publicConfigUncached());
   }
 
   private async publicConfigUncached() {
@@ -513,7 +513,7 @@ export class CmsService {
   }
 
   async home() {
-    return remember("dd:home", 300, () => this.homeUncached());
+    return remember("dd:home", 600, () => this.homeUncached());
   }
 
   private async homeUncached() {
@@ -626,7 +626,7 @@ export class CmsService {
 
   async blogs(query: { category?: string; take?: number }) {
     const take = Math.min(Math.max(query.take ?? 50, 1), 100);
-    return remember(`dd:blogs:${query.category || ""}:${take}`, 180, async () => {
+    return remember(`dd:blogs:${query.category || ""}:${take}`, 600, async () => {
       const categoryFilter = query.category
         ? {
             OR: [
@@ -716,7 +716,7 @@ export class CmsService {
   }
 
   async testimonials() {
-    return remember("dd:testimonials", 300, async () => {
+    return remember("dd:testimonials", 600, async () => {
       const rows = await prisma.testimonial.findMany({
         where: { active: true },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
