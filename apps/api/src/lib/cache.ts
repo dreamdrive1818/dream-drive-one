@@ -1,19 +1,81 @@
 import Redis from "ioredis";
+import { isTransientRedisError, redisStatusDead } from "./redis-status";
 
 type MemoryRow = { value: string; exp: number };
 
 const memory = new Map<string, MemoryRow>();
 const inflight = new Map<string, Promise<unknown>>();
 const DEFAULT_TTL = 45;
-const REDIS_WAIT_MS = 180;
-const MAX_MEMORY_KEYS = 800;
+const REDIS_WAIT_MS = 800;
+const MAX_MEMORY_KEYS = 1200;
+const CIRCUIT_MS = 30_000;
+const KEEPALIVE_MS = 25_000;
+const RETRY_MS = 15_000;
+const FAIL_WINDOW = 5;
 
 let redis: Redis | null | undefined;
 let redisReady = false;
 let redisFailLogs = 0;
+let redisCircuitUntil = 0;
+let lastPingWarn = 0;
+let lastReadyLog = 0;
 
 function redisUrl() {
+  if (process.env.REDIS_DISABLED === "true" || process.env.CACHE_MEMORY_ONLY === "true") {
+    return "";
+  }
   return (process.env.REDIS_URL || process.env.UPSTASH_REDIS_URL || "").trim();
+}
+
+function isLocalRedisUrl(url: string) {
+  return /^(redis:\/\/|rediss:\/\/)?(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(url);
+}
+
+/** In dev, remote Redis (e.g. Upstash) often times out — use memory unless REDIS_FORCE=true. */
+function skipRemoteRedisInDev(url: string) {
+  if (process.env.NODE_ENV !== "development") return false;
+  if (process.env.REDIS_FORCE === "true") return false;
+  if (!url || isLocalRedisUrl(url)) return false;
+  return true;
+}
+
+function circuitOpen() {
+  return Date.now() < redisCircuitUntil;
+}
+
+function dropClient() {
+  const client = redis;
+  redis = undefined;
+  redisReady = false;
+  if (!client) return;
+  client.removeAllListeners();
+  try {
+    client.disconnect(false);
+  } catch {
+    // ignore
+  }
+}
+
+function tripCircuit(reason: string) {
+  redisReady = false;
+  redisCircuitUntil = Date.now() + CIRCUIT_MS;
+  dropClient();
+  console.warn(`redis cache: backing off ${CIRCUIT_MS / 1000}s — ${reason}`);
+  scheduleRedisRetry();
+}
+
+function noteRedisFailure(err?: unknown) {
+  const msg = err instanceof Error ? err.message : "unreachable";
+  redisFailLogs += 1;
+  if (isTransientRedisError(msg) || redisFailLogs >= FAIL_WINDOW) {
+    if (redisFailLogs >= FAIL_WINDOW) {
+      redisFailLogs = 0;
+      tripCircuit(msg);
+      return;
+    }
+    dropClient();
+    scheduleRedisRetry();
+  }
 }
 
 function normalizeRedisUrl(url: string) {
@@ -39,13 +101,47 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+function attachClient(client: Redis) {
+  client.on("ready", () => {
+    redisReady = true;
+    redisFailLogs = 0;
+    redisCircuitUntil = 0;
+    if (Date.now() - lastReadyLog > 60_000) {
+      lastReadyLog = Date.now();
+      console.log("redis cache: connected");
+    }
+  });
+  client.on("end", () => {
+    redisReady = false;
+    scheduleRedisRetry();
+  });
+  client.on("close", () => {
+    redisReady = false;
+  });
+  client.on("error", (err) => {
+    redisReady = false;
+    const msg = err instanceof Error ? err.message : String(err);
+    if (isTransientRedisError(msg)) {
+      dropClient();
+      scheduleRedisRetry();
+      return;
+    }
+    noteRedisFailure(err);
+  });
+}
+
 function getRedis(): Redis | null {
+  if (circuitOpen()) return null;
+  if (redis && redisStatusDead(redis.status)) {
+    dropClient();
+  }
   if (redis !== undefined) return redis;
   const raw = redisUrl();
   if (!raw || raw.includes("********")) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn("redis cache: REDIS_URL missing or placeholder — using in-memory cache");
-    }
+    redis = null;
+    return redis;
+  }
+  if (skipRemoteRedisInDev(raw)) {
     redis = null;
     return redis;
   }
@@ -55,31 +151,19 @@ function getRedis(): Redis | null {
     redis = new Redis(url, {
       lazyConnect: true,
       maxRetriesPerRequest: 1,
-      connectTimeout: 2500,
+      connectTimeout: 4000,
       commandTimeout: REDIS_WAIT_MS,
       enableReadyCheck: true,
       enableOfflineQueue: false,
+      keepAlive: 10_000,
       family: 4,
       tls: useTls ? {} : undefined,
       retryStrategy(times) {
-        if (times > 3) return null;
-        return Math.min(times * 400, 2000);
+        return Math.min(times * 400, 8_000);
       },
     });
-    redis.on("ready", () => {
-      redisReady = true;
-      console.log("redis cache: connected");
-    });
-    redis.on("end", () => {
-      redisReady = false;
-    });
-    redis.on("error", (err) => {
-      redisReady = false;
-      if (process.env.NODE_ENV === "development" && redisFailLogs < 3) {
-        redisFailLogs += 1;
-        console.warn("redis cache:", err.message);
-      }
-    });
+    attachClient(redis);
+    startKeepalive();
   } catch {
     redis = null;
   }
@@ -96,6 +180,10 @@ function memoryGet(key: string): string | undefined {
   return row.value;
 }
 
+function isProtectedKey(key: string) {
+  return PUBLIC_PREFIXES.some((p) => key === p || key.startsWith(p));
+}
+
 function memorySet(key: string, raw: string, ttlSec: number) {
   memory.set(key, { value: raw, exp: Date.now() + ttlSec * 1000 });
   if (memory.size <= MAX_MEMORY_KEYS) return;
@@ -107,6 +195,7 @@ function memorySet(key: string, raw: string, ttlSec: number) {
   const overflow = memory.size - MAX_MEMORY_KEYS;
   let dropped = 0;
   for (const k of memory.keys()) {
+    if (isProtectedKey(k)) continue;
     memory.delete(k);
     dropped += 1;
     if (dropped >= overflow) break;
@@ -127,7 +216,7 @@ export async function cacheGet<T>(key: string): Promise<T | undefined> {
   try {
     const raw = await withTimeout(client.get(key), REDIS_WAIT_MS);
     if (raw == null) return undefined;
-    memorySet(key, raw, DEFAULT_TTL);
+    memorySet(key, raw, 120);
     return JSON.parse(raw) as T;
   } catch {
     return undefined;
@@ -164,34 +253,62 @@ export async function remember<T>(key: string, ttlSec: number, load: () => Promi
 }
 
 let redisRetry: ReturnType<typeof setTimeout> | null = null;
+let redisKeepalive: ReturnType<typeof setInterval> | null = null;
 
 function scheduleRedisRetry() {
   if (redisRetry) return;
   redisRetry = setTimeout(() => {
     redisRetry = null;
     void pingRedis();
-  }, 30_000);
+  }, RETRY_MS);
   redisRetry.unref?.();
 }
 
+function startKeepalive() {
+  if (redisKeepalive) return;
+  redisKeepalive = setInterval(() => {
+    void pingRedis();
+  }, KEEPALIVE_MS);
+  redisKeepalive.unref?.();
+}
+
 export async function pingRedis() {
-  const client = getRedis();
-  if (!client) {
-    console.warn("redis cache: disabled — reads go to Postgres");
+  if (circuitOpen()) {
+    scheduleRedisRetry();
     return false;
   }
+  const client = getRedis();
+  if (!client) return false;
   try {
-    if (client.status !== "ready") {
-      await withTimeout(client.connect(), 2500);
+    let active = client;
+    if (redisStatusDead(active.status)) {
+      dropClient();
+      const next = getRedis();
+      if (!next) return false;
+      active = next;
     }
-    await withTimeout(client.ping(), 800);
+    if (active.status === "wait") {
+      try {
+        await withTimeout(active.connect(), 2500);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!/already connecting|already connected/i.test(msg)) throw err;
+      }
+    }
+    await withTimeout(active.ping(), 800);
     redisReady = true;
-    console.log("redis cache: ready");
+    redisFailLogs = 0;
     return true;
   } catch (err) {
     redisReady = false;
-    console.warn("redis cache: ping failed —", err instanceof Error ? err.message : err);
-    scheduleRedisRetry();
+    const msg = err instanceof Error ? err.message : String(err);
+    if (Date.now() - lastPingWarn > 60_000) {
+      lastPingWarn = Date.now();
+      console.warn("redis cache: ping failed —", msg);
+    }
+    dropClient();
+    noteRedisFailure(err);
+    if (!circuitOpen()) scheduleRedisRetry();
     return false;
   }
 }

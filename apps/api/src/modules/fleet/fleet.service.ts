@@ -818,7 +818,7 @@ export class FleetEngine {
   }
 
   listAirports(cityId?: string) {
-    return remember(`dd:airports:${cityId || "all"}`, 300, () =>
+    return remember(`dd:airports:${cityId || "all"}`, 600, () =>
       prisma.airportTerminal.findMany({
       where: {
         active: true,

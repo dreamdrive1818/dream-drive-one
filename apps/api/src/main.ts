@@ -111,25 +111,34 @@ async function bootstrap() {
   });
   await app.listen(port, "0.0.0.0");
   console.log(`api listening on ${port}`);
+  const warmPaths = [
+    "/v1/public/cities",
+    "/v1/public/config",
+    "/v1/public/catalog-config",
+    "/v1/public/home",
+    "/v1/public/blogs",
+    "/v1/public/testimonials",
+    "/v1/public/airports",
+    "/v1/public/packages",
+    "/v1/public/search",
+  ];
   const warm = async () => {
     await warmPublicCache();
     const base = `http://127.0.0.1:${port}`;
-    await Promise.allSettled([
-      fetch(`${base}/v1/public/home`),
-      fetch(`${base}/v1/public/search`),
-      fetch(`${base}/v1/public/catalog-config`),
-      fetch(`${base}/v1/public/cities`),
-      fetch(`${base}/v1/public/config`),
-      fetch(`${base}/v1/public/blogs`),
-      fetch(`${base}/v1/public/testimonials`),
-      fetch(`${base}/v1/public/airports`),
-      fetch(`${base}/v1/public/packages`),
-    ]);
+    const queue = [...warmPaths];
+    const workers = Array.from({ length: 2 }, async () => {
+      while (queue.length) {
+        const path = queue.shift();
+        if (!path) return;
+        await fetch(`${base}${path}`).catch(() => undefined);
+      }
+    });
+    await Promise.allSettled(workers);
   };
   void warm();
   const refresh = setInterval(() => {
     void warm();
-  }, 4 * 60 * 1000);
+  }, 3 * 60 * 1000);
   refresh.unref?.();
 }
 

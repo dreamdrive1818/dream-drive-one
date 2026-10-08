@@ -103,7 +103,7 @@ export class NotifyEngine {
         attempts: { lt: MAX_ATTEMPTS },
         OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: new Date() } }],
       },
-      take: 20,
+      take: 5,
       orderBy: { createdAt: "asc" },
     });
     let retried = 0;
@@ -270,25 +270,40 @@ export class NotifyEngine {
       console.log(`[notify:${channel}:skipped] to=${maskRecipient(to)} subject=${subject}`);
       return { ok: false, skipped: true, error: `${channel} channel not configured` };
     }
-    const mail = mailTransport(mailboxFor(template));
+    const mailbox = mailboxFor(template);
+    const mail = mailTransport(mailbox);
     if (!mail) {
       console.log(`[notify:dev] to=${to} subject=${subject} body=${body.slice(0, 500)}`);
       return { ok: true, mocked: true };
     }
     if ("error" in mail) return { ok: false, error: mail.error };
+    const html = looksLikeHtml(body) ? body : wrapPlain(body);
+    const payload = {
+      from: mail.from,
+      to,
+      subject,
+      html,
+      text: stripTags(body),
+    };
     try {
-      const pooled = smtpPool(mailboxFor(template), mail);
-      const html = looksLikeHtml(body) ? body : wrapPlain(body);
-      await pooled.sendMail({
-        from: mail.from,
-        to,
-        subject,
-        html,
-        text: stripTags(body),
-      });
+      const pooled = smtpPool(mailbox, mail);
+      await pooled.sendMail(payload);
       return { ok: true };
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
+      dropSmtp(mailbox);
+      if (isSmtpTimeout(error) && Number(process.env.SMTP_PORT || 465) === 465 && process.env.SMTP_HOST) {
+        try {
+          const alt = smtpStartTls(mailbox, mail);
+          await alt.sendMail(payload);
+          return { ok: true };
+        } catch (err2) {
+          dropSmtp(mailbox);
+          const error2 = err2 instanceof Error ? err2.message : String(err2);
+          console.error("notify failed", error2);
+          return { ok: false, error: error2 };
+        }
+      }
       console.error("notify failed", error);
       return { ok: false, error };
     }
@@ -332,8 +347,36 @@ function mailboxFor(template: string): Mailbox {
   return TEMPLATE_MAILBOX[template] ?? "support";
 }
 
-type SmtpClient = { sendMail: (opts: unknown) => Promise<unknown> };
+type SmtpClient = { sendMail: (opts: unknown) => Promise<unknown>; close?: () => void };
 const smtpClients = new Map<Mailbox, SmtpClient>();
+
+function isSmtpTimeout(error: string) {
+  return /timeout|etimedout|econnreset|connection closed|socket hang up|connect e/i.test(error);
+}
+
+function dropSmtp(mailbox: Mailbox) {
+  const existing = smtpClients.get(mailbox);
+  smtpClients.delete(mailbox);
+  try {
+    existing?.close?.();
+  } catch {
+    // ignore
+  }
+}
+
+function smtpOptions(mail: { transport: Record<string, unknown> }, extra: Record<string, unknown> = {}) {
+  return {
+    ...mail.transport,
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 40,
+    family: 4,
+    connectionTimeout: 4_000,
+    greetingTimeout: 4_000,
+    socketTimeout: 8_000,
+    ...extra,
+  };
+}
 
 function smtpPool(
   mailbox: Mailbox,
@@ -344,14 +387,23 @@ function smtpPool(
   const nodemailer = require("nodemailer") as {
     createTransport: (opts: unknown) => SmtpClient;
   };
-  const client = nodemailer.createTransport({
-    ...mail.transport,
-    pool: true,
-    maxConnections: 2,
-    connectionTimeout: 8_000,
-    greetingTimeout: 8_000,
-    socketTimeout: 12_000,
-  });
+  const client = nodemailer.createTransport(smtpOptions(mail));
+  smtpClients.set(mailbox, client);
+  return client;
+}
+
+/** Hostinger/Railway often times out on 465/IPv6; retry STARTTLS on 587. */
+function smtpStartTls(
+  mailbox: Mailbox,
+  mail: { from: string; transport: Record<string, unknown> }
+): SmtpClient {
+  dropSmtp(mailbox);
+  const nodemailer = require("nodemailer") as {
+    createTransport: (opts: unknown) => SmtpClient;
+  };
+  const client = nodemailer.createTransport(
+    smtpOptions(mail, { port: 587, secure: false, requireTLS: true })
+  );
   smtpClients.set(mailbox, client);
   return client;
 }

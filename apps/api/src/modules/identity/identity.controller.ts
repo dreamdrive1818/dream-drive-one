@@ -23,7 +23,7 @@ import {
   requireStaff,
 } from "../../lib/auth";
 import { internalFetch, serviceUrls } from "../../lib/http";
-import { buildOtpSendResponse } from "../../lib/otp-response";
+import { awaitMailWithBudget, buildOtpSendResponse } from "../../lib/otp-response";
 
 @Controller()
 export class IdentityController {
@@ -134,12 +134,14 @@ export class IdentityController {
   async sendOtp(@Body() body: { email?: string }) {
     if (!body?.email) throw new BadRequestException("email required");
     const code = await this.identity.issueOtp(body.email);
-    const mail = await this.deliverMail({
-      template: "otp",
-      to: body.email,
-      data: { code },
-      ref: "auth-otp",
-    });
+    const mail = await awaitMailWithBudget(
+      this.deliverMail({
+        template: "otp",
+        to: body.email,
+        data: { code },
+        ref: "auth-otp",
+      })
+    );
     return buildOtpSendResponse(code, mail);
   }
 
@@ -158,12 +160,14 @@ export class IdentityController {
   async forgotPassword(@Body() body: { email?: string }) {
     if (!body?.email) throw new BadRequestException("email required");
     const code = await this.identity.issuePasswordReset(body.email);
-    const mail = await this.deliverMail({
-      template: "otp",
-      to: body.email,
-      data: { code, purpose: "password-reset" },
-      ref: "password-reset",
-    });
+    const mail = await awaitMailWithBudget(
+      this.deliverMail({
+        template: "otp",
+        to: body.email,
+        data: { code, purpose: "password-reset" },
+        ref: "password-reset",
+      })
+    );
     return buildOtpSendResponse(code, mail);
   }
 
