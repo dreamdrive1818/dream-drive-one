@@ -25,7 +25,12 @@ import {
   defaultSearchDates,
   localDateYmd,
 } from "../../../ms/fleetSearch";
-import { lookupPickup, requestLiveCoords } from "../../../ms/livePickup";
+import {
+  lookupPickup,
+  matchCityFromPlace,
+  pickupCityMismatch,
+  requestLiveCoords,
+} from "../../../ms/livePickup";
 
 /** Project-owned scenic hero stage (marketing asset in /public). */
 const HERO_STAGE = "/hero-road-presence.jpg";
@@ -61,6 +66,7 @@ const Hero2 = () => {
   const [toDate, setToDate] = useState(defaults.toDate);
   const [rentalType, setRentalType] = useState("SELF_DRIVE");
   const [searchError, setSearchError] = useState("");
+  const cityTouched = useRef(false);
   const todayMin = localDateYmd(0);
 
   const { scrollYProgress } = useScroll({
@@ -96,7 +102,6 @@ const Hero2 = () => {
       setCities(list);
       const denied = coordsOrErr instanceof Error || !coordsOrErr?.latitude;
       if (denied) {
-        if (list[0]?.id) setCityId(list[0].id);
         setLocMsg(
           coordsOrErr instanceof Error
             ? coordsOrErr.message
@@ -108,17 +113,17 @@ const Hero2 = () => {
       try {
         const { place, city } = await lookupPickup(coordsOrErr, list);
         if (cancelled) return;
+        const inferred = city || matchCityFromPlace(list, place);
         if (place) setPickupPlace(place);
-        if (city?.id) {
-          setCityId(city.id);
+        cityTouched.current = false;
+        if (inferred?.id) {
+          setCityId(inferred.id);
           setLocMsg("");
-        } else if (list[0]?.id) {
-          setCityId(list[0].id);
+        } else {
           setLocMsg("Pickup location is set. Choose the nearest city we serve.");
         }
       } catch (err) {
         if (cancelled) return;
-        if (list[0]?.id) setCityId(list[0].id);
         setLocMsg(err?.message || "Could not turn that location into an address.");
       } finally {
         if (!cancelled) setLocBusy(false);
@@ -132,10 +137,16 @@ const Hero2 = () => {
 
   const goFleet = () => go(navigate, heroBanner?.link);
 
+  const cityMismatch = pickupCityMismatch(cities, pickupPlace, cityId);
+
   const handleSearch = (e) => {
     e.preventDefault();
     if (!cityId && cities.length > 0) {
       setSearchError("Please select a pickup city.");
+      return;
+    }
+    if (cityMismatch) {
+      setSearchError(cityMismatch);
       return;
     }
     const from = dateToIsoAtHour(fromDate, 10);
@@ -435,7 +446,13 @@ const Hero2 = () => {
                   id="hero2-place"
                   value={pickupPlace}
                   placeholder={locBusy ? "Finding your location…" : "Area or address"}
-                  onChange={(e) => setPickupPlace(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setPickupPlace(next);
+                    if (cityTouched.current) return;
+                    const inferred = matchCityFromPlace(cities, next);
+                    if (inferred?.id) setCityId(inferred.id);
+                  }}
                 />
               ),
             },
@@ -450,7 +467,10 @@ const Hero2 = () => {
                 <select
                   id="hero2-city"
                   value={cityId}
-                  onChange={(e) => setCityId(e.target.value)}
+                  onChange={(e) => {
+                    cityTouched.current = true;
+                    setCityId(e.target.value);
+                  }}
                 >
                   {!cityId && (
                     <option value="">{locBusy ? "Finding city…" : "Select city"}</option>
@@ -548,6 +568,7 @@ const Hero2 = () => {
           <motion.button
             type="submit"
             className="hero2-v2-submit"
+            disabled={!cityId || Boolean(cityMismatch)}
             initial={reduceMotion ? false : { opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             whileHover={reduceMotion ? undefined : { scale: 1.03, y: -1 }}
@@ -563,9 +584,9 @@ const Hero2 = () => {
           </motion.button>
 
           {locMsg ? <p className="hero2-v2-loc">{locMsg}</p> : null}
-          {searchError ? (
+          {searchError || cityMismatch ? (
             <p className="hero2-v2-error" role="alert">
-              {searchError}
+              {searchError || cityMismatch}
             </p>
           ) : null}
         </motion.form>

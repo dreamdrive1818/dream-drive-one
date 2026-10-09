@@ -549,6 +549,19 @@
   background: var(--primary-hover, #0c6b74);
 }
 
+.hero2-v2-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.hero2-v2-submit:disabled:hover,
+.hero2-v2-submit:disabled:hover::after {
+  background: var(--primary-color, #0e7c86);
+  animation: none;
+}
+
 .hero2-v2-error,
 .hero2-v2-loc {
   grid-column: 1 / -1;

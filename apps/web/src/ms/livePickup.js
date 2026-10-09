@@ -1,3 +1,10 @@
+function tokens(text) {
+  return ` ${String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()} `;
+}
+
 export function formatPickupPlace(addr, displayName) {
   const locality =
     addr.road || addr.neighbourhood || addr.suburb || addr.retail || addr.hamlet || addr.quarter;
@@ -16,6 +23,26 @@ export function formatPickupPlace(addr, displayName) {
   return String(displayName || "").split(",").slice(0, 3).join(",").trim();
 }
 
+/** Longest served-city name that appears as a whole token in the pickup text. */
+export function matchCityFromPlace(cities, placeText) {
+  const hay = tokens(placeText);
+  if (hay === "  " || !Array.isArray(cities) || !cities.length) return null;
+  let best = null;
+  let bestLen = 0;
+  for (const city of cities) {
+    const name = tokens(city?.name).trim();
+    const slug = tokens(String(city?.slug || "").replace(/-/g, " ")).trim();
+    const hit = (name && hay.includes(` ${name} `)) || (slug && hay.includes(` ${slug} `));
+    if (!hit) continue;
+    const len = (name || slug).length;
+    if (len > bestLen) {
+      best = city;
+      bestLen = len;
+    }
+  }
+  return best;
+}
+
 export function matchCityFromAddress(cities, addr, displayName) {
   const blob = [
     addr.city,
@@ -28,11 +55,14 @@ export function matchCityFromAddress(cities, addr, displayName) {
     displayName,
   ]
     .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return (
-    cities.find((city) => blob.includes(String(city.name || "").toLowerCase())) || null
-  );
+    .join(", ");
+  return matchCityFromPlace(cities, blob);
+}
+
+export function pickupCityMismatch(cities, placeText, cityId) {
+  const inferred = matchCityFromPlace(cities, placeText);
+  if (!inferred || !cityId || inferred.id === cityId) return "";
+  return `Pickup is in ${inferred.name}. Select ${inferred.name} as the city to continue.`;
 }
 
 export function requestLiveCoords() {

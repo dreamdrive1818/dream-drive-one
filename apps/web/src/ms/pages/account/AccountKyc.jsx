@@ -202,7 +202,6 @@ export default function AccountKyc() {
       </div>
 
       {error && <p className="account-msg err">{error}</p>}
-      {message && <p className="account-msg ok">{message}</p>}
       {rejected && latest?.notes && (
         <p className="account-msg err">
           Rejected: {latest.notes}. Re-upload the requested documents.
@@ -227,6 +226,11 @@ export default function AccountKyc() {
           <p className="account-hint">
             Need to replace a file? Contact support to reset KYC.
           </p>
+          {message && (
+            <p className="account-msg ok" role="status">
+              {message}
+            </p>
+          )}
         </div>
       ) : (
         <div className="account-card">
@@ -340,6 +344,11 @@ export default function AccountKyc() {
               {busy ? "Uploading…" : "Submit for review"}
               {!busy && <FontAwesomeIcon icon={faArrowRight} />}
             </button>
+            {message && (
+              <p className="account-msg ok" role="status">
+                {message}
+              </p>
+            )}
           </form>
         </div>
       )}
