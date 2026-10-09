@@ -36,7 +36,12 @@ import {
   defaultSearchDates,
   localDateYmd,
 } from "../fleetSearch";
-import { lookupPickup, requestLiveCoords } from "../livePickup";
+import {
+  lookupPickup,
+  matchCityFromPlace,
+  pickupCityMismatch,
+  requestLiveCoords,
+} from "../livePickup";
 import "./Search.css";
 
 const EMPTY_FILTERS = {
@@ -75,6 +80,7 @@ export default function Search() {
   const [locBusy, setLocBusy] = useState(false);
   const [pickupPlace, setPickupPlace] = useState(() => searchParams.get("pickupPlace") || "");
   const askedLocation = useRef(false);
+  const cityTouched = useRef(false);
   const presetPlace = useRef(searchParams.get("pickupPlace") || "");
   const resultsRef = useRef(null);
   const [manualOpen, setManualOpen] = useState(false);
@@ -107,6 +113,11 @@ export default function Search() {
   const selectedCity = useMemo(
     () => cities.find((c) => c.id === filters.cityId) || null,
     [cities, filters.cityId]
+  );
+
+  const cityMismatch = useMemo(
+    () => pickupCityMismatch(cities, pickupPlace, filters.cityId),
+    [cities, pickupPlace, filters.cityId]
   );
 
   const activeFilterCount = useMemo(() => {
@@ -181,7 +192,6 @@ export default function Search() {
       const current = parseFleetFilters(searchParams);
       const dates = defaultSearchDates();
       const patch = {};
-      if (!current.cityId && warmed[0]?.id) patch.cityId = warmed[0].id;
       if (!current.from) patch.from = dates.from;
       if (!current.to) patch.to = dates.to;
       if (Object.keys(patch).length) {
@@ -202,7 +212,6 @@ export default function Search() {
         const current = parseFleetFilters(searchParams);
         const dates = defaultSearchDates();
         const patch = {};
-        if (!current.cityId && list[0]?.id) patch.cityId = list[0].id;
         if (!current.from) patch.from = dates.from;
         if (!current.to) patch.to = dates.to;
         if (Object.keys(patch).length) {
@@ -232,10 +241,10 @@ export default function Search() {
   }, []);
 
   useEffect(() => {
-    if (!showResults || !filters.cityId || dateError) return undefined;
+    if (!showResults || !filters.cityId || dateError || cityMismatch) return undefined;
     const timer = setTimeout(() => runSearch(filters), 280);
     return () => clearTimeout(timer);
-  }, [apiFetchKey, dateError, runSearch, filters, showResults]);
+  }, [apiFetchKey, dateError, cityMismatch, runSearch, filters, showResults]);
 
   useEffect(() => {
     if (!filtersOpen) return undefined;
@@ -258,7 +267,7 @@ export default function Search() {
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!filters.cityId || dateError) return;
+    if (!filters.cityId || dateError || cityMismatch) return;
     const place = pickupPlace.trim();
     const nextFilters = {
       ...filters,
@@ -273,7 +282,7 @@ export default function Search() {
   }
 
   function handleClear() {
-    const cityId = filters.cityId || cities[0]?.id || "";
+    const cityId = filters.cityId || "";
     const dates = defaultSearchDates();
     setSearchParams(
       filtersToSearchParams({
@@ -301,10 +310,12 @@ export default function Search() {
     requestLiveCoords()
       .then((coords) => lookupPickup(coords, cities))
       .then(({ place, city }) => {
+        const inferred = city || matchCityFromPlace(cities, place);
         setPickupPlace(place);
         setManual((prev) => ({ ...prev, place: place || prev.place }));
-        if (city) {
-          setFilters({ cityId: city.id, pickupPlace: place });
+        cityTouched.current = false;
+        if (inferred) {
+          setFilters({ cityId: inferred.id, pickupPlace: place });
           setLocMsg("");
         } else {
           if (place) setFilters({ pickupPlace: place });
@@ -323,6 +334,13 @@ export default function Search() {
     if (presetPlace.current) return;
     applyCurrentLocation();
   }, [cities, applyCurrentLocation]);
+
+  useEffect(() => {
+    if (!cities.length || cityTouched.current) return;
+    const inferred = matchCityFromPlace(cities, pickupPlace);
+    if (!inferred || inferred.id === filters.cityId) return;
+    setFilters({ cityId: inferred.id, pickupPlace: pickupPlace.trim() });
+  }, [cities, pickupPlace, filters.cityId, setFilters]);
 
   async function submitManual(e) {
     e.preventDefault();
@@ -518,7 +536,10 @@ export default function Search() {
               <select
                 id="fleet-city"
                 value={filters.cityId}
-                onChange={(e) => setFilters({ cityId: e.target.value })}
+                onChange={(e) => {
+                  cityTouched.current = true;
+                  setFilters({ cityId: e.target.value });
+                }}
                 disabled={citiesLoading}
               >
                 {!filters.cityId && <option value="">Select city</option>}
@@ -572,7 +593,7 @@ export default function Search() {
           <button
             type="submit"
             className="fleet-search-submit"
-            disabled={!filters.cityId || Boolean(dateError)}
+            disabled={!filters.cityId || Boolean(dateError) || Boolean(cityMismatch)}
           >
             {loading ? "Searching…" : "Search"}
             {!loading && <FontAwesomeIcon icon={faArrowRight} />}
@@ -585,9 +606,9 @@ export default function Search() {
           </p>
         ) : null}
 
-        {dateError && (
+        {(dateError || cityMismatch) && (
           <p className="fleet-search-validation" role="alert">
-            {dateError}
+            {dateError || cityMismatch}
           </p>
         )}
 

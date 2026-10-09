@@ -370,6 +370,11 @@
   line-height: 1.45;
 }
 
+.account-card .account-msg {
+  margin-top: 1.2rem;
+  margin-bottom: 0;
+}
+
 .account-msg.err {
   color: #b42318;
   background: #fef3f2;
