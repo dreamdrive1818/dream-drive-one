@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -11,6 +12,7 @@ import {
   faCloudArrowUp,
   faCheck,
   faArrowRight,
+  faEye,
 } from "@fortawesome/free-solid-svg-icons";
 import { api } from "../../api";
 import { useAuth } from "../../AuthContext";
@@ -67,6 +69,32 @@ const KINDS = [
   },
 ];
 
+function kindLabel(kind) {
+  return KINDS.find((item) => item.kind === kind)?.label || kind.replace(/_/g, " ");
+}
+
+function isPdf(mime, name = "", url = "") {
+  return (
+    mime === "application/pdf" ||
+    /\.pdf(\?|$)/i.test(name) ||
+    /\.pdf(\?|$)/i.test(url) ||
+    /cloudinary\.com\/[^/]+\/raw\/upload\//i.test(url)
+  );
+}
+
+function isImage(mime, name = "", url = "") {
+  if (Boolean(mime?.startsWith("image/"))) return true;
+  if (/\.(jpe?g|png|webp|gif)(\?|$)/i.test(name)) return true;
+  if (/\.(jpe?g|png|webp|gif)(\?|$)/i.test(url)) return true;
+  // Cloudinary image-pipeline URLs (may not end with an extension)
+  if (
+    /cloudinary\.com\/[^/]+\/image\/upload\//i.test(url) &&
+    !isPdf(mime, name, url)
+  )
+    return true;
+  return false;
+}
+
 export default function AccountKyc() {
   const { user, refresh } = useAuth();
   const [params] = useSearchParams();
@@ -84,6 +112,9 @@ export default function AccountKyc() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [reviewCase, setReviewCase] = useState(null);
+  const localUrls = useRef({});
 
   const cases = payload.cases || [];
   const latest = cases[0];
@@ -107,6 +138,39 @@ export default function AccountKyc() {
   }
 
   useEffect(load, []);
+
+  useEffect(() => {
+    const urls = localUrls.current;
+    return () => {
+      Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
+
+  function rememberFile(kind, list) {
+    const file = list?.[0];
+    if (localUrls.current[kind]) {
+      URL.revokeObjectURL(localUrls.current[kind]);
+      delete localUrls.current[kind];
+    }
+    if (file) localUrls.current[kind] = URL.createObjectURL(file);
+    setFiles((prev) => ({ ...prev, [kind]: file || undefined }));
+  }
+
+  function openPreview({ title, kind, file, url, mimeType, name }) {
+    if (file) {
+      const local = localUrls.current[kind] || URL.createObjectURL(file);
+      setPreview({
+        title,
+        url: local,
+        mime: file.type,
+        name: file.name,
+      });
+      return;
+    }
+    if (url) {
+      setPreview({ title, url, mime: mimeType || "", name: name || url });
+    }
+  }
 
   async function uploadOne(kind, file) {
     const body = new FormData();
@@ -166,6 +230,10 @@ export default function AccountKyc() {
           : "KYC submitted. Our team will review it."
       );
       setFiles({});
+      Object.keys(localUrls.current).forEach((kind) => {
+        URL.revokeObjectURL(localUrls.current[kind]);
+        delete localUrls.current[kind];
+      });
       setAadhaarNumber("");
       setPanNumber("");
       await refresh();
@@ -223,6 +291,30 @@ export default function AccountKyc() {
             {latest?.panLast4 && <li>PAN ending {latest.panLast4}</li>}
             {latest?.dlExpiresOn && <li>DL expires {formatDay(latest.dlExpiresOn)}</li>}
           </ul>
+          {(latest?.documents || []).some((d) => d.url) && (
+            <div className="kyc-approved-docs">
+              {(latest.documents || [])
+                .filter((d) => d.url)
+                .map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className="kyc-preview-chip"
+                    onClick={() =>
+                      openPreview({
+                        title: kindLabel(d.kind),
+                        url: d.url,
+                        mimeType: d.mimeType,
+                        name: d.url,
+                      })
+                    }
+                  >
+                    <FontAwesomeIcon icon={faEye} />
+                    View {kindLabel(d.kind)}
+                  </button>
+                ))}
+            </div>
+          )}
           <p className="account-hint">
             Need to replace a file? Contact support to reset KYC.
           </p>
@@ -237,8 +329,9 @@ export default function AccountKyc() {
           <h2>{rejected ? "Re-submit documents" : "Submit documents"}</h2>
           <p className="account-hint">
             PDF, JPG, PNG or WebP · max 8 MB. Use Camera for a new photo, or Upload to
-            pick one from your phone. Aadhaar needs the front and the back. Numbers are
-            hashed; we only keep the last 4 digits.
+            pick one from your phone. Tap a file name to preview the photo or PDF.
+            Aadhaar needs the front and the back. Numbers are hashed; we only keep the
+            last 4 digits.
           </p>
           <form onSubmit={submit}>
             <div className="kyc-grid">
@@ -248,28 +341,56 @@ export default function AccountKyc() {
                 const selected = files[item.kind];
                 const cameraId = `kyc-camera-${item.kind}`;
                 const fileId = `kyc-file-${item.kind}`;
-                const takeFile = (list) => {
-                  const file = list?.[0];
-                  setFiles((prev) => ({ ...prev, [item.kind]: file || undefined }));
-                };
+                const canPreview = Boolean(selected || current?.url);
                 return (
                   <div
                     key={item.kind}
                     className={`kyc-drop ${needs.includes(item.kind) ? "needs" : ""} ${
-                      selected ? "has-file" : ""
-                    }`}
+                      selected || current ? "has-file" : ""
+                    } ${canPreview ? "has-preview" : ""}`}
+                    onClick={(e) => {
+                      if (e.target.closest(".kyc-action")) return;
+                      if (!canPreview) return;
+                      openPreview({
+                        title: item.label,
+                        kind: item.kind,
+                        file: selected,
+                        url: current?.url,
+                        mimeType: selected?.type || current?.mimeType,
+                        name: selected?.name || current?.url,
+                      });
+                    }}
                   >
                     <span className="kyc-drop-icon" aria-hidden="true">
-                      <FontAwesomeIcon icon={selected ? faCheck : item.icon} />
+                      <FontAwesomeIcon icon={selected || current ? faCheck : item.icon} />
                     </span>
                     <strong>
                       {item.label}
                       {must ? " *" : ""}
                     </strong>
-                    <span className="kyc-drop-file">
-                      {selected?.name ||
-                        (current ? `${prettyStatus(current.status)} on file` : "No photo yet")}
-                    </span>
+                    {canPreview ? (
+                      <button
+                        type="button"
+                        className="kyc-drop-file kyc-drop-file--preview"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPreview({
+                            title: item.label,
+                            kind: item.kind,
+                            file: selected,
+                            url: current?.url,
+                            mimeType: selected?.type || current?.mimeType,
+                            name: selected?.name || current?.url,
+                          });
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faEye} />
+                        {selected?.name || `${prettyStatus(current.status)} on file`}
+                        <span>Tap to preview</span>
+                      </button>
+                    ) : (
+                      <span className="kyc-drop-file">No photo yet</span>
+                    )}
                     <div className="kyc-drop-actions">
                       <label htmlFor={cameraId} className="kyc-action">
                         <FontAwesomeIcon icon={faCamera} />
@@ -286,14 +407,14 @@ export default function AccountKyc() {
                       type="file"
                       accept="image/*"
                       capture={item.capture}
-                      onChange={(e) => takeFile(e.target.files)}
+                      onChange={(e) => rememberFile(item.kind, e.target.files)}
                     />
                     <input
                       id={fileId}
                       className="kyc-file-input"
                       type="file"
                       accept={item.accept}
-                      onChange={(e) => takeFile(e.target.files)}
+                      onChange={(e) => rememberFile(item.kind, e.target.files)}
                     />
                   </div>
                 );
@@ -357,34 +478,109 @@ export default function AccountKyc() {
         <h2>History</h2>
         {cases.length === 0 && <p className="account-empty">No KYC cases yet.</p>}
         <div className="account-list">
-          {cases.map((c) => (
-            <div
-              key={c.id}
-              className="account-item"
-              style={{ gridTemplateColumns: "1fr auto" }}
-            >
-              <div>
-                <h3>{prettyStatus(c.status)}</h3>
-                <p>
-                  {c.booking?.publicId ? `Booking ${c.booking.publicId}` : "Account KYC"}
-                  {c.notes ? ` · ${c.notes}` : ""}
-                </p>
-                <p>
-                  {(c.documents || []).map((d) => d.kind).join(" · ") || "No files"}
-                  {c.dlExpiresOn ? ` · DL ${formatDay(c.dlExpiresOn)}` : ""}
-                </p>
-              </div>
-              <span className={`account-pill ${statusTone(c.status)}`}>
-                {prettyStatus(c.status)}
-              </span>
-            </div>
-          ))}
+          {cases.map((c) => {
+            const hasViewable = (c.documents || []).some((d) => d.url);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`account-item kyc-history-row${hasViewable ? " kyc-history-row--clickable" : ""}`}
+                onClick={() => hasViewable && setReviewCase(c)}
+                aria-label={hasViewable ? `Review documents for ${prettyStatus(c.status)}` : undefined}
+              >
+                <div className="kyc-history-info">
+                  <h3>{prettyStatus(c.status)}</h3>
+                  <p>
+                    {c.booking?.publicId ? `Booking ${c.booking.publicId}` : "Account KYC"}
+                    {c.notes ? ` · ${c.notes}` : ""}
+                  </p>
+                  <p className="kyc-history-kinds">
+                    {(c.documents || []).map((d) => kindLabel(d.kind)).join(" · ") || "No files"}
+                    {c.dlExpiresOn ? ` · DL ${formatDay(c.dlExpiresOn)}` : ""}
+                  </p>
+                </div>
+                <div className="kyc-history-right">
+                  <span className={`account-pill ${statusTone(c.status)}`}>
+                    {prettyStatus(c.status)}
+                  </span>
+                  {hasViewable && (
+                    <span className="kyc-history-hint">
+                      <FontAwesomeIcon icon={faEye} /> Review docs
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
         <p className="account-hint" style={{ marginTop: 12 }}>
           After approval, open the booking to sign the agreement.{" "}
           <Link to="/account/bookings">My bookings</Link>
         </p>
       </div>
+      {reviewCase && (
+        <KycCaseReviewModal
+          kycCase={reviewCase}
+          onClose={() => setReviewCase(null)}
+          onPreview={(doc) => {
+            openPreview({
+              title: kindLabel(doc.kind),
+              url: doc.url,
+              mimeType: doc.mimeType,
+              name: doc.url,
+            });
+          }}
+        />
+      )}
+      {preview && <KycPreviewModal preview={preview} onClose={() => setPreview(null)} />}
     </>
+  );
+}
+
+function KycPreviewModal({ preview, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  if (typeof document === "undefined") return null;
+
+  const pdf = isPdf(preview.mime, preview.name, preview.url);
+  const image = isImage(preview.mime, preview.name, preview.url);
+
+  return createPortal(
+    <div className="kyc-preview-modal" role="dialog" aria-modal="true" aria-labelledby="kyc-preview-title">
+      <button type="button" className="kyc-preview-backdrop" aria-label="Close preview" onClick={onClose} />
+      <div className="kyc-preview-panel">
+        <header className="kyc-preview-head">
+          <div>
+            <p className="kyc-preview-eyebrow">Confirm document</p>
+            <h2 id="kyc-preview-title">{preview.title}</h2>
+          </div>
+          <button type="button" className="kyc-preview-close" onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </header>
+        <div className="kyc-preview-body">
+          {image && <img src={preview.url} alt={preview.title} />}
+          {pdf && <iframe title={preview.title} src={preview.url} />}
+          {!image && !pdf && (
+            <p className="account-hint">This file type cannot be previewed here.</p>
+          )}
+        </div>
+        <a className="kyc-preview-open" href={preview.url} target="_blank" rel="noreferrer">
+          Open in new tab
+        </a>
+      </div>
+    </div>,
+    document.body
   );
 }

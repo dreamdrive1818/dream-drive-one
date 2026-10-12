@@ -35,6 +35,16 @@ export default function AccountHome() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#recent-bookings") return;
+    const el = document.getElementById("recent-bookings");
+    if (!el) return;
+    const timer = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [data]);
+
+  useEffect(() => {
     setForm({ fullName: user?.fullName || "", phone: user?.phone || "" });
     setPendingPhone(user?.pendingPhone || "");
   }, [user]);
@@ -137,10 +147,19 @@ export default function AccountHome() {
             {prettyStatus(user?.kycStatus)}
           </strong>
         </div>
-        <div className="account-stat">
+        <a
+          className="account-stat account-stat--link"
+          href="#recent-bookings"
+          onClick={(e) => {
+            const el = document.getElementById("recent-bookings");
+            if (!el) return;
+            e.preventDefault();
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        >
           <span>Bookings</span>
           <strong>{bookings.length}</strong>
-        </div>
+        </a>
         <div className="account-stat">
           <span>Wallet</span>
           <strong>{rupees(data?.wallet?.balancePaise)}</strong>
@@ -264,7 +283,7 @@ export default function AccountHome() {
         </div>
       </div>
 
-      <div className="account-card">
+      <div className="account-card" id="recent-bookings">
         <h2>Recent bookings</h2>
         {bookings.length === 0 && (
           <p className="account-empty">
