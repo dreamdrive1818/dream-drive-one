@@ -23,6 +23,53 @@ function loadRazorpay() {
   });
 }
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const DUMMY_STEPS = [
+  { key: "connecting", label: "Connecting to test gateway" },
+  { key: "authorising", label: "Authorising payment" },
+  { key: "success", label: "Payment confirmed" },
+];
+
+function DummyPayment({ amountPaise, stage }) {
+  const current = DUMMY_STEPS.findIndex((s) => s.key === stage);
+  const done = stage === "success";
+  return (
+    <div className="dummy-pay" role="dialog" aria-modal="true" aria-label="Test payment">
+      <div className="dummy-pay-panel">
+        <span className="dummy-pay-badge">Test mode · no money is charged</span>
+        <div className={`dummy-pay-cardart${done ? " is-done" : ""}`} aria-hidden="true">
+          <span className="dummy-pay-chip" />
+          <span className="dummy-pay-number">•••• •••• •••• 4242</span>
+          <span className="dummy-pay-holder">DREAM DRIVE TEST</span>
+        </div>
+        <p className="dummy-pay-amount">{formatInr(amountPaise)}</p>
+        <div className={`dummy-pay-status${done ? " is-done" : ""}`} aria-live="polite">
+          {done ? (
+            <svg className="dummy-pay-check" viewBox="0 0 52 52" aria-hidden="true">
+              <circle cx="26" cy="26" r="24" />
+              <path d="M15 27l7 7 15-16" />
+            </svg>
+          ) : (
+            <ClipLoader color="#007c82" size={22} />
+          )}
+          <span>{DUMMY_STEPS[current]?.label}…</span>
+        </div>
+        <ol className="dummy-pay-steps">
+          {DUMMY_STEPS.map((s, i) => (
+            <li
+              key={s.key}
+              className={i < current || done ? "is-done" : i === current ? "is-current" : ""}
+            >
+              {s.label}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
 function nextAfterToken(booking) {
   if (booking.rentalType === "SELF_DRIVE") {
     return `/account/kyc?booking=${encodeURIComponent(booking.publicId || booking.id)}`;
@@ -47,6 +94,7 @@ export default function Pay() {
   const [phone, setPhone] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [terms, setTerms] = useState(null);
+  const [dummy, setDummy] = useState(null);
 
   useEffect(() => {
     if (!ready) return;
@@ -121,6 +169,18 @@ export default function Pay() {
     });
   }
 
+  async function runDummyPayment(order) {
+    setDummy({ amountPaise: order.amountPaise, stage: "connecting" });
+    await wait(900);
+    setDummy((d) => ({ ...d, stage: "authorising" }));
+    await Promise.all([
+      api("/v1/payments/verify", { method: "POST", body: { paymentId: order.paymentId } }),
+      wait(1300),
+    ]);
+    setDummy((d) => ({ ...d, stage: "success" }));
+    await wait(1200);
+  }
+
   async function pay() {
     if (!booking) return;
     if (!fullName.trim() || fullName.trim().length < 2) {
@@ -163,13 +223,14 @@ export default function Pay() {
       });
       if (!order.paidInFull) {
         if (order.mock) {
-          await api("/v1/payments/verify", { method: "POST", body: { paymentId: order.paymentId } });
+          await runDummyPayment(order);
         } else {
           await openRazorpay(order);
         }
       }
       navigate(nextAfterToken(booking));
     } catch (err) {
+      setDummy(null);
       setError(err.message);
     } finally {
       setBusy(false);
@@ -348,6 +409,8 @@ export default function Pay() {
           </aside>
         </div>
       </div>
+
+      {dummy ? <DummyPayment amountPaise={dummy.amountPaise} stage={dummy.stage} /> : null}
 
       <AuthModal
         open={authOpen}

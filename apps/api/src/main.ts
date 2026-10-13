@@ -10,6 +10,7 @@ import { AppModule } from "./app.module";
 import { uploadRoot } from "./lib/cloudinary";
 import { prisma } from "./lib/prisma";
 import { warmPublicCache } from "./lib/warm-cache";
+import { ReadableHttpErrorFilter } from "./lib/http-error.filter";
 
 function corsOrigins() {
   const raw =
@@ -105,6 +106,7 @@ async function bootstrap() {
     next();
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: false, transform: true }));
+  app.useGlobalFilters(new ReadableHttpErrorFilter());
   const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
   void prisma.$connect().catch((err) => {
     console.warn("prisma connect:", err instanceof Error ? err.message : err);

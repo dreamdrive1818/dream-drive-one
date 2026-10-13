@@ -158,10 +158,13 @@ Self-drive required: **DL + (Aadhaar or address proof) + selfie with ID**.
 
 ## Razorpay
 
+0. **TOKEN only, required:** `POST /v1/bookings/:id/essentials` `{ fullName, dateOfBirth: "YYYY-MM-DD", phone, email, termsAccepted: true }`. Without it, the order call returns `400` ("Accept the terms and conditions before paying the token", "Date of birth is required", …).
 1. `POST /v1/payments/orders` `{ bookingId, kind }` → `{ paymentId, orderId, amountPaise, currency, keyId, mock }`.
 2. Open Razorpay Checkout with **that** `keyId`, `orderId`, `amountPaise`.
 3. `POST /v1/payments/verify` with Razorpay fields (backup).
 4. Poll `GET /v1/payments/:paymentId`.
+
+Errors: every non-2xx body has `message` and `error` set to the same human-readable reason. Show it as-is; never show the HTTP status text.
 
 `kind`: `TOKEN` (default hire token), `BALANCE`, `DEPOSIT`.
 
