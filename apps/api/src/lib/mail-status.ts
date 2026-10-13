@@ -1,4 +1,5 @@
 export function isSmtpConfigured() {
+  if (process.env.RESEND_API_KEY?.trim()) return true;
   const host = process.env.SMTP_HOST?.trim();
   if (host) {
     return Boolean(
@@ -8,4 +9,15 @@ export function isSmtpConfigured() {
     );
   }
   return Boolean(process.env.GMAIL_USER?.trim());
+}
+
+export function mailProvider() {
+  const primary = process.env.SMTP_HOST?.trim()
+    ? "smtp"
+    : process.env.GMAIL_USER?.trim()
+      ? "gmail"
+      : null;
+  const fallback = process.env.RESEND_API_KEY?.trim() ? "resend" : null;
+  if (primary && fallback) return `${primary}+${fallback}`;
+  return primary || fallback || "none";
 }

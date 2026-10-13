@@ -1,7 +1,8 @@
-import { isSmtpConfigured } from '../../../lib/mail-status';
+import { isSmtpConfigured, mailProvider } from '../../../lib/mail-status';
 
 describe('isSmtpConfigured', () => {
   const keys = [
+    'RESEND_API_KEY',
     'SMTP_HOST',
     'SMTP_NOREPLY_PASS',
     'SMTP_SUPPORT_PASS',
@@ -37,5 +38,17 @@ describe('isSmtpConfigured', () => {
   it('is true for Gmail fallback', () => {
     process.env.GMAIL_USER = 'dreamdrive1818@gmail.com';
     expect(isSmtpConfigured()).toBe(true);
+  });
+
+  it('reports Hostinger as primary with Resend as fallback', () => {
+    process.env.SMTP_HOST = 'smtp.hostinger.com';
+    process.env.RESEND_API_KEY = 're_test';
+    expect(isSmtpConfigured()).toBe(true);
+    expect(mailProvider()).toBe('smtp+resend');
+  });
+
+  it('uses Resend alone when no SMTP is configured', () => {
+    process.env.RESEND_API_KEY = 're_test';
+    expect(mailProvider()).toBe('resend');
   });
 });

@@ -1,6 +1,6 @@
 import { Controller, Get } from "@nestjs/common";
 import { isRedisReady } from "../../lib/cache";
-import { isSmtpConfigured } from "../../lib/mail-status";
+import { isSmtpConfigured, mailProvider } from "../../lib/mail-status";
 
 @Controller()
 export class HealthController {
@@ -11,6 +11,7 @@ export class HealthController {
       status: "ok",
       redis: isRedisReady() ? "ready" : "memory",
       smtp: isSmtpConfigured() ? "configured" : "missing",
+      mailer: mailProvider(),
     };
   }
 }

@@ -271,41 +271,58 @@ export class NotifyEngine {
       return { ok: false, skipped: true, error: `${channel} channel not configured` };
     }
     const mailbox = mailboxFor(template);
+    const hasResend = Boolean(process.env.RESEND_API_KEY?.trim());
     const mail = mailTransport(mailbox);
-    if (!mail) {
+    if (!mail && !hasResend) {
       console.log(`[notify:dev] to=${to} subject=${subject} body=${body.slice(0, 500)}`);
       return { ok: true, mocked: true };
     }
-    if ("error" in mail) return { ok: false, error: mail.error };
     const html = looksLikeHtml(body) ? body : wrapPlain(body);
-    const payload = {
-      from: mail.from,
-      to,
-      subject,
-      html,
-      text: stripTags(body),
-    };
-    try {
-      const pooled = smtpPool(mailbox, mail);
-      await pooled.sendMail(payload);
-      return { ok: true };
-    } catch (err) {
-      const error = err instanceof Error ? err.message : String(err);
-      dropSmtp(mailbox);
-      if (isSmtpTimeout(error) && Number(process.env.SMTP_PORT || 465) === 465 && process.env.SMTP_HOST) {
-        try {
-          const alt = smtpStartTls(mailbox, mail);
-          await alt.sendMail(payload);
-          return { ok: true };
-        } catch (err2) {
-          dropSmtp(mailbox);
-          const error2 = err2 instanceof Error ? err2.message : String(err2);
-          console.error("notify failed", error2);
-          return { ok: false, error: error2 };
-        }
+    const text = stripTags(body);
+
+    let smtpError: string | undefined;
+    if (mail) {
+      const primary =
+        "error" in mail
+          ? { ok: false, error: mail.error }
+          : await sendViaSmtp(mailbox, mail, { from: mail.from, to, subject, html, text });
+      if (primary.ok) return { ok: true };
+      smtpError = primary.error;
+      if (!hasResend) {
+        console.error("notify failed", smtpError);
+        return { ok: false, error: smtpError };
       }
-      console.error("notify failed", error);
+      console.warn(`[notify] smtp failed, falling back to resend: ${smtpError}`);
+    }
+
+    const fallback = await sendViaResend(mailbox, to, subject, html, text);
+    if (fallback.ok) return { ok: true };
+    const error = smtpError ? `smtp: ${smtpError} | ${fallback.error}` : fallback.error;
+    console.error("notify failed", error);
+    return { ok: false, error };
+  }
+}
+
+async function sendViaSmtp(
+  mailbox: Mailbox,
+  mail: { from: string; transport: Record<string, unknown> },
+  payload: { from: string; to: string; subject: string; html: string; text: string }
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await smtpPool(mailbox, mail).sendMail(payload);
+    return { ok: true };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    dropSmtp(mailbox);
+    if (!isSmtpTimeout(error) || Number(process.env.SMTP_PORT || 465) !== 465 || !process.env.SMTP_HOST) {
       return { ok: false, error };
+    }
+    try {
+      await smtpStartTls(mailbox, mail).sendMail(payload);
+      return { ok: true };
+    } catch (err2) {
+      dropSmtp(mailbox);
+      return { ok: false, error: err2 instanceof Error ? err2.message : String(err2) };
     }
   }
 }
@@ -345,6 +362,44 @@ const MAILBOX_DEFAULTS: Record<Mailbox, { user: string; passKey: string; fromNam
 
 function mailboxFor(template: string): Mailbox {
   return TEMPLATE_MAILBOX[template] ?? "support";
+}
+
+function hostingerFrom(mailbox: Mailbox) {
+  const spec = MAILBOX_DEFAULTS[mailbox];
+  const user = process.env[`SMTP_${mailbox.toUpperCase()}_USER`]?.trim() || spec.user;
+  return { user, from: `${spec.fromName} <${user}>` };
+}
+
+/** Fallback over HTTPS: Railway Free/Trial/Hobby block outbound SMTP. Sends as the same Hostinger mailbox. */
+async function sendViaResend(
+  mailbox: Mailbox,
+  to: string,
+  subject: string,
+  html: string,
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { from } = hostingerFrom(mailbox);
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY!.trim()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        html,
+        text,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.ok) return { ok: true };
+    return { ok: false, error: `resend ${res.status}: ${(await res.text()).slice(0, 300)}` };
+  } catch (err) {
+    return { ok: false, error: `resend: ${err instanceof Error ? err.message : String(err)}` };
+  }
 }
 
 type SmtpClient = { sendMail: (opts: unknown) => Promise<unknown>; close?: () => void };
@@ -431,8 +486,7 @@ function mailTransport(mailbox: Mailbox):
   const host = process.env.SMTP_HOST?.trim();
   if (host) {
     const spec = MAILBOX_DEFAULTS[mailbox];
-    const user =
-      process.env[`SMTP_${mailbox.toUpperCase()}_USER`]?.trim() || spec.user;
+    const { user, from } = hostingerFrom(mailbox);
     const pass = process.env[spec.passKey]?.trim();
     if (!pass) {
       return { error: `${spec.passKey} is required to send from ${user}` };
@@ -442,7 +496,7 @@ function mailTransport(mailbox: Mailbox):
       ? process.env.SMTP_SECURE !== "false"
       : port === 465;
     return {
-      from: `${spec.fromName} <${user}>`,
+      from,
       transport: {
         host,
         port,
