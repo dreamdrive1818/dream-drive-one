@@ -372,12 +372,25 @@
 }
 
 .checkout-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--ck-label);
   background: var(--ck-pale);
   border-radius: 999px;
   padding: 0.3rem 0.75rem;
+}
+
+.checkout-chip svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--ck-teal);
+}
+
+.checkout-mobile-bar {
+  display: none;
 }
 
 .checkout-card--promo {
@@ -537,9 +550,11 @@
 
 .checkout-summary {
   position: sticky;
-  top: 1.4rem;
+  top: calc(var(--dd-chrome-h, 9.6rem) + 1.6rem);
+  max-height: calc(100vh - var(--dd-chrome-h, 9.6rem) - 3.2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0;
-  overflow: hidden;
   background: #fff;
   border: 1px solid var(--ck-border);
   border-radius: 16px;
@@ -549,8 +564,8 @@
 .checkout-summary-head {
   position: relative;
   overflow: hidden;
-  min-height: 136px;
-  padding: 2.4rem 2.6rem 2.2rem;
+  min-height: 112px;
+  padding: 2.2rem 2.6rem 2rem;
   background: linear-gradient(135deg, #00848b 0%, #00666d 100%);
   color: #fff;
 }
@@ -600,7 +615,7 @@
 }
 
 .checkout-summary-body {
-  padding: 3rem 2.6rem 2.6rem;
+  padding: 2.2rem 2.6rem 2.4rem;
 }
 
 .checkout-locked {
@@ -761,10 +776,62 @@
 
   .checkout-summary {
     position: static;
+    max-height: none;
+    overflow: hidden;
   }
 
   .checkout-steps {
     padding: 1.6rem 1.4rem;
+  }
+
+  .checkout-page {
+    padding-bottom: calc(9.6rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .checkout-mobile-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    padding: 1.1rem 1.6rem calc(1.1rem + env(safe-area-inset-bottom, 0px));
+    background: #fff;
+    border-top: 1px solid var(--ck-border);
+    box-shadow: 0 -6px 20px rgba(7, 24, 44, 0.08);
+  }
+
+  .checkout-mobile-bar-price {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    line-height: 1.2;
+  }
+
+  .checkout-mobile-bar-price span {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--ck-muted);
+  }
+
+  .checkout-mobile-bar-price strong {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: var(--ck-navy);
+  }
+
+  .checkout-mobile-bar .checkout-cta {
+    flex: 1;
+    height: 4.8rem;
+  }
+
+  body:has(.checkout-mobile-bar) .number-float,
+  body:has(.checkout-mobile-bar) .whatsapp-popup,
+  body:has(.checkout-mobile-bar) .contact-popup-reopen,
+  body:has(.checkout-mobile-bar) .contact-popup.show {
+    margin-bottom: calc(7.2rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

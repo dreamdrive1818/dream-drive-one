@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
-import { RENTAL_TYPE_LABELS, formatInr, tokenDuePaise } from "../fleetSearch";
+import { RENTAL_TYPE_LABELS, formatInr, primaryImageUrl, tokenDuePaise } from "../fleetSearch";
 import { loadQuoteHandoff, saveQuoteHandoff } from "../quoteStorage";
 import { CheckoutSkeleton } from "../../components/Skeleton/Skeleton";
 import AuthModal from "../AuthModal";
@@ -56,6 +56,19 @@ function isQuoteExpired(expiresAt) {
 function rentalLabel(type) {
   if (!type) return "";
   return RENTAL_TYPE_LABELS[type] || type;
+}
+
+/** API quotes nest the car under `carModel`; checkout reads flat display fields. */
+function withCarInfo(row, prev) {
+  const car = row?.carModel;
+  return {
+    ...prev,
+    ...row,
+    carName: car?.name || row?.carName || prev?.carName || "",
+    carSlug: car?.slug || row?.carSlug || prev?.carSlug || "",
+    cityName: car?.city?.name || row?.cityName || prev?.cityName || "",
+    imageUrl: primaryImageUrl(car) || row?.imageUrl || prev?.imageUrl || "",
+  };
 }
 
 function IconPin() {
@@ -223,16 +236,21 @@ export default function Checkout() {
   }, [authReady, user]);
 
   useEffect(() => {
-    if (!user || !quoteId) return;
+    if (!user || !quoteId) return undefined;
+    let cancelled = false;
     api(`/v1/quotes/${quoteId}`, { cache: false })
       .then((row) => {
-        setQuote(row);
+        if (cancelled) return;
+        setQuote((prev) => withCarInfo(row, prev));
         saveQuoteHandoff(row, row.carModel);
         if (row.expired) setError("This quote has expired. Pick dates again on the car page.");
       })
       .catch((err) => {
-        if (err.status === 401) setAuthOpen(true);
+        if (!cancelled && err.status === 401) setAuthOpen(true);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [user, quoteId]);
 
   async function pay() {
@@ -274,7 +292,7 @@ export default function Checkout() {
         method: "POST",
         body: { code: trimmed },
       });
-      setQuote(row);
+      setQuote((prev) => withCarInfo(row, prev));
       saveQuoteHandoff(row, row.carModel);
       setOfferMessage("Promo code applied.");
     } catch (err) {
@@ -328,6 +346,11 @@ export default function Checkout() {
   const ctaDisabled = busy || applying || expired || !quoteId;
   const hasPickup = Boolean(pickupDate || pickupTime);
   const hasReturn = Boolean(returnDate || returnTime);
+  const pickupBranch = quote.pickupBranch?.name || "";
+  const dropBranch =
+    quote.dropBranch?.name && quote.dropBranch.id !== quote.pickupBranch?.id
+      ? quote.dropBranch.name
+      : "";
 
   return (
     <div className="checkout-page">
@@ -441,17 +464,23 @@ export default function Checkout() {
                       ) : null}
                     </div>
                   ) : null}
-                  {typeLabel || quote.cityName ? (
+                  {pickupBranch || dropBranch ? (
                     <div className="checkout-trip-secondary">
-                      {typeLabel ? (
-                        <span className="checkout-chip">{typeLabel}</span>
+                      {pickupBranch ? (
+                        <span className="checkout-chip">
+                          <IconPin />
+                          Pickup: {pickupBranch}
+                        </span>
                       ) : null}
-                      {quote.cityName ? (
-                        <span className="checkout-chip">{quote.cityName}</span>
+                      {dropBranch ? (
+                        <span className="checkout-chip">
+                          <IconPin />
+                          Drop: {dropBranch}
+                        </span>
                       ) : null}
                     </div>
                   ) : null}
-                  {!pickupDate && !returnDate && !typeLabel && !quote.cityName ? (
+                  {!hasPickup && !hasReturn ? (
                     <p className="checkout-empty">
                       Trip dates will appear here when this quote includes them.
                     </p>
@@ -636,6 +665,21 @@ export default function Checkout() {
           </aside>
         </div>
 
+      </div>
+
+      <div className="checkout-mobile-bar">
+        <div className="checkout-mobile-bar-price">
+          <span>Pay now</span>
+          <strong>{hasAmount ? formatInr(payNowPaise) : "—"}</strong>
+        </div>
+        <button
+          type="button"
+          className="checkout-cta"
+          onClick={pay}
+          disabled={ctaDisabled}
+        >
+          {busy ? "Processing…" : "Continue to payment"}
+        </button>
       </div>
 
       <AuthModal

@@ -15,6 +15,11 @@ type UserCtx = {
 };
 
 const cache = new Map<string, { at: number; user: UserCtx }>();
+const refreshing = new Map<string, Promise<UserCtx | null>>();
+const FRESH_MS = 180_000;
+/** Past FRESH_MS the cached user is served while a background refresh runs. */
+const STALE_MS = 30 * 60_000;
+const MAX_CACHED_TOKENS = 5000;
 
 const PUBLIC = [
   /^\/v1\/public\//,
@@ -150,42 +155,63 @@ export class AuthMiddleware implements NestMiddleware {
     if (!authHeader?.startsWith("Bearer ")) return null;
     const token = authHeader.slice(7);
     const cached = cache.get(token);
-    if (cached && Date.now() - cached.at < 180_000) {
+    const age = cached ? Date.now() - cached.at : Infinity;
+    if (cached && age < STALE_MS) {
       if (cached.user.status === "DISABLED") return null;
+      if (age >= FRESH_MS) {
+        void this.refreshUser(token).catch((err) => {
+          if (err instanceof Error && err.message === "Account disabled") cache.delete(token);
+        });
+      }
       return cached.user;
     }
+    return this.refreshUser(token);
+  }
 
+  private refreshUser(token: string): Promise<UserCtx | null> {
+    const pending = refreshing.get(token);
+    if (pending) return pending;
+    const run = this.loadUser(token)
+      .then((user) => {
+        if (user) {
+          if (cache.size >= MAX_CACHED_TOKENS) cache.delete(cache.keys().next().value as string);
+          cache.set(token, { at: Date.now(), user });
+        } else {
+          cache.delete(token);
+        }
+        return user;
+      })
+      .finally(() => refreshing.delete(token));
+    refreshing.set(token, run);
+    return run;
+  }
+
+  private async loadUser(token: string): Promise<UserCtx | null> {
     if (token.startsWith("dev:") && allowDevAuthBypass()) {
       const email = token.slice(4).toLowerCase();
-      const user = await this.ensureUser({
+      return this.ensureUser({
         firebaseUid: `dev:${email}`,
         email,
         fullName: email.split("@")[0],
       });
-      if (user) cache.set(token, { at: Date.now(), user });
-      return user;
     }
 
     const session = parseSessionToken(token);
     if (session) {
-      const user = await this.ensureUser({
+      return this.ensureUser({
         firebaseUid: session.uid,
         email: session.email,
       });
-      if (user) cache.set(token, { at: Date.now(), user });
-      return user;
     }
 
     const decoded = await this.verifyFirebase(token);
     if (!decoded?.uid || !decoded.email) return null;
-    const user = await this.ensureUser({
+    return this.ensureUser({
       firebaseUid: decoded.uid,
       email: decoded.email,
       phone: decoded.phone,
       fullName: decoded.name,
     });
-    if (user) cache.set(token, { at: Date.now(), user });
-    return user;
   }
 
   private async ensureUser(input: {

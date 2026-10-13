@@ -71,9 +71,6 @@ export default function Search() {
   const [citiesLoading, setCitiesLoading] = useState(() => cachedCities().length === 0);
   const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
-  const [showResults, setShowResults] = useState(
-    () => searchParams.get("go") === "1"
-  );
   const [maxRentalDays, setMaxRentalDays] = useState(30);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [locMsg, setLocMsg] = useState("");
@@ -83,6 +80,7 @@ export default function Search() {
   const cityTouched = useRef(false);
   const presetPlace = useRef(searchParams.get("pickupPlace") || "");
   const resultsRef = useRef(null);
+  const searchSeq = useRef(0);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualBusy, setManualBusy] = useState(false);
   const [manualMsg, setManualMsg] = useState("");
@@ -92,10 +90,6 @@ export default function Search() {
     () => parseFleetFilters(searchParams),
     [searchParams]
   );
-
-  useEffect(() => {
-    if (searchParams.get("go") === "1") setShowResults(true);
-  }, [searchParams]);
 
   const dateError = useMemo(
     () => validateDateRange(filters.from, filters.to, maxRentalDays),
@@ -154,10 +148,12 @@ export default function Search() {
   ].join("|");
 
   const runSearch = useCallback(
-    async (activeFilters) => {
-      if (!activeFilters.cityId) return;
-      if (validateDateRange(activeFilters.from, activeFilters.to, maxRentalDays)) return;
+    async (requested) => {
+      const activeFilters = validateDateRange(requested.from, requested.to, maxRentalDays)
+        ? { ...requested, from: "", to: "" }
+        : requested;
 
+      const requestId = ++searchSeq.current;
       const path = `/v1/public/search?${buildApiSearchParams(activeFilters)}`;
       const cached = peekApi(path);
       if (cached) {
@@ -170,14 +166,16 @@ export default function Search() {
       setError("");
       try {
         const rows = await api(path);
+        if (requestId !== searchSeq.current) return;
         setCars(Array.isArray(rows) ? rows : []);
         setSearched(true);
       } catch (err) {
+        if (requestId !== searchSeq.current) return;
         setCars([]);
         setSearched(true);
         setError(err.message || "Could not load cars. Please try again.");
       } finally {
-        setLoading(false);
+        if (requestId === searchSeq.current) setLoading(false);
       }
     },
     [maxRentalDays]
@@ -241,10 +239,10 @@ export default function Search() {
   }, []);
 
   useEffect(() => {
-    if (!showResults || !filters.cityId || dateError || cityMismatch) return undefined;
     const timer = setTimeout(() => runSearch(filters), 280);
     return () => clearTimeout(timer);
-  }, [apiFetchKey, dateError, cityMismatch, runSearch, filters, showResults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiFetchKey, runSearch]);
 
   useEffect(() => {
     if (!filtersOpen) return undefined;
@@ -267,16 +265,12 @@ export default function Search() {
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!filters.cityId || dateError || cityMismatch) return;
     const place = pickupPlace.trim();
     const nextFilters = {
       ...filters,
       ...(place ? { pickupPlace: place } : {}),
     };
-    const params = filtersToSearchParams(nextFilters);
-    params.set("go", "1");
-    setSearchParams(params, { replace: true });
-    setShowResults(true);
+    setSearchParams(filtersToSearchParams(nextFilters), { replace: true });
     runSearch(nextFilters);
     window.requestAnimationFrame(() => revealResults());
   }
@@ -542,7 +536,7 @@ export default function Search() {
                 }}
                 disabled={citiesLoading}
               >
-                {!filters.cityId && <option value="">Select city</option>}
+                <option value="">All cities</option>
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -593,18 +587,12 @@ export default function Search() {
           <button
             type="submit"
             className="fleet-search-submit"
-            disabled={!filters.cityId || Boolean(dateError) || Boolean(cityMismatch)}
+            disabled={loading}
           >
             {loading ? "Searching…" : "Search"}
             {!loading && <FontAwesomeIcon icon={faArrowRight} />}
           </button>
         </form>
-
-        {!showResults ? (
-          <p className="fleet-search-prompt">
-            Fill in your trip details and tap <strong>Search</strong> to see available cars.
-          </p>
-        ) : null}
 
         {(dateError || cityMismatch) && (
           <p className="fleet-search-validation" role="alert">
@@ -612,7 +600,6 @@ export default function Search() {
           </p>
         )}
 
-        {showResults ? (
         <div className="fleet-search-layout">
           <aside className="fleet-search-sidebar fleet-search-sidebar--desktop">
             {renderFilterPanel("")}
@@ -721,7 +708,9 @@ export default function Search() {
                 {sortedCars.map((car) => {
                   const available = car.available !== false;
                   const img = primaryImageUrl(car);
-                  const category = car.type || "";
+                  const category = [car.type, !filters.cityId ? car.city?.name : ""]
+                    .filter(Boolean)
+                    .join(" · ");
 
                   const cardInner = (
                     <>
@@ -844,7 +833,6 @@ export default function Search() {
             )}
           </div>
         </div>
-        ) : null}
 
         <div className="fleet-search-extras">
           <button

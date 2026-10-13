@@ -93,6 +93,13 @@
   z-index: 2;
 }
 
+@media (min-width: 981px) and (min-height: 700px) {
+  .fleet-aside {
+    position: sticky;
+    top: calc(var(--dd-chrome-h, 9.6rem) + 1.6rem);
+  }
+}
+
 .fleet-qs {
   background: var(--navy);
   color: #fff;
@@ -551,26 +558,6 @@
 .fleet-row-buy button:disabled {
   background: #9aa3b4;
   cursor: not-allowed;
-}
-
-.fleet-pages {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 8px;
-  color: #6d7689;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.fleet-pages button {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: #fff;
-  cursor: pointer;
 }
 
 .fleet-loading {

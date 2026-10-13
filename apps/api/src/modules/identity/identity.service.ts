@@ -28,6 +28,7 @@ import { resolveAuthTestOtp } from "../../lib/otp-response";
 const BOOTSTRAP_ADMIN_EMAIL = (process.env.ADMIN_BOOTSTRAP_EMAIL || "admin@dreamdrive.test").toLowerCase();
 const BOOTSTRAP_ADMIN_PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD || "admin@123";
 
+const HOLD_MINUTES = Number(process.env.HOLD_MINUTES ?? 15);
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_WINDOW_MS = 15 * 60 * 1000;
 const OTP_MAX_SEND = 3;
@@ -318,7 +319,7 @@ export class IdentityService {
   }
 
   private async dashboardUncached(userId: string) {
-    const [profile, bookings, kyc, agreements, invoices, tickets, wallet, subscriptions, modelRows] = await Promise.all([
+    const [profile, bookings, kyc, agreements, invoices, tickets, wallet, subscriptions, modelRows, paidRows] = await Promise.all([
       this.me(userId),
       prisma.booking.findMany({
         where: { userId },
@@ -331,7 +332,9 @@ export class IdentityService {
           startsAt: true,
           endsAt: true,
           amountPaise: true,
+          tokenPaise: true,
           status: true,
+          createdAt: true,
         },
       }),
       prisma.kycCase.findMany({
@@ -342,7 +345,7 @@ export class IdentityService {
       }),
       prisma.agreement.findMany({
         where: { booking: { userId } },
-        select: { id: true, status: true },
+        select: { id: true, status: true, booking: { select: { publicId: true } } },
         orderBy: { id: "desc" },
         take: 10,
       }),
@@ -354,7 +357,7 @@ export class IdentityService {
       }),
       prisma.ticket.findMany({
         where: { userId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, subject: true },
         orderBy: { id: "desc" },
         take: 10,
       }),
@@ -365,19 +368,32 @@ export class IdentityService {
         orderBy: { createdAt: "desc" },
         take: 10,
       }),
-      prisma.carModel.findMany({
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          images: { select: { url: true }, take: 1, orderBy: { sortOrder: "asc" } },
-        },
+      remember("dd:car:__dashboard_models", 600, () =>
+        prisma.carModel.findMany({
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            images: { select: { url: true }, take: 1, orderBy: { sortOrder: "asc" } },
+          },
+        })
+      ),
+      prisma.payment.groupBy({
+        by: ["bookingId"],
+        where: { status: "SUCCESS", kind: { in: ["TOKEN", "BALANCE", "WALLET"] }, booking: { userId } },
+        _sum: { amountPaise: true },
       }),
     ]);
     const models = new Map(modelRows.map((m) => [m.id, m]));
+    const paid = new Map(paidRows.map((p) => [p.bookingId, p._sum.amountPaise ?? 0]));
     return {
       profile,
-      bookings: bookings.map((b) => ({ ...b, carModel: models.get(b.carModelId) ?? null })),
+      bookings: bookings.map((b) => ({
+        ...b,
+        paidPaise: paid.get(b.id) ?? 0,
+        holdExpiresAt: new Date(b.createdAt.getTime() + HOLD_MINUTES * 60_000),
+        carModel: models.get(b.carModelId) ?? null,
+      })),
       subscriptions,
       documents: { kycStatus: profile.kycStatus, kyc, agreements },
       invoices,

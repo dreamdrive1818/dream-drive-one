@@ -1,4 +1,5 @@
 import {
+  cacheGeneration,
   cacheKey,
   clearGets,
   getInflight,
@@ -18,11 +19,9 @@ export function getToken() {
 }
 
 export function setToken(token) {
+  if ((token || "") !== getToken()) clearGets();
   if (token) localStorage.setItem("dd_token", token);
-  else {
-    localStorage.removeItem("dd_token");
-    clearGets();
-  }
+  else localStorage.removeItem("dd_token");
 }
 
 function sleep(ms) {
@@ -50,6 +49,22 @@ export function seedApi(path, data) {
   setGet(requestKey(path), data);
 }
 
+/** GET that waits for the network when the cached copy is stale (api() would return it as-is). */
+export function apiFresh(path) {
+  const key = requestKey(path);
+  const cached = peekGet(key);
+  if (cached !== undefined && isFresh(key, ttlForPath(path))) return Promise.resolve(cached);
+  const pending = getInflight(key);
+  if (pending) return pending;
+  const gen = cacheGeneration();
+  const request = runFetch(path, {}, undefined, "GET").then((data) => {
+    setGet(key, data, gen);
+    return data;
+  });
+  setInflight(key, request);
+  return request;
+}
+
 export function prefetch(paths) {
   void Promise.all(paths.map((path) => api(path).catch(() => undefined)));
 }
@@ -60,6 +75,7 @@ export async function api(path, options = {}) {
   const useCache = cacheMode !== false && method === "GET";
   const key = requestKey(path);
   const ttl = ttlForPath(path);
+  const gen = cacheGeneration();
 
   if (useCache) {
     const cached = peekGet(key);
@@ -68,7 +84,7 @@ export async function api(path, options = {}) {
     if (cached !== undefined) {
       if (!pending) {
         const refresh = runFetch(path, rest, retriesOpt, method).then((data) => {
-          setGet(key, data);
+          setGet(key, data, gen);
           return data;
         });
         setInflight(key, refresh);
@@ -82,7 +98,7 @@ export async function api(path, options = {}) {
   if (useCache) setInflight(key, request);
   try {
     const data = await request;
-    if (useCache) setGet(key, data);
+    if (useCache) setGet(key, data, gen);
     else invalidateByPath(path);
     return data;
   } catch (err) {

@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { api, getToken, peekApi, prefetch, seedApi, setToken } from "./api";
+import { api, apiFresh, getToken, peekApi, prefetch, seedApi, setToken } from "./api";
 import { isLocalDev } from "./authUtils";
 
 const AuthContext = createContext(null);
@@ -61,9 +61,13 @@ export function AuthProvider({ children }) {
     if (cached) {
       setUser(cached);
       setReady(true);
-      void api("/v1/me")
+      void apiFresh("/v1/me")
         .then((me) => setUser(me))
-        .catch(() => undefined);
+        .catch((err) => {
+          if (err?.status !== 401) return;
+          setUser(null);
+          setToken("");
+        });
       return cached;
     }
     try {
