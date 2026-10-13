@@ -12,6 +12,7 @@ export type AuthSettings = {
   facebook: boolean;
   otpCreatesAccount: boolean;
   socialCreatesAccount: boolean;
+  phoneOtp: boolean;
 };
 
 export const AUTH_SETTINGS_CACHE_KEY = "dd:auth-settings";
@@ -62,6 +63,12 @@ export const AUTH_SETTING_DEFAULTS: Record<
     value: "true",
     hint: "On: first social login creates the customer. Off: social is login-only.",
   },
+  "auth.phoneOtp": {
+    label: "Verify mobile number with OTP",
+    group: "auth",
+    value: "false",
+    hint: "On: changing a mobile number needs the code emailed to the customer. Off: the number saves immediately.",
+  },
 };
 
 const DEFAULTS: AuthSettings = {
@@ -72,6 +79,7 @@ const DEFAULTS: AuthSettings = {
   facebook: false,
   otpCreatesAccount: true,
   socialCreatesAccount: true,
+  phoneOtp: false,
 };
 
 function isOn(value: string | undefined, fallback: boolean) {
@@ -97,6 +105,7 @@ export async function getAuthSettings(): Promise<AuthSettings> {
         map["auth.socialCreatesAccount"],
         DEFAULTS.socialCreatesAccount
       ),
+      phoneOtp: isOn(map["auth.phoneOtp"], DEFAULTS.phoneOtp),
     };
   });
 }

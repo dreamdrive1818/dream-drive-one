@@ -83,6 +83,16 @@ const AUTH_OTHER_FIELDS = [
   },
 ];
 
+const AUTH_PHONE_FIELDS = [
+  {
+    key: "auth.phoneOtp",
+    label: "Verify mobile number with OTP",
+    want: "off",
+    hint: "On: changing a mobile number needs the code emailed to the customer. Off: the number saves immediately.",
+    defaultOn: false,
+  },
+];
+
 function isSettingOn(value, fallback) {
   if (value == null || value === "") return fallback;
   return value === "true" || value === "1" || value === "on";
@@ -309,6 +319,15 @@ export default function CmsPage() {
             </p>
             <div className="auth-toggle-list">
               {AUTH_OTHER_FIELDS.map((field) => (
+                <AuthToggle key={field.key} field={field} />
+              ))}
+            </div>
+            <h3 style={{ marginTop: 22 }}>Mobile number</h3>
+            <p className="muted">
+              Applies when a customer adds or changes their mobile number in their account.
+            </p>
+            <div className="auth-toggle-list">
+              {AUTH_PHONE_FIELDS.map((field) => (
                 <AuthToggle key={field.key} field={field} />
               ))}
             </div>

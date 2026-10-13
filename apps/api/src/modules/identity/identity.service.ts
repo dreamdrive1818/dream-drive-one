@@ -181,7 +181,11 @@ export class IdentityService {
     if (user.status === UserStatus.DISABLED && !opts.allowDisabled) {
       throw new UnauthorizedException("Account disabled");
     }
-    return this.present(user);
+    const presented = this.present(user);
+    if (presented.pendingPhone && !(await getAuthSettings()).phoneOtp) {
+      return { ...presented, pendingPhone: null };
+    }
+    return presented;
   }
 
   async patchMe(
@@ -212,7 +216,10 @@ export class IdentityService {
     }
 
     let otpCode: string | undefined;
-    let pendingPhone: string | null = pendingPhones.get(userId) ?? current.profile?.pendingPhone ?? null;
+    const { phoneOtp } = await getAuthSettings();
+    let pendingPhone: string | null = phoneOtp
+      ? pendingPhones.get(userId) ?? current.profile?.pendingPhone ?? null
+      : null;
     if (body.phone != null && body.phone !== "") {
       const phone = normalizePhone(body.phone);
       if (phone !== current.phone) {
@@ -220,11 +227,19 @@ export class IdentityService {
           where: { phone, NOT: { id: userId } },
         });
         if (taken) throw new BadRequestException("Phone already in use");
-        if (opts.adminOverride) {
+        if (opts.adminOverride || !phoneOtp) {
           await prisma.user.update({ where: { id: userId }, data: { phone } });
           pendingPhones.delete(userId);
           await prisma.customerProfile.updateMany({ where: { userId }, data: { pendingPhone: null } });
           pendingPhone = null;
+          if (!opts.adminOverride) {
+            await this.audit({
+              actorId: userId,
+              action: "profile.phone",
+              entityId: userId,
+              payload: { phone, verified: false },
+            });
+          }
         } else {
           pendingPhones.set(userId, phone);
           await prisma.customerProfile.upsert({
@@ -232,7 +247,7 @@ export class IdentityService {
             create: { userId, fullName: current.profile?.fullName || current.email, pendingPhone: phone },
             update: { pendingPhone: phone },
           });
-          otpCode = await this.issueOtp(current.email);
+          otpCode = await this.issueCode(current.email);
           pendingPhone = phone;
         }
       }
@@ -546,6 +561,11 @@ export class IdentityService {
       throw new BadRequestException("Valid email required");
     }
     await assertCanCreateViaOtp(email);
+    return this.issueCode(email);
+  }
+
+  private async issueCode(emailRaw: string) {
+    const email = emailRaw.toLowerCase().trim();
     const now = new Date();
     const existing = await this.loadOtp(email);
     let windowStart = existing ? new Date(existing.windowStart) : now;
