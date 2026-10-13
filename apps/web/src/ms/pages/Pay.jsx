@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import { api } from "../api";
@@ -70,6 +70,31 @@ function DummyPayment({ amountPaise, stage }) {
   );
 }
 
+const PAYABLE_STATUSES = ["HOLD", "AWAITING_PAYMENT"];
+
+/** Mirrors the API's phone rules so we never post a number it will reject. */
+function normalizePhone(raw) {
+  let phone = String(raw || "").replace(/\D/g, "");
+  if (phone.length === 12 && phone.startsWith("91")) phone = phone.slice(2);
+  if (phone.length === 11 && phone.startsWith("0")) phone = phone.slice(1);
+  return /^[6-9]\d{9}$/.test(phone) ? phone : "";
+}
+
+/** Mirrors the API's date-of-birth rules (YYYY-MM-DD, age 18–100). */
+function dateOfBirthError(value) {
+  const raw = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "Enter a valid date of birth.";
+  const dob = new Date(`${raw}T00:00:00.000Z`);
+  if (Number.isNaN(dob.getTime())) return "Enter a valid date of birth.";
+  const now = new Date();
+  let age = now.getUTCFullYear() - dob.getUTCFullYear();
+  const month = now.getUTCMonth() - dob.getUTCMonth();
+  if (month < 0 || (month === 0 && now.getUTCDate() < dob.getUTCDate())) age -= 1;
+  if (age < 18) return "You must be at least 18 years old.";
+  if (age > 100) return "Enter a valid date of birth.";
+  return "";
+}
+
 function nextAfterToken(booking) {
   if (booking.rentalType === "SELF_DRIVE") {
     return `/account/kyc?booking=${encodeURIComponent(booking.publicId || booking.id)}`;
@@ -95,6 +120,9 @@ export default function Pay() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [terms, setTerms] = useState(null);
   const [dummy, setDummy] = useState(null);
+  const [paymentsMock, setPaymentsMock] = useState(false);
+  const payingRef = useRef(false);
+  const nameLocked = Boolean(user?.nameLocked);
 
   useEffect(() => {
     if (!ready) return;
@@ -115,7 +143,7 @@ export default function Pay() {
           setLoadError("This booking was cancelled. Start a new quote from the fleet.");
           return;
         }
-        if (row.status && !["HOLD", "AWAITING_PAYMENT"].includes(row.status)) {
+        if (row.status && !PAYABLE_STATUSES.includes(row.status)) {
           navigate(nextAfterToken(row), { replace: true });
         }
       })
@@ -123,6 +151,9 @@ export default function Pay() {
     api("/v1/public/pages/terms")
       .then(setTerms)
       .catch(() => setTerms(null));
+    api("/v1/public/config")
+      .then((cfg) => setPaymentsMock(Boolean(cfg?.paymentsMock)))
+      .catch(() => undefined);
   }, [ready, user, bookingId, navigate]);
 
   useEffect(() => {
@@ -182,16 +213,19 @@ export default function Pay() {
   }
 
   async function pay() {
-    if (!booking) return;
-    if (!fullName.trim() || fullName.trim().length < 2) {
+    if (!booking || payingRef.current) return;
+    const name = (nameLocked ? user?.fullName || fullName : fullName).trim().replace(/\s+/g, " ");
+    if (name.length < 2) {
       setError("Enter your full name.");
       return;
     }
-    if (!dateOfBirth) {
-      setError("Enter your date of birth.");
+    const dobError = dateOfBirthError(dateOfBirth);
+    if (dobError) {
+      setError(dobError);
       return;
     }
-    if (!/^[6-9]\d{9}$/.test(phone.replace(/\D/g, "").replace(/^91/, "").replace(/^0/, ""))) {
+    const cleanPhone = normalizePhone(phone);
+    if (!cleanPhone) {
       setError("Enter a valid 10-digit mobile number.");
       return;
     }
@@ -199,28 +233,48 @@ export default function Pay() {
       setError("Accept the terms and conditions to pay the token.");
       return;
     }
+    if (!user?.email) {
+      setError("Your account has no email. Sign in again and retry.");
+      return;
+    }
+    payingRef.current = true;
     setBusy(true);
     setError("");
     try {
-      await api(`/v1/bookings/${booking.id}/essentials`, {
+      const latest = await api(`/v1/bookings/${booking.id}`, { cache: false });
+      setBooking(latest);
+      if (latest.status === "CANCELLED" || latest.status === "NO_SHOW") {
+        setLoadError("This booking was cancelled. Start a new quote from the fleet.");
+        return;
+      }
+      if (!PAYABLE_STATUSES.includes(latest.status)) {
+        navigate(nextAfterToken(latest), { replace: true });
+        return;
+      }
+      await api(`/v1/bookings/${latest.id}/essentials`, {
         method: "POST",
         body: {
-          fullName: fullName.trim(),
+          fullName: name,
           dateOfBirth,
-          phone,
-          email: user?.email || "",
+          phone: cleanPhone,
+          email: user.email,
           termsAccepted: true,
         },
       });
-      const due = tokenDuePaise(booking.tokenPaise, booking.amountPaise);
+      const due = tokenDuePaise(latest.tokenPaise, latest.amountPaise);
+      if (due <= 0) {
+        navigate(nextAfterToken(latest));
+        return;
+      }
       const walletPaise =
         useWallet && wallet?.balancePaise > 0
           ? Math.min(wallet.balancePaise, due)
           : 0;
       const order = await api("/v1/payments/orders", {
         method: "POST",
-        body: { bookingId: booking.id, kind: "TOKEN", walletPaise },
+        body: { bookingId: latest.id, kind: "TOKEN", walletPaise },
       });
+      if (order.mock) setPaymentsMock(true);
       if (!order.paidInFull) {
         if (order.mock) {
           await runDummyPayment(order);
@@ -228,11 +282,21 @@ export default function Pay() {
           await openRazorpay(order);
         }
       }
-      navigate(nextAfterToken(booking));
+      navigate(nextAfterToken(latest));
     } catch (err) {
       setDummy(null);
-      setError(err.message);
+      if (err.status === 400 && /nothing to pay|no longer waiting/i.test(err.message || "")) {
+        navigate(nextAfterToken(booking), { replace: true });
+        return;
+      }
+      const message = err.message && !/^bad request$/i.test(err.message) ? err.message : "";
+      setError(
+        paymentsMock
+          ? `Mock payment did not go through${message ? `: ${message}` : ""}. No money was charged. Check your details and try again.`
+          : message || "Payment could not be completed. Try again."
+      );
     } finally {
+      payingRef.current = false;
       setBusy(false);
     }
   }
@@ -300,7 +364,14 @@ export default function Pay() {
               <div className="checkout-fields">
                 <label>
                   Full name
-                  <input value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" required />
+                  <input
+                    value={nameLocked ? user?.fullName || fullName : fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    readOnly={nameLocked}
+                    title={nameLocked ? "Name is locked to your approved KYC record" : undefined}
+                    autoComplete="name"
+                    required
+                  />
                 </label>
                 <label>
                   Date of birth
@@ -391,6 +462,12 @@ export default function Pay() {
                   ? "After the token you’ll upload your licence and ID."
                   : "The rest of the rental is collected before the trip."}
               </p>
+              {paymentsMock ? (
+                <p className="checkout-essentials-lead" role="note">
+                  <strong>Mock payment.</strong> Payments are in test mode. No money is charged; the
+                  token is marked paid and the booking moves on as usual.
+                </p>
+              ) : null}
               {error ? <p className="checkout-error" role="alert">{error}</p> : null}
               <button type="button" className="checkout-cta" onClick={pay} disabled={busy || !termsAccepted}>
                 {busy ? (
@@ -399,7 +476,7 @@ export default function Pay() {
                     Processing…
                   </span>
                 ) : (
-                  `Pay ${formatInr(Math.max(0, due - walletApplied))} token`
+                  `${paymentsMock ? "Mock pay" : "Pay"} ${formatInr(Math.max(0, due - walletApplied))} token`
                 )}
               </button>
               <Link to={`/account/bookings/${booking.id}`} className="checkout-secondary-link">
