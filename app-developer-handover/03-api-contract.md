@@ -511,6 +511,24 @@ Creates a `SUBSCRIPTION` quote+booking. Then pay with the normal payment APIs.
 
 ## 3.5 Payments
 
+Error bodies: `{ "statusCode": 400, "message": "Date of birth is required", "error": "Date of birth is required" }`. Show `message`.
+
+### `POST /v1/bookings/:id/essentials` 🔒
+
+**Call before a `TOKEN` order.** Saves the details the token checkout requires and records terms acceptance.
+
+```json
+{
+  "fullName": "Asha Rao",
+  "dateOfBirth": "1995-04-12",
+  "phone": "9876543210",
+  "email": "asha@example.com",
+  "termsAccepted": true
+}
+```
+
+`email` must match the signed-in account. Booking must be `HOLD` or `AWAITING_PAYMENT`. Returns the booking.
+
 ### `POST /v1/payments/orders` 🔒
 
 Request:

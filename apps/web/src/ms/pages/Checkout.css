@@ -961,3 +961,224 @@
     grid-template-columns: 1fr;
   }
 }
+
+.dummy-pay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: rgba(7, 24, 44, 0.55);
+  backdrop-filter: blur(4px);
+  animation: dummy-pay-fade 0.2s ease-out;
+}
+
+.dummy-pay-panel {
+  width: min(420px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 1.4rem;
+  padding: 2.8rem 2.4rem 2.4rem;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(7, 24, 44, 0.28);
+  animation: dummy-pay-pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.dummy-pay-badge {
+  padding: 0.4rem 1rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #b54708;
+  background: #fffaeb;
+  border: 1px solid #fedf89;
+  border-radius: 999px;
+}
+
+.dummy-pay-cardart {
+  position: relative;
+  width: 240px;
+  height: 148px;
+  padding: 1.8rem;
+  overflow: hidden;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ck-navy) 0%, var(--ck-teal) 100%);
+  box-shadow: 0 12px 28px rgba(0, 102, 109, 0.35);
+  animation: dummy-pay-tilt 2.4s ease-in-out infinite;
+}
+
+.dummy-pay-cardart::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.28) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: dummy-pay-shimmer 1.4s ease-in-out infinite;
+}
+
+.dummy-pay-cardart.is-done {
+  animation: none;
+}
+
+.dummy-pay-cardart.is-done::after {
+  display: none;
+}
+
+.dummy-pay-chip {
+  display: block;
+  width: 34px;
+  height: 26px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #f5d77a, #c99a2e);
+}
+
+.dummy-pay-number {
+  position: absolute;
+  left: 1.8rem;
+  bottom: 4.2rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dummy-pay-holder {
+  position: absolute;
+  left: 1.8rem;
+  bottom: 1.6rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.16em;
+  opacity: 0.8;
+}
+
+.dummy-pay-amount {
+  margin: 0;
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: var(--ck-navy);
+}
+
+.dummy-pay-status {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 3.2rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--ck-teal);
+}
+
+.dummy-pay-status.is-done {
+  color: #067647;
+}
+
+.dummy-pay-check {
+  width: 32px;
+  height: 32px;
+}
+
+.dummy-pay-check circle {
+  fill: #ecfdf3;
+  stroke: #12b76a;
+  stroke-width: 3;
+}
+
+.dummy-pay-check path {
+  fill: none;
+  stroke: #067647;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: dummy-pay-draw 0.45s 0.1s ease-out forwards;
+}
+
+.dummy-pay-steps {
+  width: 100%;
+  margin: 0;
+  padding: 1.2rem 0 0;
+  list-style: none;
+  display: grid;
+  gap: 0.7rem;
+  border-top: 1px solid var(--ck-border);
+}
+
+.dummy-pay-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.3rem;
+  color: var(--ck-muted);
+}
+
+.dummy-pay-steps li::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--ck-border);
+  transition: background 0.2s;
+}
+
+.dummy-pay-steps li.is-current {
+  color: var(--ck-navy);
+  font-weight: 700;
+}
+
+.dummy-pay-steps li.is-current::before {
+  background: var(--ck-teal);
+  box-shadow: 0 0 0 4px rgba(0, 124, 130, 0.18);
+  animation: dummy-pay-pulse 1s ease-in-out infinite;
+}
+
+.dummy-pay-steps li.is-done {
+  color: #067647;
+}
+
+.dummy-pay-steps li.is-done::before {
+  background: #12b76a;
+}
+
+@keyframes dummy-pay-fade {
+  from { opacity: 0; }
+}
+
+@keyframes dummy-pay-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+}
+
+@keyframes dummy-pay-tilt {
+  0%, 100% { transform: rotate(-2deg) translateY(0); }
+  50% { transform: rotate(2deg) translateY(-4px); }
+}
+
+@keyframes dummy-pay-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@keyframes dummy-pay-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes dummy-pay-pulse {
+  50% { box-shadow: 0 0 0 7px rgba(0, 124, 130, 0.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dummy-pay,
+  .dummy-pay-panel,
+  .dummy-pay-cardart,
+  .dummy-pay-cardart::after,
+  .dummy-pay-steps li.is-current::before {
+    animation: none;
+  }
+
+  .dummy-pay-check path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
