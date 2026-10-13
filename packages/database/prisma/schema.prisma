@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -737,6 +738,7 @@ model Booking {
   @@index([carModelId, status])
   @@index([vehicleId, status, startsAt])
   @@index([status, startsAt, endsAt])
+  @@index([userId, createdAt])
 }
 
 model BookingStatusHistory {
@@ -809,6 +811,8 @@ model Payment {
   booking         Booking       @relation(fields: [bookingId], references: [id])
   attempts        PaymentAttempt[]
   refunds         Refund[]
+
+  @@index([bookingId, status])
 }
 
 model PaymentAttempt {
@@ -849,6 +853,7 @@ model Invoice {
   lines         InvoiceLine[]
 
   @@index([createdAt])
+  @@index([bookingId])
 }
 
 model InvoiceLine {
@@ -930,6 +935,8 @@ model KycCase {
   booking      Booking?  @relation(fields: [bookingId], references: [id])
   documents    KycDocument[]
   zoho         ZohoSubmission?
+
+  @@index([userId])
 }
 
 model KycDocument {
@@ -988,6 +995,8 @@ model Agreement {
   artifacts      SignedArtifact[]
   supersededBy   Agreement?       @relation("AgreementReissue", fields: [supersededById], references: [id])
   predecessors   Agreement[]      @relation("AgreementReissue")
+
+  @@index([bookingId])
 }
 
 model SignatureEnvelope {
@@ -1327,6 +1336,7 @@ model Ticket {
 
   @@index([status, slaDueAt])
   @@index([assignedToId])
+  @@index([userId])
 }
 
 model TicketMessage {

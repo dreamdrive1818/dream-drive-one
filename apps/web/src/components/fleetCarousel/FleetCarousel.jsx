@@ -198,7 +198,6 @@ const FleetCarousel = () => {
   const [loading, setLoading] = useState(true);
   const [activeType, setActiveType] = useState("Hatchback");
   const [brokenImages, setBrokenImages] = useState(() => new Set());
-  const [currentPage, setCurrentPage] = useState(0);
 
   const cachedCityRows = Array.isArray(peekApi("/v1/public/cities")) ? peekApi("/v1/public/cities") : [];
   const [cities, setCities] = useState(cachedCityRows);
@@ -207,13 +206,10 @@ const FleetCarousel = () => {
     return ranchi?.id || cachedCityRows[0]?.id || "";
   });
   const [vehicleClass, setVehicleClass] = useState("Hatchback");
-  const dateDefaults = defaultSearchDates();
-  const [fromDate, setFromDate] = useState(dateDefaults.fromDate);
-  const [toDate, setToDate] = useState(dateDefaults.toDate);
+  const [fromDate, setFromDate] = useState(() => defaultSearchDates().fromDate);
+  const [toDate, setToDate] = useState(() => defaultSearchDates().toDate);
   const [searchError, setSearchError] = useState("");
   const todayMin = localDateYmd(0);
-
-  const itemsPerPage = 3;
 
   const formatPrice = (value) => {
     if (value === null || value === undefined || value === "") return null;
@@ -294,16 +290,6 @@ const FleetCarousel = () => {
     return filteredCars.length > 0 ? filteredCars : cars;
   }, [filteredCars, cars]);
 
-  const totalPages = Math.max(1, Math.ceil(displayCars.length / itemsPerPage));
-
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [activeType]);
-
-  useEffect(() => {
-    setCurrentPage((prev) => Math.min(prev, totalPages - 1));
-  }, [totalPages]);
-
   useEffect(() => {
     if (loading || cars.length === 0) return;
     const hasActive = cars.some((car) => categoryMatchesCar(car, activeType));
@@ -316,15 +302,6 @@ const FleetCarousel = () => {
       setVehicleClass(first);
     }
   }, [cars, loading, activeType]);
-
-  const pageCars = useMemo(
-    () =>
-      displayCars.slice(
-        currentPage * itemsPerPage,
-        currentPage * itemsPerPage + itemsPerPage
-      ),
-    [displayCars, currentPage, itemsPerPage]
-  );
 
   const categoryImages = useMemo(() => {
     const map = {};
@@ -582,6 +559,7 @@ const FleetCarousel = () => {
                             <img
                               src={trimmedThumb(thumb)}
                               alt=""
+                              decoding="async"
                               onError={() => markImageBroken(thumb)}
                             />
                           ) : (
@@ -622,7 +600,7 @@ const FleetCarousel = () => {
                     Browse full fleet
                   </button>
                 </div>
-              ) : pageCars.length === 0 ? (
+              ) : displayCars.length === 0 ? (
                 <div className="fleet-empty">
                   <p>No {activeType.toLowerCase()} cars available right now.</p>
                   <button
@@ -635,11 +613,11 @@ const FleetCarousel = () => {
                 </div>
               ) : (
                 <div className="fleet-list">
-                  {pageCars.map((car, index) => {
+                  {displayCars.map((car, index) => {
                     const meta = getCarMeta(car);
                     return (
                       <motion.article
-                        key={`${car.id}-${currentPage}`}
+                        key={`${car.id}-${activeType}`}
                         className="fleet-row"
                         initial={
                           reduceMotion ? false : { opacity: 0, y: 12 }
@@ -647,7 +625,7 @@ const FleetCarousel = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{
                           duration: 0.35,
-                          delay: reduceMotion ? 0 : index * 0.06,
+                          delay: reduceMotion ? 0 : Math.min(index, 4) * 0.06,
                           ease: EASE,
                         }}
                       >
@@ -656,6 +634,8 @@ const FleetCarousel = () => {
                             <img
                               src={meta.imageUrl}
                               alt={car.name || "Vehicle"}
+                              loading={index < 3 ? "eager" : "lazy"}
+                              decoding="async"
                               onError={() => markImageBroken(meta.imageUrl)}
                             />
                           ) : (
@@ -729,34 +709,6 @@ const FleetCarousel = () => {
                       </motion.article>
                     );
                   })}
-
-                  {totalPages > 1 ? (
-                    <div className="fleet-pages">
-                      <button
-                        type="button"
-                        aria-label="Previous page"
-                        onClick={() =>
-                          setCurrentPage((p) =>
-                            p === 0 ? totalPages - 1 : p - 1
-                          )
-                        }
-                      >
-                        <FontAwesomeIcon icon={faChevronLeft} />
-                      </button>
-                      <span>
-                        {currentPage + 1}/{totalPages}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Next page"
-                        onClick={() =>
-                          setCurrentPage((p) => (p + 1) % totalPages)
-                        }
-                      >
-                        <FontAwesomeIcon icon={faChevronRight} />
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
               )}
             </div>

@@ -79,6 +79,17 @@ function signInWithGis() {
                 code: "auth/popup-blocked",
               })
             );
+            return;
+          }
+          if (
+            notification?.isDismissedMoment?.() &&
+            notification.getDismissedReason?.() !== "credential_returned"
+          ) {
+            finish(
+              Object.assign(new Error("Google sign-in was cancelled."), {
+                code: "auth/popup-closed-by-user",
+              })
+            );
           }
         });
       })

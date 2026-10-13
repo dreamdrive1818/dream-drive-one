@@ -30,9 +30,9 @@ export function sanitizeRedirect(raw) {
   return path;
 }
 
-/** Resolved post-login path: sanitized redirect or /account. */
+/** Resolved post-login path: sanitized redirect or /cars. */
 export function getPostLoginPath(rawRedirect) {
-  return sanitizeRedirect(rawRedirect) || "/account";
+  return sanitizeRedirect(rawRedirect) || "/cars";
 }
 
 /** Read ?redirect= from the current URL ( reliable at login completion time ). */

@@ -383,6 +383,97 @@ a.account-stat--link:focus-visible {
   background: #912018;
 }
 
+.account-pending-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
+}
+
+.account-pending-head h2 {
+  margin: 0;
+}
+
+.account-pending-list {
+  display: grid;
+  gap: 0.9rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.account-pending-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.2rem 1.4rem;
+  border: 1px solid #fedf89;
+  border-radius: 14px;
+  background: #fffbf3;
+}
+
+.account-pending-item.is-waiting {
+  border-color: rgba(14, 124, 134, 0.14);
+  background: #f8fbfb;
+}
+
+.account-pending-dot {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: #f79009;
+  box-shadow: 0 0 0 4px rgba(247, 144, 9, 0.16);
+}
+
+.account-pending-item.is-waiting .account-pending-dot {
+  background: #0e7c86;
+  box-shadow: 0 0 0 4px rgba(14, 124, 134, 0.14);
+}
+
+.account-pending-copy h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #0b1f2a;
+  overflow-wrap: anywhere;
+}
+
+.account-pending-copy p {
+  margin: 0;
+  font-size: 1.28rem;
+  line-height: 1.4;
+  color: #5f737c;
+}
+
+.account-pending-cta {
+  padding: 0.8rem 1.4rem;
+  font-size: 1.3rem;
+  white-space: nowrap;
+}
+
+.account-pending-item.is-waiting .account-pending-cta {
+  background: transparent;
+  color: #0a5f66;
+  border: 1px solid rgba(14, 124, 134, 0.28);
+}
+
+.account-pending-item.is-waiting .account-pending-cta:hover {
+  background: rgba(14, 124, 134, 0.06);
+}
+
+@media (max-width: 560px) {
+  .account-pending-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .account-pending-cta {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
 .account-msg {
   font-size: 1.35rem;
   border-radius: 12px;

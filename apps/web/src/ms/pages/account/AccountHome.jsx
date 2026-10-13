@@ -1,10 +1,219 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, peekApi } from "../../api";
+import { api, apiFresh, peekApi } from "../../api";
 import { useAuth } from "../../AuthContext";
-import { formatDay, prettyStatus, rupees, statusTone } from "./format";
+import { formatDay, formatWhen, prettyStatus, rupees, statusTone } from "./format";
+import { tokenDuePaise } from "../../fleetSearch";
+
+const BALANCE_STATUSES = new Set(["CONFIRMED", "HANDOVER", "ONGOING"]);
+
+function focusField(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.focus({ preventScroll: true });
+}
+
+function timeOf(value) {
+  const t = Date.parse(value);
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function buildPending(user, data) {
+  const items = [];
+  const now = Date.now();
+  const carName = (b) => b.carModel?.name || `Booking ${b.publicId}`;
+  const when = (b) => `${formatDay(b.startsAt)} → ${formatDay(b.endsAt)}`;
+  const kyc = user?.kycStatus;
+  const kycInReview = kyc === "SUBMITTED" || kyc === "UNDER_REVIEW";
+  let kycCovered = false;
+  const signBookings = new Set();
+
+  for (const b of data?.bookings || []) {
+    const starts = timeOf(b.startsAt);
+    const ends = timeOf(b.endsAt);
+    const paid = b.paidPaise || 0;
+
+    if (b.status === "HOLD" || b.status === "AWAITING_PAYMENT") {
+      const holdLive = paid > 0 || !b.holdExpiresAt || timeOf(b.holdExpiresAt) > now;
+      const tokenDue = Math.max(0, tokenDuePaise(b.tokenPaise, b.amountPaise) - paid);
+      if (holdLive && starts > now && tokenDue > 0) {
+        items.push({
+          key: `pay-${b.id}`,
+          title: `Pay to confirm ${carName(b)}`,
+          detail: `${when(b)} · Token ${rupees(tokenDue)}`,
+          to: `/checkout/pay?booking=${encodeURIComponent(b.publicId)}`,
+          cta: "Pay now",
+        });
+      }
+    } else if (b.status === "AWAITING_KYC" && ends > now && kyc !== "APPROVED") {
+      kycCovered = true;
+      items.push(
+        kycInReview
+          ? {
+              key: `kyc-${b.id}`,
+              waiting: true,
+              title: `KYC under review for ${carName(b)}`,
+              detail: `${when(b)} · The booking confirms once KYC is approved.`,
+              to: "/account/kyc",
+              cta: "View",
+            }
+          : {
+              key: `kyc-${b.id}`,
+              title: `Upload KYC for ${carName(b)}`,
+              detail: `${when(b)} · Needed before we can hand over the car`,
+              to: "/account/kyc",
+              cta: "Complete KYC",
+            }
+      );
+    } else if (b.status === "AWAITING_SIGNATURE" && ends > now) {
+      signBookings.add(b.publicId);
+      items.push({
+        key: `sign-${b.id}`,
+        title: `Sign the rental agreement for ${carName(b)}`,
+        detail: when(b),
+        to: "/account/agreements",
+        cta: "Sign",
+      });
+    } else if (b.status === "RETURN_PENDING") {
+      const overdue = ends > 0 && ends < now;
+      items.push({
+        key: `return-${b.id}`,
+        title: overdue ? `${carName(b)} return is overdue` : `Return ${carName(b)}`,
+        detail: `${overdue ? "Was due" : "Due"} ${formatWhen(b.endsAt)}`,
+        to: `/account/bookings/${b.publicId}`,
+        cta: "View",
+      });
+    }
+
+    const balance = (b.amountPaise || 0) - paid;
+    if (BALANCE_STATUSES.has(b.status) && ends > now && balance > 0) {
+      const beforeStart = b.status === "CONFIRMED";
+      items.push({
+        key: `balance-${b.id}`,
+        waiting: beforeStart,
+        title: `${rupees(balance)} balance for ${carName(b)}`,
+        detail: beforeStart
+          ? `Payable at handover on ${formatDay(b.startsAt)}`
+          : "Due now — settle it with our team",
+        to: `/account/bookings/${b.publicId}`,
+        cta: "View",
+      });
+    }
+  }
+
+  for (const a of data?.documents?.agreements || []) {
+    if (a.status !== "SENT" || signBookings.has(a.booking?.publicId)) continue;
+    items.push({
+      key: `agreement-${a.id}`,
+      title: "Agreement waiting for your signature",
+      detail: a.booking?.publicId ? `Booking ${a.booking.publicId}` : "",
+      to: "/account/agreements",
+      cta: "Sign",
+    });
+  }
+
+  if (!kycCovered) {
+    if (kyc === "NOT_STARTED" || !kyc) {
+      items.push({
+        key: "kyc",
+        title: "Complete your KYC",
+        detail: "Upload your driving licence and ID once — it is needed before your first trip.",
+        to: "/account/kyc",
+        cta: "Start KYC",
+      });
+    } else if (kyc === "REJECTED") {
+      items.push({
+        key: "kyc",
+        title: "KYC needs attention",
+        detail: "Some documents were not accepted. Re-upload them to continue.",
+        to: "/account/kyc",
+        cta: "Fix KYC",
+      });
+    } else if (kycInReview) {
+      items.push({
+        key: "kyc",
+        waiting: true,
+        title: "KYC under review",
+        detail: "Nothing to do — we will notify you once it is approved.",
+        to: "/account/kyc",
+        cta: "View",
+      });
+    }
+  }
+
+  if ((data?.subscriptions || []).some((s) => s.swapDueReason === "SERVICE")) {
+    items.push({
+      key: "swap",
+      waiting: true,
+      title: "Service swap due",
+      detail: "We will move you to another car of the same class — fleet ops will confirm the replacement.",
+      to: "/subscriptions",
+      cta: "View",
+    });
+  }
+
+  const subjects = (rows) =>
+    rows
+      .slice(0, 2)
+      .map((t) => t.subject)
+      .filter(Boolean)
+      .join(" · ");
+  const tickets = data?.tickets || [];
+  const replied = tickets.filter((t) => t.status === "PENDING");
+  const waitingOnUs = tickets.filter((t) => t.status === "OPEN");
+  if (replied.length) {
+    items.push({
+      key: "tickets-replied",
+      title: `Support replied on ${replied.length} ticket${replied.length === 1 ? "" : "s"}`,
+      detail: subjects(replied),
+      to: "/account/tickets",
+      cta: "Reply",
+    });
+  }
+  if (waitingOnUs.length) {
+    items.push({
+      key: "tickets-open",
+      waiting: true,
+      title: `${waitingOnUs.length} support ticket${waitingOnUs.length === 1 ? "" : "s"} with our team`,
+      detail: subjects(waitingOnUs),
+      to: "/account/tickets",
+      cta: "View",
+    });
+  }
+
+  if (user?.pendingPhone) {
+    items.push({
+      key: "phone-verify",
+      title: "Verify your new mobile number",
+      detail: `Enter the OTP sent to your email to confirm ${user.pendingPhone}.`,
+      focus: "otp",
+      cta: "Verify",
+    });
+  } else if (!user?.phone) {
+    items.push({
+      key: "phone",
+      title: "Add your mobile number",
+      detail: "We use it to coordinate pickup and handover.",
+      focus: "phone",
+      cta: "Add",
+    });
+  }
+
+  if (!(user?.addresses || []).length) {
+    items.push({
+      key: "address",
+      title: "Add your address",
+      detail: "Saves time at checkout and on invoices.",
+      focus: "line1",
+      cta: "Add",
+    });
+  }
+
+  return items;
+}
 
 export default function AccountHome() {
   const { user, refresh } = useAuth();
@@ -27,11 +236,19 @@ export default function AccountHome() {
   const [info, setInfo] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     const cached = peekApi("/v1/me/dashboard");
     if (cached) setData(cached);
-    api("/v1/me/dashboard")
-      .then(setData)
-      .catch((e) => setError(e.message));
+    apiFresh("/v1/me/dashboard")
+      .then((next) => {
+        if (!cancelled) setData(next);
+      })
+      .catch((e) => {
+        if (!cancelled && !cached) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -122,6 +339,8 @@ export default function AccountHome() {
   const bookings = data?.bookings || [];
   const invoices = data?.invoices || [];
   const tickets = data?.tickets || [];
+  const pending = useMemo(() => buildPending(user, data), [user, data]);
+  const actionCount = pending.filter((p) => !p.waiting).length;
 
   return (
     <>
@@ -134,11 +353,6 @@ export default function AccountHome() {
       </header>
       {error && <p className="account-msg err">{error}</p>}
       {info && <p className="account-msg ok">{info}</p>}
-      {(data?.subscriptions || []).some((s) => s.swapDueReason === "SERVICE") && (
-        <p className="account-msg warn">
-          Your car is due for a service swap. We will move you to another vehicle of the same class — fleet ops will confirm the replacement.
-        </p>
-      )}
 
       <div className="account-grid">
         <div className="account-stat">
@@ -168,6 +382,48 @@ export default function AccountHome() {
           <span>Open tickets</span>
           <strong>{tickets.filter((t) => t.status === "OPEN" || t.status === "PENDING").length}</strong>
         </div>
+      </div>
+
+      <div className="account-card account-pending" id="pending-items">
+        <div className="account-pending-head">
+          <h2>Pending items</h2>
+          {data && actionCount > 0 ? (
+            <span className="account-pill warn">{actionCount} to do</span>
+          ) : null}
+        </div>
+        {!data ? (
+          <p className="account-empty">Checking your account…</p>
+        ) : pending.length === 0 ? (
+          <p className="account-empty">You are all set — nothing pending right now.</p>
+        ) : (
+          <ul className="account-pending-list">
+            {pending.map((item) => (
+              <li
+                key={item.key}
+                className={`account-pending-item${item.waiting ? " is-waiting" : ""}`}
+              >
+                <span className="account-pending-dot" aria-hidden="true" />
+                <div className="account-pending-copy">
+                  <h3>{item.title}</h3>
+                  {item.detail ? <p>{item.detail}</p> : null}
+                </div>
+                {item.to ? (
+                  <Link className="account-btn account-pending-cta" to={item.to}>
+                    {item.cta}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className="account-btn account-pending-cta"
+                    onClick={() => focusField(item.focus)}
+                  >
+                    {item.cta}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="account-home-split">

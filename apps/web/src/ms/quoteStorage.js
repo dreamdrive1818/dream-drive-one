@@ -1,3 +1,5 @@
+import { primaryImageUrl } from "./fleetSearch";
+
 const PREFIX = "dd_quote_";
 
 /** Minimum quote fields for FE.W.05 checkout handoff (no secrets). */
@@ -16,6 +18,7 @@ export function buildQuoteHandoff(quote, car) {
     carName: car?.name ?? "",
     carSlug: car?.slug ?? "",
     cityName: car?.city?.name ?? "",
+    imageUrl: primaryImageUrl(car),
   };
 }
 
