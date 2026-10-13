@@ -459,6 +459,7 @@ export class CmsService {
       email:    map.email    || SETTING_DEFAULTS.email.value,
       address:  map.address  || SETTING_DEFAULTS.address.value,
       auth,
+      paymentsMock: !process.env.RAZORPAY_KEY_ID || process.env.PAYMENTS_MOCK === "true",
     };
   }
 
