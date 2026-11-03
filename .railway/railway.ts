@@ -95,9 +95,7 @@ const apiSecrets = [
   "PUBLIC_ADDRESS",
 ] as const;
 
-export default defineRailway((ctx) => {
-  const prod = ctx.environment === "production";
-
+export default defineRailway((_ctx) => {
   const apiWatch = watch("apps/api/**", "packages/**");
   const api = service("api", {
     source: source(),
@@ -118,7 +116,10 @@ export default defineRailway((ctx) => {
       SESSION_SECRET: preserve(),
       INTERNAL_TOKEN: preserve(),
       DEV_AUTH_BYPASS: "false",
-      PAYMENTS_MOCK: prod ? "false" : "true",
+      // Live Standard Checkout (same flow as local). Use Razorpay test keys on
+      // non-prod; keep PAYMENTS_MOCK=true in the Railway dashboard only if you
+      // need the dummy overlay again.
+      PAYMENTS_MOCK: "false",
       API_URL: apiPublic,
       API_PUBLIC_URL: apiPublic,
       SOCKET_URL: socketPublic,

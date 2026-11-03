@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { createHmac } from "crypto";
 import { PaymentKind } from "@prisma/client";
@@ -105,6 +107,10 @@ export class PaymentEngine {
       };
     }
 
+    if (due < 100) {
+      throw new BadRequestException("Amount must be at least 100 paise (₹1)");
+    }
+
     const payment = await prisma.payment.create({
       data: { bookingId: booking.id, kind, status: "CREATED", amountPaise: due },
     });
@@ -135,9 +141,19 @@ export class PaymentEngine {
       },
       body: JSON.stringify({ amount: due, currency: "INR", receipt: payment.id }),
     });
-    const order = (await res.json()) as { id?: string; error?: { description?: string } };
+    const order = (await res.json()) as {
+      id?: string;
+      error?: { description?: string; code?: string };
+    };
+    if (res.status === 401 || res.status === 403) {
+      throw new UnauthorizedException(
+        order.error?.description ?? "Razorpay authentication failed"
+      );
+    }
     if (!res.ok || !order.id) {
-      throw new BadRequestException(order.error?.description ?? "Razorpay order failed");
+      throw new InternalServerErrorException(
+        order.error?.description ?? "Razorpay order failed"
+      );
     }
     await prisma.payment.update({
       where: { id: payment.id },
@@ -163,6 +179,9 @@ export class PaymentEngine {
     razorpayPaymentId?: string;
     razorpaySignature?: string;
   }) {
+    if (!body?.paymentId) {
+      throw new BadRequestException("paymentId is required");
+    }
     const payment = await prisma.payment.findUnique({
       where: { id: body.paymentId },
       include: { booking: true },
@@ -178,6 +197,12 @@ export class PaymentEngine {
       );
     }
 
+    if (!body.razorpayOrderId || !body.razorpayPaymentId || !body.razorpaySignature) {
+      throw new BadRequestException(
+        "razorpayOrderId, razorpayPaymentId, and razorpaySignature are required"
+      );
+    }
+
     const secret = process.env.RAZORPAY_KEY_SECRET ?? "";
     const expected = createHmac("sha256", secret)
       .update(`${body.razorpayOrderId}|${body.razorpayPaymentId}`)
@@ -185,7 +210,7 @@ export class PaymentEngine {
     if (expected !== body.razorpaySignature) {
       throw new BadRequestException("Invalid signature");
     }
-    return this.markSuccess(payment.id, body.razorpayPaymentId ?? "", "verify");
+    return this.markSuccess(payment.id, body.razorpayPaymentId, "verify");
   }
 
   // ─── Webhook ────────────────────────────────────────
