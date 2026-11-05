@@ -1,9 +1,9 @@
 import {
+  BadGatewayException,
   BadRequestException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-  UnauthorizedException,
 } from "@nestjs/common";
 import { createHmac } from "crypto";
 import { PaymentKind } from "@prisma/client";
@@ -25,15 +25,21 @@ const GST_RATE = 0.18;
 @Injectable()
 export class PaymentEngine {
   mockMode() {
-    return !process.env.RAZORPAY_KEY_ID || process.env.PAYMENTS_MOCK === "true";
+    return !this.razorpayKey() || process.env.PAYMENTS_MOCK === "true";
   }
 
   // ─── Razorpay helpers ───────────────────────────────
 
+  private razorpayKey() {
+    return (process.env.RAZORPAY_KEY_ID || "").trim();
+  }
+
+  private razorpaySecret() {
+    return (process.env.RAZORPAY_KEY_SECRET || "").trim();
+  }
+
   private razorpayAuth() {
-    return Buffer.from(
-      `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`
-    ).toString("base64");
+    return Buffer.from(`${this.razorpayKey()}:${this.razorpaySecret()}`).toString("base64");
   }
 
   // ─── Create order ───────────────────────────────────
@@ -101,7 +107,7 @@ export class PaymentEngine {
         amountPaise: 0,
         walletPaise: appliedWallet,
         currency: "INR",
-        keyId: this.mockMode() ? "rzp_mock" : process.env.RAZORPAY_KEY_ID,
+        keyId: this.mockMode() ? "rzp_mock" : this.razorpayKey(),
         mock: true,
         paidInFull: true,
       };
@@ -146,8 +152,12 @@ export class PaymentEngine {
       error?: { description?: string; code?: string };
     };
     if (res.status === 401 || res.status === 403) {
-      throw new UnauthorizedException(
-        order.error?.description ?? "Razorpay authentication failed"
+      // Razorpay's own "Authentication failed" is a bad key pair, not the customer's session.
+      console.error(
+        `Razorpay order rejected (${res.status}): ${order.error?.description || order.error?.code || "no description"}`
+      );
+      throw new BadGatewayException(
+        "The payment gateway rejected this request. Nothing was charged. Try again in a moment."
       );
     }
     if (!res.ok || !order.id) {
@@ -165,7 +175,7 @@ export class PaymentEngine {
       amountPaise: due,
       walletPaise: appliedWallet,
       currency: "INR",
-      keyId: process.env.RAZORPAY_KEY_ID,
+      keyId: this.razorpayKey(),
       mock: false,
       paidInFull: false,
     };
@@ -203,7 +213,7 @@ export class PaymentEngine {
       );
     }
 
-    const secret = process.env.RAZORPAY_KEY_SECRET ?? "";
+    const secret = this.razorpaySecret();
     const expected = createHmac("sha256", secret)
       .update(`${body.razorpayOrderId}|${body.razorpayPaymentId}`)
       .digest("hex");

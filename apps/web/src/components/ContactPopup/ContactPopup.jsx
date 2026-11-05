@@ -26,19 +26,18 @@ const ContactPopup = () => {
   });
 
   useEffect(() => {
+    if (pathname.startsWith("/account") || pathname.startsWith("/checkout")) {
+      setVisible(false);
+      return undefined;
+    }
     const mobile = window.matchMedia(MOBILE_QUERY).matches;
     const delay = mobile ? MOBILE_DELAY_MS : DESKTOP_DELAY_MS;
     const timer = window.setTimeout(() => {
-      const stillMobile = window.matchMedia(MOBILE_QUERY).matches;
-      if (stillMobile && window.location.pathname.startsWith("/account")) return;
+      const path = window.location.pathname;
+      if (path.startsWith("/account") || path.startsWith("/checkout")) return;
       setVisible(true);
     }, delay);
     return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!window.matchMedia(MOBILE_QUERY).matches) return;
-    if (pathname.startsWith("/account")) setVisible(false);
   }, [pathname]);
 
   const handleChange = (e) => {

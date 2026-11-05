@@ -70,7 +70,8 @@ const KINDS = [
 ];
 
 function kindLabel(kind) {
-  return KINDS.find((item) => item.kind === kind)?.label || kind.replace(/_/g, " ");
+  const key = String(kind || "");
+  return KINDS.find((item) => item.kind === key)?.label || key.replace(/_/g, " ") || "Document";
 }
 
 function isPdf(mime, name = "", url = "") {
@@ -534,6 +535,109 @@ export default function AccountKyc() {
       )}
       {preview && <KycPreviewModal preview={preview} onClose={() => setPreview(null)} />}
     </>
+  );
+}
+
+function KycCaseReviewModal({ kycCase, onClose, onPreview }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (document.querySelectorAll(".kyc-preview-modal").length > 1) return;
+      onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  if (typeof document === "undefined" || !kycCase) return null;
+
+  const docs = Array.isArray(kycCase.documents) ? kycCase.documents : [];
+  const title = kycCase.booking?.publicId
+    ? `Booking ${kycCase.booking.publicId}`
+    : "Account KYC";
+
+  return createPortal(
+    <div
+      className="kyc-preview-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="kyc-case-review-title"
+    >
+      <button
+        type="button"
+        className="kyc-preview-backdrop"
+        aria-label="Close review"
+        onClick={onClose}
+      />
+      <div className="kyc-preview-panel kyc-case-review-panel">
+        <header className="kyc-preview-head">
+          <div>
+            <p className="kyc-preview-eyebrow">Submitted documents</p>
+            <h2 id="kyc-case-review-title">{title}</h2>
+          </div>
+          <button type="button" className="kyc-preview-close" onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </header>
+        <div className="kyc-case-review-meta">
+          <span className={`account-pill ${statusTone(kycCase.status)}`}>
+            {prettyStatus(kycCase.status)}
+          </span>
+          {kycCase.createdAt ? (
+            <span className="kyc-case-review-meta-item">{formatDay(kycCase.createdAt)}</span>
+          ) : null}
+          {kycCase.dlExpiresOn ? (
+            <span className="kyc-case-review-meta-item">
+              DL expires {formatDay(kycCase.dlExpiresOn)}
+            </span>
+          ) : null}
+          {kycCase.notes ? (
+            <span className="kyc-case-review-meta-item kyc-case-review-notes">{kycCase.notes}</span>
+          ) : null}
+        </div>
+        {docs.length === 0 ? (
+          <p className="account-hint" style={{ padding: "1.4rem 1.5rem" }}>
+            No files on this submission.
+          </p>
+        ) : (
+          <div className="kyc-case-review-grid">
+            {docs.map((doc) => {
+              const label = kindLabel(doc.kind);
+              const pdf = isPdf(doc.mimeType, "", doc.url || "");
+              const image = !pdf && isImage(doc.mimeType, "", doc.url || "");
+              const canOpen = Boolean(doc.url);
+              return (
+                <button
+                  key={doc.id || `${doc.kind}-${label}`}
+                  type="button"
+                  className="kyc-case-doc-card"
+                  disabled={!canOpen}
+                  onClick={() => canOpen && onPreview(doc)}
+                >
+                  {image ? (
+                    <img className="kyc-case-doc-thumb" src={doc.url} alt="" />
+                  ) : (
+                    <span className="kyc-case-doc-thumb kyc-case-doc-thumb--pdf">
+                      {pdf ? "PDF" : "FILE"}
+                    </span>
+                  )}
+                  <span className="kyc-case-doc-label">
+                    <strong>{label}</strong>
+                    <span>{canOpen ? "Tap to open" : prettyStatus(doc.status) || "Unavailable"}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
   );
 }
 

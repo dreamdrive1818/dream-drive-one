@@ -66,6 +66,11 @@ export class PaymentEngine {
       }),
     });
     const order = (await res.json()) as { id?: string; error?: { description?: string } };
+    if (res.status === 401 || res.status === 403) {
+      throw new BadRequestException(
+        "The payment gateway rejected this request. Nothing was charged. Try again in a moment."
+      );
+    }
     if (!res.ok || !order.id) {
       throw new BadRequestException(order.error?.description ?? "Razorpay order failed");
     }

@@ -55,7 +55,7 @@ const FLEET_ASSETS = {
   nexon:
     "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750168799/tata-nexon-right-front-three-quarter2-removebg-preview_lad5vy_gfkhzv.png",
   jeep:
-    "https://res.cloudinary.com/dcrfks1tq/image/upload/v1750163087/jeep_smrjsp.png",
+    "https://res.cloudinary.com/df10iqj1i/image/upload/v1783871169/dreamdrive/cars/futlvrluoqcbsczgphhf.webp",
   brezza:
     "https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/maruti-suzuki-vitara-brezza-ldi-diesel-pearl-arctic-white-82811366-6pbqe-removebg-preview_pgoccl.png",
   sedan:
@@ -124,6 +124,9 @@ function sortFleetCars(list) {
     return ((sale - price) / sale) * 100;
   };
   return [...list].sort((a, b) => {
+    const aUnavailable = a.available === "Unavailable" || a.available === false;
+    const bUnavailable = b.available === "Unavailable" || b.available === false;
+    if (aUnavailable !== bUnavailable) return aUnavailable ? 1 : -1;
     const aDisc = isDiscountedCar(a);
     const bDisc = isDiscountedCar(b);
     if (aDisc !== bDisc) return aDisc ? -1 : 1;

@@ -39,9 +39,15 @@ body.monsoon-sale .dd-chrome .dd-header {
   padding: 1.2rem 1.8rem;
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.6rem;
   min-width: 0;
   width: 100%;
+  flex-wrap: nowrap;
+}
+
+.dd-header-inner--app {
+  gap: 1.2rem;
+  padding: 0.85rem 1.8rem;
 }
 
 .dd-header-logo {
@@ -56,10 +62,15 @@ body.monsoon-sale .dd-chrome .dd-header {
 
 .dd-header-logo img {
   display: block;
-  height: 72px;
-  max-width: 240px;
+  height: 64px;
+  max-width: 210px;
   width: auto;
   object-fit: contain;
+}
+
+.dd-header--app .dd-header-logo img {
+  height: 48px;
+  max-width: 168px;
 }
 
 .dd-header-nav {
@@ -68,8 +79,39 @@ body.monsoon-sale .dd-chrome .dd-header {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem 2rem;
-  flex-wrap: wrap;
+  gap: 0.15rem 0.35rem;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.dd-header-app-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.dd-header-app-kicker {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7a8b93;
+}
+
+.dd-header-app-title {
+  margin: 0;
+  font-family: var(--font-family-display, Georgia, "Times New Roman", serif);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0b1f2a;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dd-header-link,
@@ -77,13 +119,15 @@ body.monsoon-sale .dd-chrome .dd-header {
   border: 0;
   background: transparent;
   font-family: inherit;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 600;
   color: #334155;
   cursor: pointer;
-  padding: 0.6rem 0.8rem;
+  padding: 0.5rem 0.65rem;
   border-radius: var(--radius-sm);
   transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .dd-header-link:hover,
@@ -95,8 +139,16 @@ body.monsoon-sale .dd-chrome .dd-header {
 .dd-header-actions {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: 0.8rem;
   flex-shrink: 0;
+}
+
+.dd-header-actions--app {
+  gap: 0.6rem;
+}
+
+.dd-header-browse {
+  color: #0a5f66;
 }
 
 .dd-header-signin {
@@ -187,16 +239,18 @@ body.monsoon-sale .dd-chrome .dd-header {
 .dd-header-wa {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.8rem 1.6rem;
+  gap: 0.5rem;
+  padding: 0.7rem 1.25rem;
   border-radius: var(--radius-full);
   background: #25d366;
   color: #ffffff;
   text-decoration: none;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25);
   transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .dd-header-wa:hover {
@@ -436,22 +490,35 @@ body.monsoon-sale .dd-chrome .dd-header {
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
   .dd-header-nav {
-    gap: 0.5rem 1rem;
+    gap: 0;
   }
-  .dd-header-link {
-    font-size: 1.45rem;
+
+  .dd-header-link,
+  .dd-header-text {
+    font-size: 1.25rem;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .dd-header-wa {
+    padding: 0.65rem 1rem;
+    font-size: 1.2rem;
+  }
+
+  .dd-header-wa span {
+    display: none;
   }
 }
 
-@media (max-width: 900px) {
-  .dd-header-nav,
-  .dd-header-actions {
+/* Collapse marketing nav before it can wrap / overflow */
+@media (max-width: 1100px) {
+  .dd-header:not(.dd-header--app) .dd-header-nav,
+  .dd-header:not(.dd-header--app) .dd-header-actions {
     display: none;
   }
 
-  .dd-header-menu {
+  .dd-header:not(.dd-header--app) .dd-header-menu {
     display: inline-flex;
   }
 
@@ -467,6 +534,29 @@ body.monsoon-sale .dd-chrome .dd-header {
 
   .dd-header-drawer {
     padding: max(1.6rem, env(safe-area-inset-top)) max(1.6rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(1.6rem, env(safe-area-inset-left));
+  }
+}
+
+@media (max-width: 720px) {
+  .dd-header--app .dd-header-actions--app {
+    display: none;
+  }
+
+  .dd-header--app .dd-header-menu {
+    display: inline-flex;
+  }
+
+  .dd-header-inner--app {
+    padding: 0.7rem 1.2rem;
+  }
+
+  .dd-header--app .dd-header-logo img {
+    height: 42px;
+    max-width: 140px;
+  }
+
+  .dd-header-app-title {
+    font-size: 1.7rem;
   }
 }
 

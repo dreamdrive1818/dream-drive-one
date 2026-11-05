@@ -102,6 +102,48 @@ function nextAfterToken(booking) {
   return `/checkout/success?booking=${booking.publicId}&type=${booking.rentalType}`;
 }
 
+function formatDatePart(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function formatTimePart(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+}
+
+function explainPayError(err, paymentsMock) {
+  const message = err?.message && !/^bad request$/i.test(err.message) ? err.message : "";
+  if (/authentication failed/i.test(message)) {
+    return "The payment gateway rejected this request, so the token was not charged. You are still signed in. Try again in a moment.";
+  }
+  if (paymentsMock) {
+    return `Mock payment did not go through${message ? `: ${message}` : ""}. No money was charged. Check your details and try again.`;
+  }
+  return message || "Payment could not be completed. Try again.";
+}
+
+function isDetailError(message) {
+  return /full name|date of birth|18 years|mobile number|terms and conditions|no email/i.test(message || "");
+}
+
+function IconLock() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function Pay() {
   const [params] = useSearchParams();
   const bookingId = params.get("booking") || "";
@@ -118,6 +160,7 @@ export default function Pay() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [phone, setPhone] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const [terms, setTerms] = useState(null);
   const [dummy, setDummy] = useState(null);
   const [paymentsMock, setPaymentsMock] = useState(false);
@@ -289,12 +332,12 @@ export default function Pay() {
         navigate(nextAfterToken(booking), { replace: true });
         return;
       }
-      const message = err.message && !/^bad request$/i.test(err.message) ? err.message : "";
-      setError(
-        paymentsMock
-          ? `Mock payment did not go through${message ? `: ${message}` : ""}. No money was charged. Check your details and try again.`
-          : message || "Payment could not be completed. Try again."
-      );
+      if (err.status === 401 && /sign in required/i.test(err.message || "")) {
+        setAuthOpen(true);
+        setError("Sign in again to pay the token.");
+        return;
+      }
+      setError(explainPayError(err, paymentsMock));
     } finally {
       payingRef.current = false;
       setBusy(false);
@@ -324,10 +367,16 @@ export default function Pay() {
   const due = tokenDuePaise(booking.tokenPaise, booking.amountPaise);
   const balance = Math.max(0, (booking.amountPaise || 0) - due);
   const walletApplied = useWallet && wallet?.balancePaise > 0 ? Math.min(wallet.balancePaise, due) : 0;
+  const payNow = Math.max(0, due - walletApplied);
   const selfDrive = booking.rentalType === "SELF_DRIVE";
+  const pickupBranch = booking.pickupBranch?.name;
+  const dropBranch = booking.dropBranch?.name;
+  const cityName = booking.pickupBranch?.city?.name;
+  const detailError = isDetailError(error);
+  const payLabel = `${paymentsMock ? "Mock pay" : "Pay"} ${formatInr(payNow)} token`;
 
   return (
-    <div className="checkout-page">
+    <div className="checkout-page pay-page">
       <div className="checkout-inner">
         <header className="checkout-intro">
           <div className="checkout-intro-copy">
@@ -338,9 +387,10 @@ export default function Pay() {
               <span aria-hidden="true">/</span>
               <span aria-current="page">Payment</span>
             </nav>
-            <h1>Pay token</h1>
+            <h1>Pay the token</h1>
             <p>
-              Booking {booking.publicId}. We only take the token now. Licence and ID documents come next, in KYC.
+              Booking {booking.publicId}. Only the token is charged now
+              {selfDrive ? ". Licence and ID come next." : ". The balance is collected before the trip."}
             </p>
           </div>
         </header>
@@ -354,15 +404,48 @@ export default function Pay() {
 
         <div className="checkout-layout">
           <div className="checkout-main">
-            <section className="checkout-card">
-              <h2 style={{ marginTop: 0 }}>Your details</h2>
+            <section className="checkout-card pay-trip" aria-labelledby="pay-trip-heading">
+              <div className="pay-trip-top">
+                <div>
+                  <h2 id="pay-trip-heading">Your trip</h2>
+                  <p className="checkout-car-name">
+                    {RENTAL_TYPE_LABELS[booking.rentalType] || booking.rentalType}
+                    {cityName ? ` · ${cityName}` : ""}
+                  </p>
+                  <p className="checkout-quote-id">Booking {booking.publicId}</p>
+                </div>
+                <span className="pay-status">Token due</span>
+              </div>
+              <div className="checkout-journey">
+                <div className="checkout-journey-point">
+                  <p className="checkout-journey-kicker">Pickup</p>
+                  <p className="checkout-journey-date">{formatDatePart(booking.startsAt) || "—"}</p>
+                  <p className="checkout-journey-time">{formatTimePart(booking.startsAt)}</p>
+                </div>
+                <div className="checkout-journey-connector" aria-hidden="true">
+                  <span />
+                </div>
+                <div className="checkout-journey-point">
+                  <p className="checkout-journey-kicker">Return</p>
+                  <p className="checkout-journey-date">{formatDatePart(booking.endsAt) || "—"}</p>
+                  <p className="checkout-journey-time">{formatTimePart(booking.endsAt)}</p>
+                </div>
+              </div>
+              {pickupBranch || dropBranch ? (
+                <div className="checkout-trip-secondary">
+                  {pickupBranch ? <span className="checkout-chip">Pickup: {pickupBranch}</span> : null}
+                  {dropBranch ? <span className="checkout-chip">Drop: {dropBranch}</span> : null}
+                </div>
+              ) : null}
+            </section>
+
+            <section className="checkout-card" aria-labelledby="pay-details-heading">
+              <h2 id="pay-details-heading">Driver details</h2>
               <p className="checkout-essentials-lead">
-                {RENTAL_TYPE_LABELS[booking.rentalType] || booking.rentalType}
-                {" · "}
-                {new Date(booking.startsAt).toLocaleString("en-IN")} → {new Date(booking.endsAt).toLocaleString("en-IN")}
+                These details go on the booking and the rental agreement.
               </p>
               <div className="checkout-fields">
-                <label>
+                <label className="pay-field-wide">
                   Full name
                   <input
                     value={nameLocked ? user?.fullName || fullName : fullName}
@@ -378,10 +461,6 @@ export default function Pay() {
                   <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} required />
                 </label>
                 <label>
-                  Email
-                  <input value={user?.email || ""} readOnly autoComplete="email" />
-                </label>
-                <label>
                   Mobile number
                   <input
                     value={phone}
@@ -392,8 +471,12 @@ export default function Pay() {
                     required
                   />
                 </label>
+                <label className="pay-field-wide">
+                  Email
+                  <input value={user?.email || ""} readOnly autoComplete="email" />
+                </label>
               </div>
-              <label className="checkout-terms">
+              <label className={`pay-terms${termsAccepted ? " is-on" : ""}`}>
                 <input
                   type="checkbox"
                   checked={termsAccepted}
@@ -408,21 +491,45 @@ export default function Pay() {
                 </span>
               </label>
               {terms?.body ? (
-                <div
-                  className="checkout-terms-box"
-                  dangerouslySetInnerHTML={{ __html: terms.body }}
-                />
+                <div className="pay-agreement">
+                  <button
+                    type="button"
+                    className="pay-agreement-toggle"
+                    aria-expanded={termsOpen}
+                    onClick={() => setTermsOpen((open) => !open)}
+                  >
+                    {termsOpen ? "Hide agreement" : "Read the agreement"}
+                  </button>
+                  {termsOpen ? (
+                    <div
+                      className="checkout-terms-box"
+                      dangerouslySetInnerHTML={{ __html: terms.body }}
+                    />
+                  ) : null}
+                </div>
               ) : (
-                <p className="checkout-essentials-lead">
+                <p className="checkout-essentials-lead pay-reserve-note">
                   The token reserves the car. The remaining rental is due before handover.
                 </p>
               )}
+              {detailError ? (
+                <p className="pay-alert" id="pay-alert" role="alert">
+                  <strong>Check these details</strong>
+                  <span>{error}</span>
+                </p>
+              ) : null}
             </section>
           </div>
-          <aside className="checkout-summary">
-            <div className="checkout-summary-head">
-              <p className="checkout-summary-kicker">Amount due</p>
-              <h2>Token payment</h2>
+
+          <aside className="checkout-summary pay-summary" aria-labelledby="pay-summary-heading">
+            <div className="pay-due">
+              <p className="pay-due-kicker">Pay now</p>
+              <p className="pay-due-amount" id="pay-summary-heading">{formatInr(payNow)}</p>
+              <p className="pay-due-sub">
+                {selfDrive
+                  ? "Token only. After this you’ll upload your licence and ID."
+                  : "Token only. The rest of the rental is collected before the trip."}
+              </p>
             </div>
             <div className="checkout-summary-body">
               <div className="checkout-price-rows">
@@ -430,9 +537,9 @@ export default function Pay() {
                   <span>Trip total</span>
                   <strong>{formatInr(booking.amountPaise)}</strong>
                 </div>
-                <div className="checkout-price-row checkout-price-row--total">
-                  <span>Pay now</span>
-                  <strong>{formatInr(Math.max(0, due - walletApplied))}</strong>
+                <div className="checkout-price-row">
+                  <span>Token</span>
+                  <strong>{formatInr(due)}</strong>
                 </div>
                 {balance > 0 ? (
                   <div className="checkout-price-row">
@@ -440,51 +547,61 @@ export default function Pay() {
                     <strong>{formatInr(balance)}</strong>
                   </div>
                 ) : null}
-                {(wallet?.balancePaise || 0) > 0 && (
-                  <label className="checkout-price-row" style={{ cursor: "pointer" }}>
+                {(wallet?.balancePaise || 0) > 0 ? (
+                  <label className="pay-wallet">
                     <span>
                       <input
                         type="checkbox"
                         checked={useWallet}
                         onChange={(e) => setUseWallet(e.target.checked)}
-                        style={{ marginRight: 8 }}
                       />
                       Use wallet ({formatInr(wallet.balancePaise)})
                     </span>
-                    <strong>
-                      −{formatInr(Math.min(wallet.balancePaise, due))}
-                    </strong>
+                    <strong>−{formatInr(Math.min(wallet.balancePaise, due))}</strong>
                   </label>
-                )}
+                ) : null}
               </div>
-              <p className="checkout-essentials-lead">
-                {selfDrive
-                  ? "After the token you’ll upload your licence and ID."
-                  : "The rest of the rental is collected before the trip."}
-              </p>
               {paymentsMock ? (
-                <p className="checkout-essentials-lead" role="note">
-                  <strong>Mock payment.</strong> Payments are in test mode. No money is charged; the
-                  token is marked paid and the booking moves on as usual.
+                <p className="pay-mock" role="note">
+                  <strong>Test mode.</strong> No money is charged. The token is marked paid and the booking continues.
                 </p>
               ) : null}
-              {error ? <p className="checkout-error" role="alert">{error}</p> : null}
-              <button type="button" className="checkout-cta" onClick={pay} disabled={busy || !termsAccepted}>
+              {!detailError && error ? (
+                <p className="pay-alert" id="pay-alert" role="alert">
+                  <strong>Payment didn’t start</strong>
+                  <span>{error}</span>
+                </p>
+              ) : null}
+              <button type="button" className="checkout-cta checkout-cta--inline" onClick={pay} disabled={busy || !termsAccepted}>
                 {busy ? (
                   <span className="checkout-cta-busy">
                     <ClipLoader color="#fff" size={18} />
                     Processing…
                   </span>
                 ) : (
-                  `${paymentsMock ? "Mock pay" : "Pay"} ${formatInr(Math.max(0, due - walletApplied))} token`
+                  payLabel
                 )}
               </button>
-              <Link to={`/account/bookings/${booking.id}`} className="checkout-secondary-link">
+              <Link to={`/account/bookings/${booking.id}`} className="pay-text-link">
                 View booking
               </Link>
+              <p className="pay-secure">
+                <IconLock />
+                <span>Card details stay with the payment gateway. Dream Drive only records the token.</span>
+              </p>
             </div>
           </aside>
         </div>
+      </div>
+
+      <div className="checkout-mobile-bar">
+        <div className="checkout-mobile-bar-price">
+          <span>Pay now</span>
+          <strong>{formatInr(payNow)}</strong>
+        </div>
+        <button type="button" className="checkout-cta" onClick={pay} disabled={busy || !termsAccepted}>
+          {busy ? "Processing…" : payLabel}
+        </button>
       </div>
 
       {dummy ? <DummyPayment amountPaise={dummy.amountPaise} stage={dummy.stage} /> : null}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./Header.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRightToBracket, faBars, faTimes } from "@fortawesome/free-solid-svg-icons";
@@ -18,6 +18,22 @@ const NAV_LINKS = [
   { label: "Blogs", route: "/blogs" },
   { label: "FAQs", route: "/faq" },
 ];
+
+const ACCOUNT_TITLES = {
+  "": "Overview",
+  bookings: "Bookings",
+  kyc: "KYC",
+  agreements: "Agreements",
+  invoices: "Invoices",
+  wallet: "Wallet",
+  tickets: "Support",
+};
+
+function accountSectionTitle(pathname) {
+  const parts = pathname.replace(/^\/account\/?/, "").split("/").filter(Boolean);
+  const key = parts[0] || "";
+  return ACCOUNT_TITLES[key] || "Account";
+}
 
 function userDisplayName(user) {
   const full = String(user?.fullName || user?.profile?.fullName || "").trim();
@@ -59,9 +75,12 @@ function UserAvatar({ name, photoUrl }) {
 
 const Header = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const auth = useAuth();
   const authReady = Boolean(auth?.ready);
   const signedIn = Boolean(auth?.user);
+  const isAccountShell = signedIn && location.pathname.startsWith("/account");
+  const sectionTitle = isAccountShell ? accountSectionTitle(location.pathname) : "";
   const displayName = signedIn ? userDisplayName(auth.user) : "";
   const firstName = signedIn ? userFirstName(displayName) : "";
   const photoUrl = auth?.user?.photoUrl || auth?.user?.avatarUrl || auth?.user?.picture || "";
@@ -80,7 +99,7 @@ const Header = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 980) setIsMobileMenuOpen(false);
+      if (window.innerWidth > 1100) setIsMobileMenuOpen(false);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -93,6 +112,10 @@ const Header = () => {
     };
   }, [isMobileMenuOpen]);
 
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   const handleRoute = (route) => {
     navigate(route);
     setIsMobileMenuOpen(false);
@@ -102,6 +125,145 @@ const Header = () => {
     if (!authReady) return;
     handleRoute(signedIn ? "/account" : "/login");
   };
+
+  if (isAccountShell) {
+    return (
+      <header
+        className={`dd-header dd-header--app ${isScrolled ? "dd-header--scrolled" : ""}`}
+      >
+        <div className="dd-header-inner dd-header-inner--app">
+          <button
+            type="button"
+            className="dd-header-logo"
+            onClick={() => navigate("/")}
+            aria-label="Dream Drive home"
+          >
+            <img src={`${webinfo.logo}`} alt="Dream Drive" />
+          </button>
+
+          <div className="dd-header-app-meta">
+            <p className="dd-header-app-kicker">My account</p>
+            <p className="dd-header-app-title">{sectionTitle}</p>
+          </div>
+
+          <div className="dd-header-actions dd-header-actions--app">
+            <button
+              type="button"
+              className="dd-header-text dd-header-browse"
+              onClick={() => handleRoute("/fleet")}
+            >
+              Browse cars
+            </button>
+            <button
+              type="button"
+              className="dd-header-text dd-header-account"
+              onClick={goAuth}
+              disabled={!authReady}
+              aria-busy={!authReady}
+              title={displayName}
+            >
+              <UserAvatar name={displayName} photoUrl={photoUrl} />
+              <span className="dd-header-account-name">{authLabel}</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="dd-header-menu"
+            onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open menu"
+          >
+            <FontAwesomeIcon icon={faBars} />
+          </button>
+        </div>
+
+        {isMobileMenuOpen
+          ? createPortal(
+              <div className="dd-header-drawer" role="dialog" aria-modal="true">
+                <div className="dd-header-drawer-top">
+                  <img src={`${webinfo.logo}`} alt="" className="dd-header-drawer-logo" />
+                  <button
+                    type="button"
+                    className="dd-header-close"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    aria-label="Close menu"
+                  >
+                    <FontAwesomeIcon icon={faTimes} />
+                  </button>
+                </div>
+                <div className="dd-header-drawer-body">
+                  <nav className="dd-header-drawer-nav" aria-label="Account shortcuts">
+                    <p className="dd-header-drawer-label">Account</p>
+                    <button
+                      type="button"
+                      className="dd-header-drawer-link"
+                      onClick={() => handleRoute("/account")}
+                    >
+                      Overview
+                    </button>
+                    <button
+                      type="button"
+                      className="dd-header-drawer-link"
+                      onClick={() => handleRoute("/account/bookings")}
+                    >
+                      Bookings
+                    </button>
+                    <button
+                      type="button"
+                      className="dd-header-drawer-link"
+                      onClick={() => handleRoute("/account/kyc")}
+                    >
+                      KYC
+                    </button>
+                    <button
+                      type="button"
+                      className="dd-header-drawer-link"
+                      onClick={() => handleRoute("/account/tickets")}
+                    >
+                      Support
+                    </button>
+                    <p className="dd-header-drawer-label dd-header-drawer-label--spaced">
+                      Explore
+                    </p>
+                    <button
+                      type="button"
+                      className="dd-header-drawer-link"
+                      onClick={() => handleRoute("/fleet")}
+                    >
+                      Browse cars
+                    </button>
+                    <button
+                      type="button"
+                      className="dd-header-drawer-link"
+                      onClick={() => handleRoute("/track")}
+                    >
+                      Track order
+                    </button>
+                  </nav>
+
+                  <div className="dd-header-drawer-footer">
+                    <button
+                      type="button"
+                      className="dd-header-drawer-account"
+                      onClick={goAuth}
+                      disabled={!authReady}
+                      aria-label={displayName}
+                    >
+                      <UserAvatar name={displayName} photoUrl={photoUrl} />
+                      <span>
+                        <strong>{displayName}</strong>
+                        <em>{auth.user?.email || "Account"}</em>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )
+          : null}
+      </header>
+    );
+  }
 
   return (
     <header className={`dd-header ${isScrolled ? "dd-header--scrolled" : ""}`}>

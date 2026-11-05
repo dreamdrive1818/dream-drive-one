@@ -16,7 +16,7 @@ const highlights = [
   {
     icon: faCarSide,
     title: "Wide car selection",
-    desc: "Hatchbacks to 7-seater SUVs — Nexon, Compass, and more.",
+    desc: "Hatchbacks to 7-seater SUVs — Nexon, Brezza, and more.",
   },
   {
     icon: faUserFriends,
@@ -96,7 +96,7 @@ const About = () => {
             </div>
             <div className="about-visual" aria-hidden="true">
               <img
-                src="https://res.cloudinary.com/dcrfks1tq/image/upload/v1750163087/jeep_smrjsp.png"
+                src="https://res.cloudinary.com/dcrfks1tq/image/upload/v1751568965/maruti-suzuki-vitara-brezza-ldi-diesel-pearl-arctic-white-82811366-6pbqe-removebg-preview_pgoccl.png"
                 alt=""
               />
             </div>
