@@ -42,12 +42,32 @@ describe('CatalogService.sortResults', () => {
     expect(result[2].bookingCount).toBe(2);
   });
 
-  it('returns original order when no sort specified', () => {
+  it('puts featured cars first when no sort is specified', () => {
     const result = svc.sortResults(items, undefined);
-    // No sorting applied — should preserve input order
-    expect(result[0].name).toBe('C');
-    expect(result[1].name).toBe('B');
-    expect(result[2].name).toBe('A');
+    expect(result.map((car) => car.name)).toEqual(['B', 'C', 'A']);
+  });
+
+  it('puts available cars before unavailable cars', () => {
+    const mixed = [
+      { name: 'Unavailable featured', available: false, featured: true, pricePaise: 100000 },
+      { name: 'Available', available: true, featured: false, pricePaise: 300000 },
+      { name: 'Available featured', available: true, featured: true, pricePaise: 200000 },
+    ];
+    const result = svc.sortResults(mixed, undefined);
+    expect(result.map((car) => car.name)).toEqual([
+      'Available featured',
+      'Available',
+      'Unavailable featured',
+    ]);
+  });
+
+  it('keeps available cars first when sorting by price', () => {
+    const mixed = [
+      { name: 'Cheap unavailable', available: false, pricePaise: 100000 },
+      { name: 'Costly available', available: true, pricePaise: 300000 },
+    ];
+    const result = svc.sortResults(mixed, 'price-asc');
+    expect(result.map((car) => car.name)).toEqual(['Costly available', 'Cheap unavailable']);
   });
 
   it('does not mutate the original array', () => {

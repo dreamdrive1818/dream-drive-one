@@ -277,17 +277,15 @@ body {
 }
 
 .fade-in-bottom {
-  animation: slideUp 0.35s ease-out both;
+  animation: slideUp 0.28s ease-out;
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

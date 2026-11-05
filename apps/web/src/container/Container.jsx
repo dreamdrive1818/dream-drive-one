@@ -64,6 +64,8 @@ const AppRoute = () => {
   const isFirstRender = useRef(true);
   const isAdminPage = location.pathname.includes("admin");
   const isAuthPage = location.pathname === "/login";
+  const isCheckoutPage = location.pathname.startsWith("/checkout");
+  const isAccountPage = location.pathname.startsWith("/account");
   const { campaignActive } = useLocalContext();
   const chromeRef = useRef(null);
 
@@ -80,13 +82,18 @@ const AppRoute = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    document.body.classList.toggle("monsoon-sale", !isAdminPage && !isAuthPage && campaignActive);
+    document.body.classList.toggle(
+      "monsoon-sale",
+      !isAdminPage && !isAuthPage && !isAccountPage && campaignActive
+    );
     document.body.classList.toggle("auth-shell", isAuthPage);
+    document.body.classList.toggle("account-route", isAccountPage);
     return () => {
       document.body.classList.remove("monsoon-sale");
       document.body.classList.remove("auth-shell");
+      document.body.classList.remove("account-route");
     };
-  }, [isAdminPage, isAuthPage, campaignActive]);
+  }, [isAdminPage, isAuthPage, isAccountPage, campaignActive]);
 
   useEffect(() => {
     const el = chromeRef.current;
@@ -110,13 +117,13 @@ const AppRoute = () => {
     <>
       <ScrollToTop />
 
-      {!isAdminPage && !isAuthPage && <Numberattach />}
-      {!isAdminPage && !isAuthPage && <WhatsAppPopup />}
-      {!isAdminPage && !isAuthPage && <ContactPopup />}
-      {!isAdminPage && !isAuthPage && <SaleModal />}
+      {!isAdminPage && !isAuthPage && !isCheckoutPage && !isAccountPage && <Numberattach />}
+      {!isAdminPage && !isAuthPage && !isCheckoutPage && !isAccountPage && <WhatsAppPopup />}
+      {!isAdminPage && !isAuthPage && !isCheckoutPage && !isAccountPage && <ContactPopup />}
+      {!isAdminPage && !isAuthPage && !isCheckoutPage && !isAccountPage && <SaleModal />}
       {!isAdminPage && !isAuthPage && (
-        <div className="dd-chrome" ref={chromeRef}>
-          <MonsoonPromoBar />
+        <div className={`dd-chrome${isAccountPage ? " dd-chrome--app" : ""}`} ref={chromeRef}>
+          {!isAccountPage ? <MonsoonPromoBar /> : null}
           <Header />
         </div>
       )}
@@ -171,8 +178,8 @@ const AppRoute = () => {
         </main>
       )}
       {isAdminPage && <AdminLayout />}
-      {!isAdminPage && !isAuthPage && <DreamCarBanner />}
-      {!isAdminPage && !isAuthPage && <Footer />}
+      {!isAdminPage && !isAuthPage && !isAccountPage && <DreamCarBanner />}
+      {!isAdminPage && !isAuthPage && !isAccountPage && <Footer />}
     </>
   );
 };

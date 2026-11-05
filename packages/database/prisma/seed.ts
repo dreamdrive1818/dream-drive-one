@@ -421,6 +421,18 @@ async function main() {
     "nexon-kolkata",
     "innova-kolkata",
     "thar-kolkata",
+    "hyundai-i20-asta-ivt-2024",
+    "hyundai-i20-asta-ivt-2024-jamshedpur",
+    "hyundai-i20-asta-ivt-2024-kolkata",
+    "maruti-fronx-2025",
+    "maruti-fronx-2025-jamshedpur",
+    "maruti-fronx-2025-kolkata",
+    "renault-kiger-2025",
+    "renault-kiger-2025-jamshedpur",
+    "renault-kiger-2025-kolkata",
+    "hyundai-aura-sx-2025",
+    "hyundai-aura-sx-2025-jamshedpur",
+    "hyundai-aura-sx-2025-kolkata",
   ];
   await prisma.carModel.updateMany({
     where: { slug: { in: retiredSlugs } },
@@ -564,7 +576,7 @@ async function main() {
     body: "<p>Welcome to Dream Drive – Ranchi’s top choice for self-drive car rentals.</p>",
     metaTitle: "Dream Drive | Ranchi’s Trusted Self-Drive Car Rentals",
     metaDescription:
-      "Welcome to Dream Drive – Ranchi’s top choice for self-drive car rentals. Book SUVs like Nexon & Compass with flexible packages, 24x7 support, and doorstep delivery.",
+      "Welcome to Dream Drive – Ranchi’s top choice for self-drive car rentals. Book SUVs like Nexon & Brezza with flexible packages, 24x7 support, and doorstep delivery.",
   });
   await upsertPage({
     slug: "terms",

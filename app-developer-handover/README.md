@@ -32,6 +32,7 @@ This folder is the **single pack** to share with an app developer when the live 
 | [05-requirement-sheet.md](05-requirement-sheet.md) | Screen-by-screen requirements and acceptance criteria |
 | [06-screens-and-api-map.md](06-screens-and-api-map.md) | Which APIs each screen must call |
 | [07-go-live-checklist.md](07-go-live-checklist.md) | What you must send them + what they must finish |
+| [08-changes-29-sep-to-13-oct-2026.md](08-changes-29-sep-to-13-oct-2026.md) | API changes from 29 Sep to 13 Oct 2026 and what the app must update |
 | [config.example.env](config.example.env) | Copy into Expo / app env. Fill live URLs before sharing |
 | [live-api.config.json](live-api.config.json) | Fill this **before** handing the pack to the app team |
 | [postman/DreamDrive-Customer-API.postman_collection.json](postman/DreamDrive-Customer-API.postman_collection.json) | Import in Postman / Thunder Client |

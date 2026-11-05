@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import { api } from "../api";
@@ -213,6 +214,7 @@ export default function Checkout() {
   const [offerMessage, setOfferMessage] = useState("");
   const [offerError, setOfferError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
+  const [barReady, setBarReady] = useState(false);
 
   useEffect(() => {
     const fromNav = location.state?.quote;
@@ -234,6 +236,10 @@ export default function Checkout() {
     if (!user) setAuthOpen(true);
     else setAuthOpen(false);
   }, [authReady, user]);
+
+  useEffect(() => {
+    setBarReady(true);
+  }, []);
 
   useEffect(() => {
     if (!user || !quoteId) return undefined;
@@ -636,7 +642,7 @@ export default function Checkout() {
 
               <button
                 type="button"
-                className="checkout-cta"
+                className="checkout-cta checkout-cta--inline"
                 onClick={pay}
                 disabled={ctaDisabled}
               >
@@ -667,20 +673,25 @@ export default function Checkout() {
 
       </div>
 
-      <div className="checkout-mobile-bar">
-        <div className="checkout-mobile-bar-price">
-          <span>Pay now</span>
-          <strong>{hasAmount ? formatInr(payNowPaise) : "—"}</strong>
-        </div>
-        <button
-          type="button"
-          className="checkout-cta"
-          onClick={pay}
-          disabled={ctaDisabled}
-        >
-          {busy ? "Processing…" : "Continue to payment"}
-        </button>
-      </div>
+      {barReady
+        ? createPortal(
+            <div className="checkout-mobile-bar">
+              <div className="checkout-mobile-bar-price">
+                <span>Pay now</span>
+                <strong>{hasAmount ? formatInr(payNowPaise) : "—"}</strong>
+              </div>
+              <button
+                type="button"
+                className="checkout-cta"
+                onClick={pay}
+                disabled={ctaDisabled}
+              >
+                {busy ? "Processing…" : "Continue to payment"}
+              </button>
+            </div>,
+            document.body
+          )
+        : null}
 
       <AuthModal
         open={authOpen}

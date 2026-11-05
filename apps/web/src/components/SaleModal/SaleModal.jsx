@@ -22,6 +22,7 @@ const SaleModal = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = location.pathname.includes("admin");
+  const onCheckout = location.pathname.startsWith("/checkout");
 
   const dismiss = useCallback(() => {
     sessionStorage.setItem(SESSION_KEY, "1");
@@ -29,15 +30,21 @@ const SaleModal = () => {
   }, []);
 
   useEffect(() => {
-    if (isAdmin || !promoBanner) return;
-    if (sessionStorage.getItem(SESSION_KEY) === "1") return;
+    if (onCheckout) {
+      setOpen(false);
+      return undefined;
+    }
+    if (isAdmin || !promoBanner) return undefined;
+    if (sessionStorage.getItem(SESSION_KEY) === "1") return undefined;
     const mobile = window.matchMedia(MOBILE_QUERY).matches;
     const timer = setTimeout(() => {
-      if (window.matchMedia(MOBILE_QUERY).matches && window.location.pathname.startsWith("/account")) return;
+      const path = window.location.pathname;
+      if (path.startsWith("/checkout")) return;
+      if (window.matchMedia(MOBILE_QUERY).matches && path.startsWith("/account")) return;
       setOpen(true);
     }, mobile ? MOBILE_DELAY_MS : DESKTOP_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [isAdmin, promoBanner]);
+  }, [isAdmin, onCheckout, promoBanner]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -55,7 +62,7 @@ const SaleModal = () => {
     else navigate(link);
   };
 
-  if (isAdmin || !open || !promoBanner) return null;
+  if (isAdmin || onCheckout || !open || !promoBanner) return null;
 
   const title = promoBanner.title || "Seasonal deals";
   const body =

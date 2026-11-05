@@ -21,7 +21,7 @@ const SeoDefaults = () => {
   const {
     siteUrl = "https://dream-drive.co.in/",
     tagline = "Ranchi’s Trusted Self-Drive Car Rentals",
-    description = "Book SUVs like Nexon & Compass with flexible packages, 24×7 support, and doorstep delivery in Ranchi.",
+    description = "Book SUVs like Nexon & Brezza with flexible packages, 24×7 support, and doorstep delivery in Ranchi.",
     logo = webinfo?.logo,
     ogImage = "",
     twitterHandle = "@dreamdrive",

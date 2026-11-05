@@ -292,16 +292,19 @@ export class CatalogService {
     return this.sortResults(results, query.sort);
   }
 
-  sortResults<T extends { featured?: boolean; pricePaise?: number; bookingCount?: number }>(
+  sortResults<T extends { featured?: boolean; pricePaise?: number; bookingCount?: number; available?: boolean }>(
     results: T[],
     sort?: string
   ) {
     const list = [...results];
-    if (sort === "price-asc") list.sort((a, b) => (a.pricePaise ?? 0) - (b.pricePaise ?? 0));
-    else if (sort === "price-desc") list.sort((a, b) => (b.pricePaise ?? 0) - (a.pricePaise ?? 0));
-    else if (sort === "popularity") {
-      list.sort((a, b) => (b.bookingCount ?? 0) - (a.bookingCount ?? 0));
-    }
+    list.sort((a, b) => {
+      const availability = Number(a.available === false) - Number(b.available === false);
+      if (availability !== 0) return availability;
+      if (sort === "price-asc") return (a.pricePaise ?? 0) - (b.pricePaise ?? 0);
+      if (sort === "price-desc") return (b.pricePaise ?? 0) - (a.pricePaise ?? 0);
+      if (sort === "popularity") return (b.bookingCount ?? 0) - (a.bookingCount ?? 0);
+      return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+    });
     return list;
   }
 

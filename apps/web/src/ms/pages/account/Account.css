@@ -1,6 +1,6 @@
 .account-page {
-  padding: 5rem 2.4rem 7rem;
-  min-height: calc(100vh - 160px);
+  padding: 2.4rem 2.4rem 5rem;
+  min-height: calc(100vh - var(--dd-chrome-h, 7rem));
   font-family: var(--font-family-main);
   background:
     radial-gradient(ellipse at top, rgba(14, 124, 134, 0.06), transparent 48%),
@@ -23,12 +23,17 @@
 
 .account-nav {
   position: sticky;
-  top: 10rem;
+  top: calc(var(--dd-chrome-h, 7rem) + 1.2rem);
   padding: 2rem 1.6rem 1.6rem;
   background: #fff;
   border: 1px solid rgba(14, 124, 134, 0.1);
   border-radius: 22px;
   box-shadow: 0 14px 32px rgba(10, 40, 55, 0.06);
+}
+
+body.account-route .dd-chrome--app {
+  border-bottom: 1px solid rgba(14, 124, 134, 0.08);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
 }
 
 .account-nav-user {
@@ -1112,6 +1117,16 @@ a.account-item:hover {
 .kyc-case-doc-card:hover {
   border-color: rgba(14, 124, 134, 0.38);
   box-shadow: 0 6px 18px rgba(10, 40, 55, 0.08);
+}
+
+.kyc-case-doc-card:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.kyc-case-doc-card:disabled:hover {
+  border-color: rgba(14, 124, 134, 0.18);
+  box-shadow: none;
 }
 
 .kyc-case-doc-thumb {
