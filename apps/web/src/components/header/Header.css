@@ -20,10 +20,10 @@
   background: #fff;
 }
 
-.dd-chrome .monsoon-promo-bar,
+.dd-chrome .winter-promo-bar,
 .dd-chrome .dd-header,
-body:has(.monsoon-promo-bar) .dd-chrome .dd-header,
-body.monsoon-sale .dd-chrome .dd-header {
+body:has(.winter-promo-bar) .dd-chrome .dd-header,
+body.winter-sale .dd-chrome .dd-header {
   position: relative;
   top: auto;
 }

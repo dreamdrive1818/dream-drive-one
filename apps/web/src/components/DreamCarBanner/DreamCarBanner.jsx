@@ -5,19 +5,18 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowRight,
   faCalendarCheck,
-  faCloudShowersHeavy,
+  faSnowflake,
   faShieldHalved,
-  faUmbrella,
 } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import "./DreamCarBanner.css";
 
-const DEFAULT_BADGE = "Monsoon deals are live";
+const DEFAULT_BADGE = "Winter deals are live";
 const DEFAULT_HEADING = "Save on selected self-drive cars this season.";
 const HIGHLIGHT = /self-drive cars?/i;
 
 const FEATURES = [
-  { icon: faUmbrella, tone: "teal", label: ["Special", "Monsoon Rates"] },
+  { icon: faSnowflake, tone: "teal", label: ["Special", "Winter Rates"] },
   { icon: faCalendarCheck, tone: "amber", label: ["Limited", "Time Offers"] },
   { icon: faShieldHalved, tone: "blue", label: ["Well-Maintained", "& Road Ready"] },
 ];
@@ -80,7 +79,7 @@ const DreamCarBanner = () => {
       <motion.div className="dcb-card" {...motionProps}>
         <motion.div className="dcb-scene" aria-hidden="true" variants={sceneIn}>
           <img
-            src="/monsoon-banner-scene.jpg"
+            src="/winter-banner-scene.jpg"
             alt=""
             width="1904"
             height="644"
@@ -91,7 +90,7 @@ const DreamCarBanner = () => {
 
         <motion.div className="dcb-content" variants={stagger}>
           <motion.span className="dcb-badge" variants={rise}>
-            <FontAwesomeIcon icon={faCloudShowersHeavy} aria-hidden="true" />
+            <FontAwesomeIcon icon={faSnowflake} aria-hidden="true" />
             {badge}
           </motion.span>
 
@@ -105,7 +104,7 @@ const DreamCarBanner = () => {
           </motion.h2>
 
           <motion.p className="dcb-lead" variants={rise}>
-            Rain or shine deals on self-drive cars across Ranchi.{" "}
+            Cool-season deals on self-drive cars across Ranchi.{" "}
             <br className="dcb-lead-break" />
             Limited-time rates — book while they last.
           </motion.p>

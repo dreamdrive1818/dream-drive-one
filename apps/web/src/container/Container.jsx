@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import { useLocalContext } from "../context/LocalContext";
 import Home from "../components/home/Home";
 import Header from "../components/header/Header";
 import Footer from "../components/footer/Footer";
@@ -26,7 +25,7 @@ import ContactPopup from "../components/ContactPopup/ContactPopup";
 import WhatsAppPopup from "../components/WhatsAppPopup/WhatsAppPopup";
 import SeoDefaults from "../utils/SeoDefaults";
 import SaleModal from "../components/SaleModal/SaleModal";
-import MonsoonPromoBar from "../components/MonsoonPromoBar/MonsoonPromoBar";
+import WinterPromoBar from "../components/WinterPromoBar/WinterPromoBar";
 import Login from "../ms/pages/Login";
 import Search from "../ms/pages/Search";
 import CarsRedirect from "../ms/pages/CarsRedirect";
@@ -47,6 +46,7 @@ import AccountWallet from "../ms/pages/account/AccountWallet";
 import AccountTickets from "../ms/pages/account/AccountTickets";
 import Track from "../ms/pages/Track";
 import { RouteSkeleton } from "../components/Skeleton/Skeleton";
+import { useLocalContext } from "../context/LocalContext";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -66,6 +66,7 @@ const AppRoute = () => {
   const isAuthPage = location.pathname === "/login";
   const isCheckoutPage = location.pathname.startsWith("/checkout");
   const isAccountPage = location.pathname.startsWith("/account");
+  const showPublicChrome = !isAdminPage && !isAuthPage && !isAccountPage;
   const { campaignActive } = useLocalContext();
   const chromeRef = useRef(null);
 
@@ -83,17 +84,17 @@ const AppRoute = () => {
 
   useEffect(() => {
     document.body.classList.toggle(
-      "monsoon-sale",
-      !isAdminPage && !isAuthPage && !isAccountPage && campaignActive
+      "winter-sale",
+      showPublicChrome && campaignActive
     );
     document.body.classList.toggle("auth-shell", isAuthPage);
     document.body.classList.toggle("account-route", isAccountPage);
     return () => {
-      document.body.classList.remove("monsoon-sale");
+      document.body.classList.remove("winter-sale");
       document.body.classList.remove("auth-shell");
       document.body.classList.remove("account-route");
     };
-  }, [isAdminPage, isAuthPage, isAccountPage, campaignActive]);
+  }, [showPublicChrome, isAuthPage, isAccountPage, campaignActive]);
 
   useEffect(() => {
     const el = chromeRef.current;
@@ -111,24 +112,24 @@ const AppRoute = () => {
       ro.disconnect();
       document.documentElement.style.removeProperty("--dd-chrome-h");
     };
-  }, [isAdminPage, isAuthPage, campaignActive]);
+  }, [showPublicChrome]);
 
   return (
     <>
       <ScrollToTop />
 
-      {!isAdminPage && !isAuthPage && !isCheckoutPage && !isAccountPage && <Numberattach />}
-      {!isAdminPage && !isAuthPage && !isCheckoutPage && !isAccountPage && <WhatsAppPopup />}
-      {!isAdminPage && !isAuthPage && !isCheckoutPage && !isAccountPage && <ContactPopup />}
-      {!isAdminPage && !isAuthPage && !isCheckoutPage && !isAccountPage && <SaleModal />}
-      {!isAdminPage && !isAuthPage && (
-        <div className={`dd-chrome${isAccountPage ? " dd-chrome--app" : ""}`} ref={chromeRef}>
-          {!isAccountPage ? <MonsoonPromoBar /> : null}
+      {showPublicChrome && !isCheckoutPage && <Numberattach />}
+      {showPublicChrome && !isCheckoutPage && <WhatsAppPopup />}
+      {showPublicChrome && !isCheckoutPage && <ContactPopup />}
+      {showPublicChrome && !isCheckoutPage && <SaleModal />}
+      {showPublicChrome && (
+        <div className="dd-chrome" ref={chromeRef}>
+          <WinterPromoBar />
           <Header />
         </div>
       )}
       {!isAdminPage && (
-        <main className={`route-container${isAuthPage ? " route-container--auth" : ""}`}>
+        <main className={`route-container${isAuthPage ? " route-container--auth" : ""}${isAccountPage ? " route-container--account" : ""}`}>
           {loading ? (
             <RouteSkeleton />
           ) : (
@@ -178,8 +179,8 @@ const AppRoute = () => {
         </main>
       )}
       {isAdminPage && <AdminLayout />}
-      {!isAdminPage && !isAuthPage && !isAccountPage && <DreamCarBanner />}
-      {!isAdminPage && !isAuthPage && !isAccountPage && <Footer />}
+      {showPublicChrome && <DreamCarBanner />}
+      {showPublicChrome && <Footer />}
     </>
   );
 };

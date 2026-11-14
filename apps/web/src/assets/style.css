@@ -331,9 +331,14 @@ main {
   padding-bottom: max(2rem, env(safe-area-inset-bottom));
 }
 
+.route-container--account {
+  padding: 0;
+  min-height: 100vh;
+}
+
 /* Space for call + WhatsApp FABs so last content is not covered */
 @media (max-width: 1024px) {
-  .route-container:not(.route-container--auth) {
+  .route-container:not(.route-container--auth):not(.route-container--account) {
     padding-bottom: calc(9.6rem + env(safe-area-inset-bottom));
   }
 }

@@ -8,7 +8,7 @@ Marketing site that admin can update without a deploy: home, fleet highlights, b
 
 - Browse home, fleet teaser, blogs, contact, FAQs
 - Open enquiry / WhatsApp CTA
-- See active banners and monsoon/sale strips (CMS-driven)
+- See active banners and winter/sale strips (CMS-driven)
 
 ## Admin-side actions
 
@@ -43,7 +43,7 @@ Public read published only. Admin: SUPER_ADMIN, SALES (blogs), SUPPORT (comments
 
 ## Business benefit
 
-Stops hardcoding promo UI in React (current monsoon bar). Marketing can ship campaigns.
+Stops hardcoding promo UI in React (current winter bar). Marketing can ship campaigns.
 
 ## Priority / complexity
 

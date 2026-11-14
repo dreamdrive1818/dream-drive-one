@@ -34,6 +34,19 @@ import { CarDetailSkeleton } from "../../components/Skeleton/Skeleton";
 import AuthModal from "../AuthModal";
 import "./CarDetail.css";
 
+function formatTripWhen(iso) {
+  if (!iso) return "Select date";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Select date";
+  return date.toLocaleString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function CarDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -65,6 +78,7 @@ export default function CarDetail() {
   const [otherCars, setOtherCars] = useState([]);
   const [otherCarsLoading, setOtherCarsLoading] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const pendingQuoteAfterAuth = useRef(false);
 
   const context = useMemo(
@@ -352,6 +366,7 @@ export default function CarDetail() {
       return;
     }
     updateContext({ to: dateToIsoAtHour(key, 10) });
+    setCalendarOpen(false);
   }
 
   async function createQuoteAndCheckout() {
@@ -525,7 +540,7 @@ export default function CarDetail() {
               </dl>
             </div>
 
-            <form className="car-detail-panel" onSubmit={handleQuote} noValidate>
+            <form id="car-detail-book" className="car-detail-panel" onSubmit={handleQuote} noValidate>
               <h2>Book this car</h2>
 
               <div className="car-detail-field">
@@ -544,7 +559,7 @@ export default function CarDetail() {
                 </select>
               </div>
 
-              <div className="car-detail-field">
+              <div className="car-detail-field car-detail-field--clock">
                 <label htmlFor="detail-from">Pickup</label>
                 <input
                   id="detail-from"
@@ -558,7 +573,7 @@ export default function CarDetail() {
                 />
               </div>
 
-              <div className="car-detail-field">
+              <div className="car-detail-field car-detail-field--clock">
                 <label htmlFor="detail-to">Return</label>
                 <input
                   id="detail-to"
@@ -676,6 +691,34 @@ export default function CarDetail() {
                 </p>
               )}
 
+              <div className="car-detail-dates" aria-label="Selected trip dates">
+                <button
+                  type="button"
+                  className="car-detail-date-card"
+                  onClick={() => setCalendarOpen(true)}
+                >
+                  <span>Start</span>
+                  <strong>{formatTripWhen(context.from)}</strong>
+                </button>
+                <button
+                  type="button"
+                  className="car-detail-date-card"
+                  onClick={() => setCalendarOpen(true)}
+                >
+                  <span>End</span>
+                  <strong>{formatTripWhen(context.to)}</strong>
+                </button>
+              </div>
+              <button
+                type="button"
+                className="car-detail-cal-toggle"
+                aria-expanded={calendarOpen}
+                onClick={() => setCalendarOpen((open) => !open)}
+              >
+                {calendarOpen ? "Hide calendar" : "Change dates"}
+              </button>
+
+              {calendarOpen && (
               <div
                 className="car-detail-calendar"
                 aria-label="Availability calendar. Swipe sideways to change month."
@@ -751,6 +794,7 @@ export default function CarDetail() {
                   <span className="dot sel" /> Selected
                 </p>
               </div>
+              )}
 
               <div className="car-detail-price-block">
                 {context.rentalType === "TOUR_PACKAGE" && selectedPackage ? (
@@ -864,10 +908,12 @@ export default function CarDetail() {
                 </div>
               )}
 
-              <p className="car-detail-hint">
-                Grey dates are fully booked or blocked (including a {car.bufferHours ?? 3}-hour
-                buffer between trips). Tap a start and end date, or use the pickers above.
-              </p>
+              {calendarOpen && (
+                <p className="car-detail-hint">
+                  Grey dates are fully booked or blocked (including a {car.bufferHours ?? 3}-hour
+                  buffer between trips). Tap a start date, then an end date.
+                </p>
+              )}
 
               {availabilityChecking && (
                 <p className="car-detail-availability car-detail-availability--checking">
@@ -899,20 +945,6 @@ export default function CarDetail() {
                   {quoteError}
                 </p>
               )}
-
-              <button
-                type="submit"
-                className="car-detail-cta"
-                disabled={!canQuote && Boolean(user)}
-              >
-                {submitting
-                  ? "Creating quote…"
-                  : user
-                    ? tripEstimate
-                      ? `Continue · ${formatInr(tripEstimate.rentalPaise)}`
-                      : "Continue to checkout"
-                    : "Sign in to continue booking"}
-              </button>
 
               {!user && authReady && (
                 <p className="car-detail-hint" style={{ marginTop: 12 }}>
@@ -1031,6 +1063,36 @@ export default function CarDetail() {
             )}
           </section>
         )}
+      </div>
+
+      <div className="car-detail-paybar">
+        <div className="car-detail-paybar-price">
+          <span>{tripEstimate ? "Trip price" : "From"}</span>
+          <strong>
+            {tripEstimate
+              ? formatInr(tripEstimate.rentalPaise)
+              : pricingRule
+                ? formatInr(pricingRule.dailyPaise)
+                : "—"}
+          </strong>
+          <small>
+            {context.from && context.to
+              ? `${formatTripWhen(context.from)} – ${formatTripWhen(context.to)}`
+              : "Select start and end"}
+          </small>
+        </div>
+        <button
+          type="submit"
+          form="car-detail-book"
+          className="car-detail-cta car-detail-paybar-cta"
+          disabled={!canQuote && Boolean(user)}
+        >
+          {submitting
+            ? "Please wait…"
+            : user
+              ? "Confirm payment"
+              : "Sign in to book"}
+        </button>
       </div>
 
       <AuthModal

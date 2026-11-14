@@ -650,8 +650,8 @@ async function main() {
   await prisma.banner.upsert({
     where: { id: "seed-banner-strip" },
     update: {
-      title: "Monsoon Sale",
-      body: "Self-drive deals live now — rain or shine, save on selected cars.",
+      title: "Winter Sale",
+      body: "Self-drive deals live now — cool-season savings on selected cars.",
       ctaText: "Grab Offers",
       link: "/fleet",
       placement: "STRIP",
@@ -659,9 +659,9 @@ async function main() {
     },
     create: {
       id: "seed-banner-strip",
-      title: "Monsoon Sale",
-      body: "Self-drive deals live now — rain or shine, save on selected cars.",
-      imageUrl: "https://placehold.co/1200x200/0e7c86/fff?text=Monsoon+Sale",
+      title: "Winter Sale",
+      body: "Self-drive deals live now — cool-season savings on selected cars.",
+      imageUrl: "https://placehold.co/1200x200/3d6f9c/fff?text=Winter+Sale",
       link: "/fleet",
       ctaText: "Grab Offers",
       placement: "STRIP",
@@ -672,15 +672,16 @@ async function main() {
   await prisma.banner.upsert({
     where: { id: "seed-banner-promo" },
     update: {
-      title: "Monsoon deals are live",
+      title: "Winter deals are live",
+      body: "Save on selected self-drive cars this season.",
       placement: "HOME_PROMO",
       active: true,
     },
     create: {
       id: "seed-banner-promo",
-      title: "Monsoon deals are live",
+      title: "Winter deals are live",
       body: "Save on selected self-drive cars this season.",
-      imageUrl: "https://placehold.co/800x500/111/fff?text=Monsoon+Deals",
+      imageUrl: "https://placehold.co/800x500/132a45/fff?text=Winter+Deals",
       link: "/fleet",
       ctaText: "See deals",
       placement: "HOME_PROMO",

@@ -5,7 +5,7 @@ import {
   faXmark,
   faArrowRight,
   faTag,
-  faCloudShowersHeavy,
+  faSnowflake,
 } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import "./SaleModal.css";
@@ -97,19 +97,19 @@ const SaleModal = () => {
             <img src={promoBanner.imageUrl} alt="" />
           ) : (
             <>
-              <img src="/sale-offer-scene.jpg" alt="" width="1248" height="644" />
+              <img src="/winter-offer-scene.jpg" alt="" width="1248" height="644" />
               <div className="sale-modal__offer">
                 <span className="sale-modal__offer-tag">
                   <FontAwesomeIcon icon={faTag} />
                   Limited-time offer
                 </span>
                 <p className="sale-modal__offer-title">
-                  Monsoon
+                  Winter
                   <span>Deals</span>
                 </p>
                 <span className="sale-modal__offer-drops">
-                  <FontAwesomeIcon icon={faCloudShowersHeavy} />
-                  Rain or shine
+                  <FontAwesomeIcon icon={faSnowflake} />
+                  Cool season savings
                 </span>
               </div>
             </>

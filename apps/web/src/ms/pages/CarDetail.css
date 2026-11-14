@@ -1,5 +1,5 @@
 .car-detail-page {
-  padding: 2rem 1.6rem 5rem;
+  padding: 2rem 1.6rem 9.5rem;
   background:
     radial-gradient(circle at 88% 0%, rgba(14, 124, 134, 0.08), transparent 32%),
     var(--light-bg, #f6fbfe);
@@ -112,7 +112,7 @@
 
 .car-detail-city {
   font-size: 1.4rem;
-  color: var(--monsoon-teal, #0e7c86);
+  color: var(--winter-ice, #3d6f9c);
   font-weight: 600;
   margin-bottom: 1rem;
 }
@@ -216,14 +216,14 @@
 }
 
 .car-detail-rate-card.is-active {
-  border-color: var(--monsoon-teal, #0e7c86);
+  border-color: var(--winter-ice, #3d6f9c);
   box-shadow: 0 0 0 2px rgba(14, 124, 134, 0.18);
 }
 
 .car-detail-rate-label {
   font-size: 1.15rem;
   font-weight: 600;
-  color: var(--monsoon-teal, #0e7c86);
+  color: var(--winter-ice, #3d6f9c);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -306,7 +306,7 @@
 .car-detail-estimate-total dd {
   font-size: 1.55rem;
   font-weight: 750;
-  color: var(--monsoon-teal, #0e7c86);
+  color: var(--winter-ice, #3d6f9c);
 }
 
 .car-detail-estimate-hint {
@@ -353,6 +353,116 @@
   color: var(--text-medium, #666);
   line-height: 1.45;
   margin: 0.5rem 0 1rem;
+}
+
+.car-detail-field--clock {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.car-detail-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 0.2rem 0 0.6rem;
+}
+
+.car-detail-date-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.85rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(14, 124, 134, 0.22);
+  background: #f4fbfb;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.car-detail-date-card span {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--winter-ice, #3d6f9c);
+}
+
+.car-detail-date-card strong {
+  font-size: 1.35rem;
+  line-height: 1.35;
+  color: var(--text-dark, #0c1d2c);
+}
+
+.car-detail-cal-toggle {
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary-color, #0072ce);
+  font-family: inherit;
+  font-size: 1.3rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.car-detail-paybar {
+  position: fixed;
+  left: 0;
+  right: 8.6rem;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+  padding: 1rem 1.6rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  background: #fff;
+  border-top: 1px solid rgba(14, 124, 134, 0.16);
+  box-shadow: 0 -8px 24px rgba(7, 24, 44, 0.1);
+}
+
+.car-detail-paybar-price {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.car-detail-paybar-price span {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--winter-ice, #3d6f9c);
+}
+
+.car-detail-paybar-price strong {
+  font-size: 2rem;
+  line-height: 1.15;
+  color: var(--text-dark, #0c1d2c);
+}
+
+.car-detail-paybar-price small {
+  font-size: 1.2rem;
+  color: var(--text-medium, #666);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.car-detail-paybar-cta {
+  width: auto;
+  min-width: 18rem;
+  flex-shrink: 0;
 }
 
 .car-detail-calendar {
@@ -737,7 +847,23 @@
 
 @media (max-width: 560px) {
   .car-detail-page {
-    padding: 1.4rem 1.2rem 4.4rem;
+    padding: 1.4rem 1.2rem 11rem;
+  }
+
+  .car-detail-paybar {
+    right: 0;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding-right: 8rem;
+  }
+
+  .car-detail-paybar-cta {
+    width: 100%;
+  }
+
+  .car-detail-dates {
+    grid-template-columns: 1fr;
   }
 
   .car-detail-others-head {

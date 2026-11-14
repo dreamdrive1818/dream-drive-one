@@ -1,4 +1,4 @@
-/* DreamCarBanner — monsoon promo card above the footer */
+/* DreamCarBanner — winter promo card above the footer */
 
 .dcb {
   padding: 2rem 2.4rem 5.6rem;
@@ -15,10 +15,10 @@
   display: flex;
   align-items: center;
   border-radius: 2rem;
-  background: linear-gradient(180deg, #eaf5fa 0%, #e3f1f8 100%);
+  background: linear-gradient(180deg, #eef4fa 0%, #e4eef7 100%);
   box-shadow:
-    0 2.4rem 5.6rem rgba(24, 74, 110, 0.12),
-    0 0.2rem 0.8rem rgba(24, 74, 110, 0.05);
+    0 2.4rem 5.6rem rgba(19, 42, 69, 0.12),
+    0 0.2rem 0.8rem rgba(19, 42, 69, 0.05);
   container-type: inline-size;
 }
 
@@ -78,7 +78,7 @@
 }
 
 .dcb-title span {
-  color: #148a91;
+  color: #3d6f9c;
 }
 
 .dcb-spark {
@@ -88,7 +88,7 @@
   width: 2.4rem;
   height: 2.8rem;
   fill: none;
-  stroke: #2bb0b0;
+  stroke: #5a8fb8;
   stroke-width: 2.6;
   stroke-linecap: round;
 }
@@ -109,13 +109,13 @@
   padding: 0.7rem 0.7rem 0.7rem 2.4rem;
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(135deg, #14959c 0%, #0b7a82 100%);
+  background: linear-gradient(135deg, #4a7eab 0%, #2f5f8a 100%);
   color: #fff;
   font-family: inherit;
   font-size: 1.5rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 1.2rem 2.6rem rgba(14, 124, 134, 0.3);
+  box-shadow: 0 1.2rem 2.6rem rgba(61, 111, 156, 0.3);
   transition:
     translate 0.2s ease,
     box-shadow 0.2s ease,
@@ -125,11 +125,11 @@
 .dcb-btn:hover {
   translate: 0 -2px;
   filter: brightness(1.05);
-  box-shadow: 0 1.6rem 3rem rgba(14, 124, 134, 0.36);
+  box-shadow: 0 1.6rem 3rem rgba(61, 111, 156, 0.36);
 }
 
 .dcb-btn:focus-visible {
-  outline: 3px solid rgba(14, 124, 134, 0.4);
+  outline: 3px solid rgba(61, 111, 156, 0.4);
   outline-offset: 3px;
 }
 
@@ -141,7 +141,7 @@
   height: 3.4rem;
   border-radius: 50%;
   background: #fff;
-  color: #0e7c86;
+  color: #3d6f9c;
   font-size: 1.3rem;
   transition: translate 0.2s ease;
 }
@@ -181,8 +181,8 @@
 }
 
 .dcb-feature-icon--teal {
-  background: #dff3f2;
-  color: #129097;
+  background: #e2eef7;
+  color: #3d6f9c;
 }
 
 .dcb-feature-icon--amber {
