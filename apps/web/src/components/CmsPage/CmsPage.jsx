@@ -88,7 +88,7 @@ export default function CmsPage({ slug: slugProp }) {
         />
 
         <div className="legal-cta">
-          <p>Questions about these terms?</p>
+          <p>Questions about this page?</p>
           <Link to="/contact">
             Contact us
             <FontAwesomeIcon icon={faArrowRight} />

@@ -18,6 +18,10 @@ import {
   getAuthSettings,
   invalidateAuthSettingsCache,
 } from "../../lib/auth-settings";
+import {
+  LEGAL_CONTENT_VERSION,
+  LEGAL_PAGES,
+} from "./legal-pages";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MEDIA_MAX_BYTES = 8 * 1024 * 1024;
@@ -366,19 +370,6 @@ const SETTING_DEFAULTS: Record<string, { label: string; group: string; value: st
   ...AUTH_SETTING_DEFAULTS,
 };
 
-const DEFAULT_BOOKING_TERMS = `<h2>1. Token booking</h2>
-<p>Paying the token amount reserves the selected car for your trip. The token is set for each car and shown before you pay. It is not the full rental charge.</p>
-<h2>2. Details collected at payment</h2>
-<p>Before the token is taken we confirm your full name, date of birth, email address, and mobile number. Driving licence and identity documents are completed in KYC after the token payment.</p>
-<h2>3. Balance</h2>
-<p>The remaining rental amount, and any security deposit, is payable before the vehicle is handed over.</p>
-<h2>4. Vehicle use</h2>
-<p>Only a verified driver may operate a self-drive vehicle. The car must not be used for racing, ride-sharing, towing, or any illegal purpose. GPS tracking must not be tampered with.</p>
-<h2>5. Damage and return</h2>
-<p>The vehicle must be returned in the condition it was delivered, at the agreed time and place. The hirer is responsible for traffic fines, fuel difference, and damage not covered by the booking.</p>
-<h2>6. Cancellation</h2>
-<p>Cancellation and refund of the token follow the policy shown on your booking. Dream Drive may refuse handover if KYC is incomplete or these terms are breached.</p>`;
-
 @Injectable()
 export class CmsService {
   private settingsSeeded = false;
@@ -416,27 +407,77 @@ export class CmsService {
         skipDuplicates: true,
       });
     }
-    await this.ensureTermsPage();
+    await this.ensureLegalPages();
     await this.ensureGetaways();
   }
 
-  private async ensureTermsPage() {
-    const existing = await prisma.cmsPage.findUnique({ where: { slug: "terms" } });
-    if (existing) return;
-    await prisma.cmsPage.create({
-      data: {
-        slug: "terms",
-        title: "Terms & Conditions",
-        excerpt: "Please read these terms before paying the booking token.",
-        body: DEFAULT_BOOKING_TERMS,
+  private async ensureLegalPages() {
+    const versionRow = await prisma.siteSetting.findUnique({
+      where: { key: "legalContentVersion" },
+    });
+    if (versionRow?.value === LEGAL_CONTENT_VERSION) {
+      // Still create any missing slugs without overwriting customised bodies.
+      for (const page of LEGAL_PAGES) {
+        const existing = await prisma.cmsPage.findUnique({
+          where: { slug: page.slug },
+          select: { id: true },
+        });
+        if (!existing) await this.upsertLegalPage(page);
+      }
+      return;
+    }
+
+    for (const page of LEGAL_PAGES) {
+      await this.upsertLegalPage(page);
+    }
+    await prisma.siteSetting.upsert({
+      where: { key: "legalContentVersion" },
+      update: {
+        value: LEGAL_CONTENT_VERSION,
+        label: "Legal CMS content version",
+        group: "content",
+      },
+      create: {
+        key: "legalContentVersion",
+        value: LEGAL_CONTENT_VERSION,
+        label: "Legal CMS content version",
+        group: "content",
+      },
+    });
+    void invalidatePublicCache();
+  }
+
+  private async upsertLegalPage(page: (typeof LEGAL_PAGES)[number]) {
+    const row = await prisma.cmsPage.upsert({
+      where: { slug: page.slug },
+      update: {
+        title: page.title,
+        excerpt: page.excerpt,
+        body: page.body,
         kind: "LEGAL",
         published: true,
-        metadata: {
-          create: {
-            title: "Terms & Conditions | Dream Drive",
-            description: "Booking token, customer details, and hire terms for Dream Drive.",
-          },
-        },
+        sortOrder: page.sortOrder,
+      },
+      create: {
+        slug: page.slug,
+        title: page.title,
+        excerpt: page.excerpt,
+        body: page.body,
+        kind: "LEGAL",
+        published: true,
+        sortOrder: page.sortOrder,
+      },
+    });
+    await prisma.pageMetadata.upsert({
+      where: { pageId: row.id },
+      update: {
+        title: page.metaTitle,
+        description: page.metaDescription,
+      },
+      create: {
+        pageId: row.id,
+        title: page.metaTitle,
+        description: page.metaDescription,
       },
     });
   }

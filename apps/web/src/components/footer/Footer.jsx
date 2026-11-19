@@ -40,14 +40,17 @@ const Footer = () => {
             <h4>Quick Link</h4>
             <p onClick={() => navigate("/about")}>Who we are</p>
             <p onClick={() => navigate("/cars")}>Pick a car</p>
-              <p onClick={() => navigate("/testimonials")}>Testimonials</p>
+            <p onClick={() => navigate("/howitworks")}>How it works</p>
+            <p onClick={() => navigate("/testimonials")}>Testimonials</p>
             <p onClick={() => navigate("/contact")}>Contact Us</p>
           </div>
           <div className="footer-column">
             <h4>Legal</h4>
-            <p onClick={() => navigate("/howitworks")}>How it works</p>
             <p onClick={() => navigate("/termsandconditions")}>Terms And Conditions</p>
             <p onClick={() => navigate("/legal/privacy")}>Privacy Policy</p>
+            <p onClick={() => navigate("/legal/cancellation")}>Cancellation & Refund</p>
+            <p onClick={() => navigate("/legal/cookies")}>Cookie Policy</p>
+            <p onClick={() => navigate("/legal/disclaimer")}>Disclaimer</p>
             <p onClick={() => navigate("/faq")}>FAQs</p>
           </div>
           <div className="footer-column">

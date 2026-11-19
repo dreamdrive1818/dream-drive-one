@@ -578,52 +578,56 @@ async function main() {
     metaDescription:
       "Welcome to Dream Drive – Ranchi’s top choice for self-drive car rentals. Book SUVs like Nexon & Brezza with flexible packages, 24x7 support, and doorstep delivery.",
   });
-  await upsertPage({
-    slug: "terms",
-    title: "Terms and Conditions",
-    excerpt: "Standard Dream-Drive hire terms.",
-    kind: "LEGAL",
-    body: `<h2>1. General Terms</h2>
-<p>This agreement is made between Dream Drive and the Customer renting the vehicle.</p>
-<h2>2. Vehicle Usage</h2>
-<ul>
-<li>Only verified drivers are permitted to operate the vehicle.</li>
-<li>A valid driving licence is mandatory.</li>
-<li>GPS tracking is mandatory; tampering is considered theft.</li>
-</ul>
-<h2>3. Return of Vehicle</h2>
-<p>The vehicle must be returned in clean and proper condition.</p>`,
-    metaTitle: "Terms and Conditions | Dream Drive",
-    metaDescription: "Hire terms for Dream Drive self-drive and chauffeur car rentals in Ranchi.",
-    sortOrder: 1,
+  const { LEGAL_PAGES, LEGAL_CONTENT_VERSION } = await import(
+    "../../../apps/api/src/modules/platform/legal-pages"
+  );
+  for (const page of LEGAL_PAGES) {
+    await upsertPage({
+      slug: page.slug,
+      title: page.title,
+      excerpt: page.excerpt,
+      kind: "LEGAL",
+      body: page.body,
+      metaTitle: page.metaTitle,
+      metaDescription: page.metaDescription,
+      sortOrder: page.sortOrder,
+    });
+  }
+  await prisma.siteSetting.upsert({
+    where: { key: "legalContentVersion" },
+    update: {
+      value: LEGAL_CONTENT_VERSION,
+      label: "Legal CMS content version",
+      group: "content",
+    },
+    create: {
+      key: "legalContentVersion",
+      value: LEGAL_CONTENT_VERSION,
+      label: "Legal CMS content version",
+      group: "content",
+    },
   });
-  await upsertPage({
-    slug: "privacy",
-    title: "Privacy Policy",
-    excerpt: "How Dream Drive uses customer data.",
-    kind: "LEGAL",
-    body: `<p>Dream Drive collects contact details and booking data to fulfil rentals, KYC, and support. We do not sell personal data.</p>
-<p>Contact us to request a copy or deletion of your records.</p>`,
-    metaTitle: "Privacy Policy | Dream Drive",
-    metaDescription: "How Dream Drive collects, uses, and stores customer information.",
-    sortOrder: 2,
-  });
+
   await upsertPage({
     slug: "faq",
     title: "Frequently Asked Questions",
-    excerpt: "Booking, deposits, KYC, and delivery answers.",
+    excerpt: "Booking, deposits, KYC, cancellation, and delivery answers.",
     kind: "FAQ",
     body: `<h2>What documents do I need?</h2>
-<p>A valid driving licence, government ID, and a local address proof for self-drive bookings.</p>
+<p>A valid driving licence, government ID, and a local address proof for self-drive bookings. KYC must be completed before handover.</p>
 <h2>Is there a security deposit?</h2>
-<p>Yes, for self-drive trips. The amount depends on the car and is shown before you pay.</p>
+<p>Yes, for most self-drive trips. The amount depends on the car and is shown before you pay. Eligible balance is released after return inspection.</p>
 <h2>Do you deliver the car?</h2>
-<p>Doorstep delivery is available in Ranchi for most bookings.</p>
+<p>Doorstep delivery is available in Ranchi for most bookings, subject to service area and fees shown at checkout.</p>
 <h2>Can I book a chauffeur?</h2>
-<p>Yes. Choose with-driver local or intercity when you search.</p>`,
+<p>Yes. Choose with-driver local, intercity, airport, outstation, one-way, or tour when you search.</p>
+<h2>How do cancellations and refunds work?</h2>
+<p>Refund percentages depend on product type and how many hours remain before trip start. See the full <a href="/legal/cancellation">Cancellation &amp; Refund Policy</a>.</p>
+<h2>Where can I read the hire terms?</h2>
+<p>See our <a href="/legal/terms">Terms and Conditions</a> and <a href="/legal/privacy">Privacy Policy</a>.</p>`,
     metaTitle: "FAQs | Dream Drive car rentals",
-    metaDescription: "Answers about Dream Drive bookings, deposits, KYC, and car delivery in Ranchi.",
-    sortOrder: 3,
+    metaDescription: "Answers about Dream Drive bookings, deposits, KYC, cancellation, and car delivery in Ranchi.",
+    sortOrder: 10,
   });
 
   await prisma.banner.upsert({
