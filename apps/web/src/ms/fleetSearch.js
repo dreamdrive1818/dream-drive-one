@@ -443,12 +443,12 @@ export function estimateTripPrice(rule, fromIso, toIso, rentalType = "SELF_DRIVE
     rentalPaise,
     depositPaise,
     extraKmPaise,
-    // Trip total is rental only — deposit is held separately and refundable.
+    // Trip total is rental only — deposit is due at pickup, not in trip total.
     totalPaise: rentalPaise,
     breakdown: [
       { label, amountPaise: rentalPaise },
       ...(depositPaise > 0
-        ? [{ label: "Security deposit (held separately)", amountPaise: depositPaise }]
+        ? [{ label: "Security deposit (due at pickup)", amountPaise: depositPaise }]
         : []),
     ],
   };

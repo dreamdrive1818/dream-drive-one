@@ -543,7 +543,7 @@ export default function AccountBookingDetail() {
               </div>
               {booking.depositPaise > 0 ? (
                 <div>
-                  <dt>Deposit</dt>
+                  <dt>Deposit (due at pickup)</dt>
                   <dd>{rupees(booking.depositPaise)}</dd>
                 </div>
               ) : null}

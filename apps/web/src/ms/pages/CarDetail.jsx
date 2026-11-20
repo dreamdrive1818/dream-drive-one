@@ -953,7 +953,7 @@ export default function CarDetail() {
                     </div>
                     {tripEstimate.depositPaise > 0 && (
                       <div>
-                        <dt>Deposit</dt>
+                        <dt>Deposit (at pickup)</dt>
                         <dd>{formatInr(tripEstimate.depositPaise)}</dd>
                       </div>
                     )}
@@ -967,7 +967,7 @@ export default function CarDetail() {
                       ? "Trips of 12 hours or less use the under-12 package price."
                       : "Trips over 12 hours are billed in 24-hour day blocks."}
                     {tripEstimate.depositPaise > 0
-                      ? " Deposit is held separately and is not included in the trip total."
+                      ? " Security deposit is not included in the trip total and must be submitted at the time of pickup."
                       : ""}
                     {" "}
                     Final amount is confirmed when you continue.

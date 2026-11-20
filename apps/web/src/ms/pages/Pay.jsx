@@ -671,7 +671,9 @@ export default function Pay() {
                 </label>
               </div>
               <p className="checkout-essentials-lead pay-reserve-note">
-                The token reserves the car. The remaining rental is due before handover.
+                The token reserves the car. The remaining rental is due before
+                handover. Any security deposit must be submitted at the time of
+                pickup.
               </p>
               {detailError ? (
                 <p className="pay-alert" id="pay-alert" role="alert">

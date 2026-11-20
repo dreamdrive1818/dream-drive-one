@@ -561,8 +561,9 @@ export default function Checkout() {
                 ) : null}
                 {hasDeposit && quote.depositPaise > 0 ? (
                   <p>
-                    A deposit of {formatInr(quote.depositPaise)} is shown from
-                    this quote. It is listed separately from the rental amount.
+                    A security deposit of {formatInr(quote.depositPaise)} is
+                    listed separately from the rental amount. The deposit must
+                    be submitted at the time of pickup.
                   </p>
                 ) : null}
                 {!lockedUntil && !(hasDeposit && quote.depositPaise > 0) ? (
@@ -613,7 +614,7 @@ export default function Checkout() {
                 ) : null}
                 {hasDeposit && quote.depositPaise > 0 ? (
                   <div className="checkout-price-row checkout-price-row--deposit">
-                    <span>Deposit</span>
+                    <span>Deposit (due at pickup)</span>
                     <strong>{formatInr(quote.depositPaise)}</strong>
                   </div>
                 ) : null}
