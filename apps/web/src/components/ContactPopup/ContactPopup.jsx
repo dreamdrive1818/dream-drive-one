@@ -9,13 +9,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import api from "../../api/http";
 import { trackWhatsApp } from "../../utils/trackLead";
 
-const MOBILE_QUERY = "(max-width: 768px)";
-const DESKTOP_DELAY_MS = 1000;
-const MOBILE_DELAY_MS = 20000;
-
 const ContactPopup = () => {
   const [visible, setVisible] = useState(false);
-  const [toggleButtonVisible, setToggleButtonVisible] = useState(false);
   const { pathname } = useLocation();
   const { webinfo } = useLocalContext();
   const [formData, setFormData] = useState({
@@ -24,20 +19,12 @@ const ContactPopup = () => {
     phone: "",
     message: "",
   });
+  const hideFab =
+    pathname.startsWith("/account") || pathname.startsWith("/checkout");
 
   useEffect(() => {
-    if (pathname.startsWith("/account") || pathname.startsWith("/checkout")) {
-      setVisible(false);
-      return undefined;
-    }
-    const mobile = window.matchMedia(MOBILE_QUERY).matches;
-    const delay = mobile ? MOBILE_DELAY_MS : DESKTOP_DELAY_MS;
-    const timer = window.setTimeout(() => {
-      const path = window.location.pathname;
-      if (path.startsWith("/account") || path.startsWith("/checkout")) return;
-      setVisible(true);
-    }, delay);
-    return () => window.clearTimeout(timer);
+    // Never auto-open on navigation — stay closed until the user taps the FAB.
+    setVisible(false);
   }, [pathname]);
 
   const handleChange = (e) => {
@@ -46,12 +33,10 @@ const ContactPopup = () => {
 
   const closePopup = () => {
     setVisible(false);
-    setToggleButtonVisible(true);
   };
 
   const openPopup = () => {
     setVisible(true);
-    setToggleButtonVisible(false);
   };
 
   const handleSubmit = async (e) => {
@@ -85,6 +70,8 @@ const ContactPopup = () => {
       toast.error(Array.isArray(apiMessage) ? apiMessage.join(" ") : String(apiMessage));
     }
   };
+
+  if (hideFab) return null;
 
   return (
     <>
@@ -161,7 +148,7 @@ const ContactPopup = () => {
         </form>
       </div>
 
-      {toggleButtonVisible && (
+      {!hideFab && !visible ? (
         <button
           type="button"
           className="contact-popup-reopen"
@@ -170,7 +157,7 @@ const ContactPopup = () => {
         >
           <FontAwesomeIcon icon={faComments} />
         </button>
-      )}
+      ) : null}
     </>
   );
 };
