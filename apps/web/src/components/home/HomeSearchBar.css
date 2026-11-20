@@ -115,6 +115,18 @@
   cursor: pointer;
 }
 
+.home-search-field--datetime {
+  gap: 0.45rem;
+}
+
+.home-search-field--datetime .trip-time-select {
+  margin: 0;
+}
+
+.home-search-field--datetime .trip-time-select select {
+  font-size: 1.35rem;
+}
+
 .home-search-submit {
   display: inline-flex;
   align-items: center;

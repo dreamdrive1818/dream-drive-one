@@ -377,30 +377,83 @@
 .car-detail-date-card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
+  gap: 0.55rem;
   width: 100%;
-  padding: 0.85rem 0.9rem;
+  padding: 0.75rem 0.85rem 0.85rem;
   border-radius: 12px;
   border: 1px solid rgba(14, 124, 134, 0.22);
   background: #f4fbfb;
+  font-family: inherit;
+}
+
+.car-detail-date-card__pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   text-align: left;
   cursor: pointer;
   font-family: inherit;
 }
 
-.car-detail-date-card span {
-  font-size: 1.15rem;
+.car-detail-date-card__pick span {
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--winter-ice, #3d6f9c);
 }
 
-.car-detail-date-card strong {
+.car-detail-date-card__pick strong {
   font-size: 1.35rem;
-  line-height: 1.35;
+  line-height: 1.3;
   color: var(--text-dark, #0c1d2c);
+}
+
+.car-detail-date-card__time {
+  margin: 0;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(14, 124, 134, 0.14);
+}
+
+.car-detail-date-card__time label {
+  display: block;
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--winter-ice, #3d6f9c);
+}
+
+.car-detail-date-card__time select {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 9px;
+  border: 1px solid rgba(14, 124, 134, 0.28);
+  background: #fff;
+  font-family: inherit;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-dark, #0c1d2c);
+  cursor: pointer;
+}
+
+.car-detail-date-card__time select:focus {
+  outline: none;
+  border-color: var(--primary-color, #0072ce);
+  box-shadow: 0 0 0 3px rgba(0, 114, 206, 0.12);
+}
+
+.car-detail-date-card__time select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .car-detail-cal-toggle {
@@ -418,13 +471,13 @@
 .car-detail-paybar {
   position: fixed;
   left: 0;
-  right: 8.6rem;
+  right: 0;
   bottom: 0;
   z-index: 40;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 1.2rem;
+  gap: 1rem 1.2rem;
   padding: 1rem 1.6rem calc(1rem + env(safe-area-inset-bottom, 0px));
   background: #fff;
   border-top: 1px solid rgba(14, 124, 134, 0.16);
@@ -434,7 +487,9 @@
 .car-detail-paybar-price {
   display: flex;
   flex-direction: column;
+  gap: 0.15rem;
   min-width: 0;
+  overflow: hidden;
 }
 
 .car-detail-paybar-price span {
@@ -461,8 +516,19 @@
 
 .car-detail-paybar-cta {
   width: auto;
-  min-width: 18rem;
-  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+/* Keep call/WhatsApp FABs above the sticky pay bar on this page */
+body:has(.car-detail-page) .number-float {
+  bottom: calc(7.2rem + env(safe-area-inset-bottom, 0px));
+}
+
+body:has(.car-detail-page) .whatsapp-popup {
+  bottom: calc(7.2rem + 5.6rem + 1rem + env(safe-area-inset-bottom, 0px));
 }
 
 .car-detail-calendar {
@@ -845,23 +911,33 @@
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 720px) {
   .car-detail-page {
-    padding: 1.4rem 1.2rem 11rem;
+    padding: 1.4rem 1.2rem 14rem;
   }
 
   .car-detail-paybar {
-    right: 0;
+    grid-template-columns: 1fr;
     align-items: stretch;
-    flex-direction: column;
-    gap: 0.7rem;
-    padding-right: 8rem;
+    gap: 0.75rem;
+    padding: 1rem 1.2rem calc(1rem + env(safe-area-inset-bottom, 0px));
   }
 
   .car-detail-paybar-cta {
     width: 100%;
+    justify-self: stretch;
   }
 
+  body:has(.car-detail-page) .number-float {
+    bottom: calc(12.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(.car-detail-page) .whatsapp-popup {
+    bottom: calc(12.5rem + 5.6rem + 0.8rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 560px) {
   .car-detail-dates {
     grid-template-columns: 1fr;
   }

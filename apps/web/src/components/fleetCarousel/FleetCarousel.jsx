@@ -20,10 +20,13 @@ import { api, peekApi } from "../../ms/api";
 import {
   filtersToSearchParams,
   dateToIsoAtHour,
+  clampHourForDate,
+  hourFromIso,
   validateDateRange,
   defaultSearchDates,
   localDateYmd,
 } from "../../ms/fleetSearch";
+import TripTimeSelect from "../../ms/TripTimeSelect";
 import { FleetCarouselSkeleton } from "../Skeleton/Skeleton";
 
 /**
@@ -211,6 +214,8 @@ const FleetCarousel = () => {
   const [vehicleClass, setVehicleClass] = useState("Hatchback");
   const [fromDate, setFromDate] = useState(() => defaultSearchDates().fromDate);
   const [toDate, setToDate] = useState(() => defaultSearchDates().toDate);
+  const [fromHour, setFromHour] = useState(() => hourFromIso(defaultSearchDates().from));
+  const [toHour, setToHour] = useState(() => hourFromIso(defaultSearchDates().to));
   const [searchError, setSearchError] = useState("");
   const todayMin = localDateYmd(0);
 
@@ -381,8 +386,8 @@ const FleetCarousel = () => {
       setSearchError("Please select a pickup city.");
       return;
     }
-    const from = dateToIsoAtHour(fromDate, 10);
-    const to = dateToIsoAtHour(toDate, 10);
+    const from = dateToIsoAtHour(fromDate, clampHourForDate(fromDate, fromHour));
+    const to = dateToIsoAtHour(toDate, clampHourForDate(toDate, toHour));
     const err = validateDateRange(from, to);
     if (err) {
       setSearchError(err);
@@ -472,12 +477,21 @@ const FleetCarousel = () => {
                         onChange={(e) => {
                           const next = e.target.value;
                           setFromDate(next);
+                          setFromHour(clampHourForDate(next, fromHour));
                           if (toDate && next && toDate <= next) {
                             setToDate(localDateYmd(2, new Date(`${next}T12:00:00`)));
                           }
                         }}
                       />
                     </span>
+                    <TripTimeSelect
+                      id="fleet-qs-from-time"
+                      label=""
+                      className="fleet-qs-time"
+                      iso={dateToIsoAtHour(fromDate, fromHour)}
+                      dateStr={fromDate}
+                      onChange={setFromHour}
+                    />
                   </label>
                   <label>
                     Return
@@ -487,9 +501,22 @@ const FleetCarousel = () => {
                         type="date"
                         min={fromDate || todayMin}
                         value={toDate}
-                        onChange={(e) => setToDate(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setToDate(next);
+                          setToHour(clampHourForDate(next, toHour));
+                        }}
                       />
                     </span>
+                    <TripTimeSelect
+                      id="fleet-qs-to-time"
+                      label=""
+                      className="fleet-qs-time"
+                      iso={dateToIsoAtHour(toDate, toHour)}
+                      dateStr={toDate}
+                      minIso={dateToIsoAtHour(fromDate, fromHour)}
+                      onChange={setToHour}
+                    />
                   </label>
                 </div>
 

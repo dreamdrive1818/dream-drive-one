@@ -203,6 +203,14 @@
   flex-shrink: 0;
 }
 
+.fleet-qs-time {
+  margin-top: 8px;
+}
+
+.fleet-qs-time select {
+  width: 100%;
+}
+
 .fleet-qs-err {
   margin: 0 0 10px;
   font-size: 12px;

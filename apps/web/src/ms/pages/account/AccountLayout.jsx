@@ -116,12 +116,16 @@ export default function AccountLayout() {
         <header className="dash-top">
           <div>
             <p className="dash-kicker">Dashboard</p>
-            <p className="dash-title">{title}</p>
+            <p key={title} className="dash-title account-section-enter">
+              {title}
+            </p>
           </div>
           <Link to="/fleet" className="dash-browse">Browse cars</Link>
         </header>
         <div className="account-main">
-          <Outlet />
+          <div key={location.pathname} className="account-section-enter">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>

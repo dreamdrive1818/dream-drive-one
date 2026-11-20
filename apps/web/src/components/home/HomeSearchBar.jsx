@@ -9,10 +9,13 @@ import {
   RENTAL_TYPES,
   filtersToSearchParams,
   dateToIsoAtHour,
+  clampHourForDate,
+  hourFromIso,
   validateDateRange,
   defaultSearchDates,
   localDateYmd,
 } from "../../ms/fleetSearch";
+import TripTimeSelect from "../../ms/TripTimeSelect";
 import "./HomeSearchBar.css";
 
 export default function HomeSearchBar() {
@@ -22,6 +25,8 @@ export default function HomeSearchBar() {
   const defaults = defaultSearchDates();
   const [fromDate, setFromDate] = useState(defaults.fromDate);
   const [toDate, setToDate] = useState(defaults.toDate);
+  const [fromHour, setFromHour] = useState(() => hourFromIso(defaults.from));
+  const [toHour, setToHour] = useState(() => hourFromIso(defaults.to));
   const [rentalType, setRentalType] = useState("SELF_DRIVE");
   const [error, setError] = useState("");
   const todayMin = localDateYmd(0);
@@ -36,8 +41,8 @@ export default function HomeSearchBar() {
       .catch(() => {});
   }, []);
 
-  const from = dateToIsoAtHour(fromDate, 10);
-  const to = dateToIsoAtHour(toDate, 10);
+  const from = dateToIsoAtHour(fromDate, clampHourForDate(fromDate, fromHour));
+  const to = dateToIsoAtHour(toDate, clampHourForDate(toDate, toHour));
   const dateError = useMemo(() => validateDateRange(from, to), [from, to]);
 
   function submit(e) {
@@ -87,7 +92,7 @@ export default function HomeSearchBar() {
               </select>
             </div>
 
-            <div className="home-search-field">
+            <div className="home-search-field home-search-field--datetime">
               <label htmlFor="home-from">Pickup</label>
               <input
                 id="home-from"
@@ -97,21 +102,41 @@ export default function HomeSearchBar() {
                 onChange={(e) => {
                   const next = e.target.value;
                   setFromDate(next);
+                  setFromHour(clampHourForDate(next, fromHour));
                   if (toDate && next && toDate <= next) {
                     setToDate(localDateYmd(2, new Date(`${next}T12:00:00`)));
                   }
                 }}
               />
+              <TripTimeSelect
+                id="home-from-time"
+                label=""
+                iso={from}
+                dateStr={fromDate}
+                onChange={setFromHour}
+              />
             </div>
 
-            <div className="home-search-field">
+            <div className="home-search-field home-search-field--datetime">
               <label htmlFor="home-to">Return</label>
               <input
                 id="home-to"
                 type="date"
                 min={fromDate || todayMin}
                 value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setToDate(next);
+                  setToHour(clampHourForDate(next, toHour));
+                }}
+              />
+              <TripTimeSelect
+                id="home-to-time"
+                label=""
+                iso={to}
+                dateStr={toDate}
+                minIso={from}
+                onChange={setToHour}
               />
             </div>
 

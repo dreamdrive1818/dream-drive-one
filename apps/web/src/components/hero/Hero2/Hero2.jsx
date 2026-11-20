@@ -21,10 +21,13 @@ import {
   RENTAL_TYPES,
   filtersToSearchParams,
   dateToIsoAtHour,
+  clampHourForDate,
+  hourFromIso,
   validateDateRange,
   defaultSearchDates,
   localDateYmd,
 } from "../../../ms/fleetSearch";
+import TripTimeSelect from "../../../ms/TripTimeSelect";
 import {
   lookupPickup,
   matchCityFromPlace,
@@ -64,6 +67,8 @@ const Hero2 = () => {
   const [locMsg, setLocMsg] = useState("");
   const [fromDate, setFromDate] = useState(defaults.fromDate);
   const [toDate, setToDate] = useState(defaults.toDate);
+  const [fromHour, setFromHour] = useState(() => hourFromIso(defaults.from));
+  const [toHour, setToHour] = useState(() => hourFromIso(defaults.to));
   const [rentalType, setRentalType] = useState("SELF_DRIVE");
   const [searchError, setSearchError] = useState("");
   const cityTouched = useRef(false);
@@ -149,8 +154,8 @@ const Hero2 = () => {
       setSearchError(cityMismatch);
       return;
     }
-    const from = dateToIsoAtHour(fromDate, 10);
-    const to = dateToIsoAtHour(toDate, 10);
+    const from = dateToIsoAtHour(fromDate, clampHourForDate(fromDate, fromHour));
+    const to = dateToIsoAtHour(toDate, clampHourForDate(toDate, toHour));
     const err = validateDateRange(from, to);
     if (err) {
       setSearchError(err);
@@ -487,40 +492,64 @@ const Hero2 = () => {
               id: "hero2-from",
               label: (
                 <>
-                  <FontAwesomeIcon icon={faCalendarDays} /> Pickup date
+                  <FontAwesomeIcon icon={faCalendarDays} /> Pickup
                 </>
               ),
               control: (
-                <input
-                  id="hero2-from"
-                  type="date"
-                  min={todayMin}
-                  value={fromDate}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setFromDate(next);
-                    if (toDate && next && toDate <= next) {
-                      setToDate(localDateYmd(2, new Date(`${next}T12:00:00`)));
-                    }
-                  }}
-                />
+                <div className="hero2-datetime">
+                  <input
+                    id="hero2-from"
+                    type="date"
+                    min={todayMin}
+                    value={fromDate}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setFromDate(next);
+                      setFromHour(clampHourForDate(next, fromHour));
+                      if (toDate && next && toDate <= next) {
+                        setToDate(localDateYmd(2, new Date(`${next}T12:00:00`)));
+                      }
+                    }}
+                  />
+                  <TripTimeSelect
+                    id="hero2-from-time"
+                    label=""
+                    iso={dateToIsoAtHour(fromDate, fromHour)}
+                    dateStr={fromDate}
+                    onChange={setFromHour}
+                  />
+                </div>
               ),
             },
             {
               id: "hero2-to",
               label: (
                 <>
-                  <FontAwesomeIcon icon={faCalendarDays} /> Return date
+                  <FontAwesomeIcon icon={faCalendarDays} /> Return
                 </>
               ),
               control: (
-                <input
-                  id="hero2-to"
-                  type="date"
-                  min={fromDate || todayMin}
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                />
+                <div className="hero2-datetime">
+                  <input
+                    id="hero2-to"
+                    type="date"
+                    min={fromDate || todayMin}
+                    value={toDate}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setToDate(next);
+                      setToHour(clampHourForDate(next, toHour));
+                    }}
+                  />
+                  <TripTimeSelect
+                    id="hero2-to-time"
+                    label=""
+                    iso={dateToIsoAtHour(toDate, toHour)}
+                    dateStr={toDate}
+                    minIso={dateToIsoAtHour(fromDate, fromHour)}
+                    onChange={setToHour}
+                  />
+                </div>
               ),
             },
             {
