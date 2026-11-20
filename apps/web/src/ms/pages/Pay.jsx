@@ -402,7 +402,6 @@ export default function Pay() {
           fullName: name,
           dateOfBirth,
           phone: cleanPhone,
-          email: user.email,
           termsAccepted: true,
         },
       });
@@ -643,42 +642,9 @@ export default function Pay() {
                   <input value={user?.email || ""} readOnly autoComplete="email" />
                 </label>
               </div>
-              <label className={`pay-terms${termsAccepted ? " is-on" : ""}`}>
-                <input
-                  type="checkbox"
-                  checked={termsAccepted}
-                  onChange={(e) => setTermsAccepted(e.target.checked)}
-                />
-                <span>
-                  I have read and agree to the{" "}
-                  <Link to="/termsandconditions" target="_blank" rel="noreferrer">
-                    Terms & Conditions
-                  </Link>
-                  .
-                </span>
-              </label>
-              {terms?.body ? (
-                <div className="pay-agreement">
-                  <button
-                    type="button"
-                    className="pay-agreement-toggle"
-                    aria-expanded={termsOpen}
-                    onClick={() => setTermsOpen((open) => !open)}
-                  >
-                    {termsOpen ? "Hide agreement" : "Read the agreement"}
-                  </button>
-                  {termsOpen ? (
-                    <div
-                      className="checkout-terms-box"
-                      dangerouslySetInnerHTML={{ __html: terms.body }}
-                    />
-                  ) : null}
-                </div>
-              ) : (
-                <p className="checkout-essentials-lead pay-reserve-note">
-                  The token reserves the car. The remaining rental is due before handover.
-                </p>
-              )}
+              <p className="checkout-essentials-lead pay-reserve-note">
+                The token reserves the car. The remaining rental is due before handover.
+              </p>
               {detailError ? (
                 <p className="pay-alert" id="pay-alert" role="alert">
                   <strong>Check these details</strong>
@@ -761,6 +727,40 @@ export default function Pay() {
                   <span>{error}</span>
                 </p>
               ) : null}
+              <div className="pay-summary-terms">
+                <label className={`pay-terms${termsAccepted ? " is-on" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                  />
+                  <span>
+                    I have read and agree to the{" "}
+                    <Link to="/termsandconditions" target="_blank" rel="noreferrer">
+                      Terms & Conditions
+                    </Link>
+                    .
+                  </span>
+                </label>
+                {terms?.body ? (
+                  <div className="pay-agreement">
+                    <button
+                      type="button"
+                      className="pay-agreement-toggle"
+                      aria-expanded={termsOpen}
+                      onClick={() => setTermsOpen((open) => !open)}
+                    >
+                      {termsOpen ? "Hide agreement" : "Read the agreement"}
+                    </button>
+                    {termsOpen ? (
+                      <div
+                        className="checkout-terms-box"
+                        dangerouslySetInnerHTML={{ __html: terms.body }}
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
               <button
                 type="button"
                 className="checkout-cta checkout-cta--inline"

@@ -767,8 +767,14 @@ export class BookingEngine {
       include: { profile: true },
     });
     if (!user) throw new NotFoundException("User not found");
-    const email = String(body.email || user.email).trim().toLowerCase();
-    if (!email || email !== user.email.toLowerCase()) {
+    // Identity comes from the signed-in account — never require the client to
+    // re-prove email (whitespace / stale client state was failing this check).
+    const accountEmail = String(user.email || "").trim().toLowerCase();
+    const submittedEmail = String(body.email || "").trim().toLowerCase();
+    if (!accountEmail) {
+      throw new BadRequestException("Your account needs an email. Sign in again.");
+    }
+    if (submittedEmail && submittedEmail !== accountEmail) {
       throw new BadRequestException("Email must match the account used to sign in");
     }
     if (user.profile?.kycStatus === "APPROVED") {

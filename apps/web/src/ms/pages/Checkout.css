@@ -1294,6 +1294,16 @@ body:has(.checkout-page) .contact-popup-reopen {
   min-width: 0;
 }
 
+.pay-summary-terms {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.4rem 0 1rem;
+}
+
+.pay-summary .pay-terms {
+  margin-top: 0;
+}
+
 .pay-terms {
   display: flex;
   flex-direction: row;

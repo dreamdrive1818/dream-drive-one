@@ -980,31 +980,6 @@ export default function CarDetail() {
                 </p>
               )}
 
-              {availabilityChecking && (
-                <p className="car-detail-availability car-detail-availability--checking">
-                  Checking availability…
-                </p>
-              )}
-              {!availabilityChecking && availabilityError && (
-                <p className="car-detail-availability car-detail-availability--bad" role="alert">
-                  {availabilityError}
-                </p>
-              )}
-              {!availabilityChecking &&
-                !availabilityError &&
-                availability?.available === true && (
-                  <p className="car-detail-availability car-detail-availability--ok">
-                    Available for your selected dates
-                  </p>
-                )}
-              {!availabilityChecking &&
-                !availabilityError &&
-                availability?.available === false && (
-                  <p className="car-detail-availability car-detail-availability--bad">
-                    Unavailable for your selected dates
-                  </p>
-                )}
-
               {quoteError && (
                 <p className="car-detail-error" role="alert">
                   {quoteError}
@@ -1148,18 +1123,57 @@ export default function CarDetail() {
                     : "Select start and end"}
                 </small>
               </div>
-              <button
-                type="submit"
-                form="car-detail-book"
-                className="car-detail-cta car-detail-paybar-cta"
-                disabled={!canQuote && Boolean(user)}
-              >
-                {submitting
-                  ? "Please wait…"
-                  : user
-                    ? "Confirm payment"
-                    : "Sign in to book"}
-              </button>
+              <div className="car-detail-paybar-actions">
+                {availabilityChecking ? (
+                  <p className="car-detail-availability car-detail-availability--checking car-detail-paybar-avail">
+                    Checking availability…
+                  </p>
+                ) : null}
+                {!availabilityChecking && availabilityError ? (
+                  <p
+                    className="car-detail-availability car-detail-availability--bad car-detail-paybar-avail"
+                    role="alert"
+                  >
+                    {availabilityError}
+                  </p>
+                ) : null}
+                {!availabilityChecking &&
+                !availabilityError &&
+                availability?.available === true ? (
+                  <p className="car-detail-availability car-detail-availability--ok car-detail-paybar-avail">
+                    Available for your selected dates
+                  </p>
+                ) : null}
+                {!availabilityChecking &&
+                !availabilityError &&
+                availability?.available === false ? (
+                  <p className="car-detail-availability car-detail-availability--bad car-detail-paybar-avail">
+                    Unavailable for your selected dates
+                  </p>
+                ) : null}
+                {!availabilityChecking &&
+                !availabilityError &&
+                !availability &&
+                context.from &&
+                context.to &&
+                !dateError ? (
+                  <p className="car-detail-availability car-detail-availability--checking car-detail-paybar-avail">
+                    Checking availability…
+                  </p>
+                ) : null}
+                <button
+                  type="submit"
+                  form="car-detail-book"
+                  className="car-detail-cta car-detail-paybar-cta"
+                  disabled={!canQuote && Boolean(user)}
+                >
+                  {submitting
+                    ? "Please wait…"
+                    : user
+                      ? "Confirm Ride"
+                      : "Sign in to book"}
+                </button>
+              </div>
             </div>,
             document.body
           )
