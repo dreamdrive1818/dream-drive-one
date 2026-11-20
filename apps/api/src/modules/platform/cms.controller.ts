@@ -45,6 +45,21 @@ export class CmsController {
     return this.cms.adminUpdateSettings(body, actor.id);
   }
 
+  @Get("v1/admin/cms/theme")
+  adminGetTheme(@Req() req: Request) {
+    requireRoles(req, "SALES", "SUPER_ADMIN");
+    return this.cms.adminGetTheme();
+  }
+
+  @Patch("v1/admin/cms/theme")
+  adminApplyTheme(
+    @Req() req: Request,
+    @Body() body: { theme?: string; applyCopy?: boolean }
+  ) {
+    const actor = requireRoles(req, "SALES", "SUPER_ADMIN");
+    return this.cms.adminApplyTheme(body, actor.id);
+  }
+
   @Get("v1/public/home")
   home() {
     return this.cms.home();

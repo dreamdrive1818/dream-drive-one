@@ -66,6 +66,7 @@ export const NAV = [
   ["/coupons", "Coupons", ["SALES"], "Growth"],
   ["/packages", "Trips & tours", ["SALES", "FLEET_OPS"], "Growth"],
   ["/cms", "CMS", ["SALES"], "Content"],
+  ["/theme", "Theme", ["SALES"], "Content"],
   ["/banners", "Banners", ["SALES"], "Content"],
   ["/getaways", "Getaways", ["SALES"], "Content"],
   ["/blogs", "Blogs", ["SALES"], "Content"],

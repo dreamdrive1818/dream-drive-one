@@ -1429,6 +1429,29 @@ body:has(.checkout-page) .contact-popup-reopen {
   line-height: 1.45;
 }
 
+.pay-ready {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 1.2rem;
+  padding: 1.05rem 1.15rem;
+  border-radius: 12px;
+  border: 1px solid rgba(14, 124, 134, 0.22);
+  border-left: 4px solid #0e7c86;
+  background: #f2fbfb;
+  color: #0b3d44;
+}
+
+.pay-ready strong {
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.pay-ready span {
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
 .pay-alert {
   display: grid;
   gap: 0.25rem;

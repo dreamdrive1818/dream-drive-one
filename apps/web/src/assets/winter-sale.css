@@ -203,3 +203,53 @@ body.winter-sale .number-float a:hover {
     padding: 0.35rem 0.85rem;
   }
 }
+
+/* Monsoon Sale — site-wide theme */
+body.monsoon-sale {
+  --winter-deep: #0a3d4a;
+  --winter-ice: #0e7c86;
+  --winter-frost: #e8f5f4;
+  --winter-snow: #f3faf9;
+  --winter-mist: #7eb8b4;
+  --winter-gold: #d4a017;
+  --winter-cloud: rgba(255, 255, 255, 0.6);
+}
+
+body.monsoon-sale .winter-promo-bar {
+  background: linear-gradient(90deg, #063039, #0a4f58 45%, #0e7c86);
+}
+
+body.monsoon-sale .hero-banner {
+  background: linear-gradient(
+    120deg,
+    #f3faf9 0%,
+    #e8f5f4 35%,
+    #d5eeeb 55%,
+    #f3faf9 100%
+  );
+}
+
+body.monsoon-sale .fleet-discount-badge {
+  background: linear-gradient(135deg, #0e7c86, #14919b);
+  box-shadow: 0 2px 10px rgba(14, 124, 134, 0.35);
+}
+
+body.monsoon-sale .dream-banner {
+  position: relative;
+  background-image:
+    linear-gradient(120deg, rgba(10, 61, 74, 0.82), rgba(14, 124, 134, 0.72)),
+    url("https://images.unsplash.com/photo-1437623889155-075d040e94d3?q=80&w=2070&auto=format&fit=crop");
+}
+
+body.monsoon-sale .dream-banner .banner-btn {
+  background: var(--winter-gold);
+  color: #2a1f08;
+}
+
+body.monsoon-sale .number-float a {
+  background: linear-gradient(135deg, #0e7c86, #14919b);
+}
+
+body.monsoon-sale .number-float a:hover {
+  background: #0a3d4a;
+}

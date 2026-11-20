@@ -102,7 +102,11 @@ export class PaymentEngine {
     if (payment.booking.userId !== userId) throw new BadRequestException("Not your payment");
 
     if (this.mockMode()) {
-      return this.markSuccess(payment.id, body.razorpayPaymentId ?? `pay_mock_${payment.id}`, "verify-mock");
+      return this.markSuccess(
+        payment.id,
+        body.razorpayPaymentId ?? `pay_mock_${payment.id}`,
+        `verify-mock:${payment.id}`
+      );
     }
 
     const secret = process.env.RAZORPAY_KEY_SECRET ?? "";
@@ -112,7 +116,12 @@ export class PaymentEngine {
     if (expected !== body.razorpaySignature) {
       throw new BadRequestException("Invalid signature");
     }
-    return this.markSuccess(payment.id, body.razorpayPaymentId ?? "", "verify");
+    // Must be unique per payment — a shared "verify" eventId caused 500s after the first success.
+    return this.markSuccess(
+      payment.id,
+      body.razorpayPaymentId ?? "",
+      `verify:${body.razorpayPaymentId || payment.id}`
+    );
   }
 
   async webhook(rawBody: string, signature: string | undefined) {
@@ -227,16 +236,17 @@ export class PaymentEngine {
     const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
     if (!payment) throw new NotFoundException("Payment not found");
     if (payment.status === "SUCCESS") return payment;
+    const uniqueEventId = eventId.includes(paymentId) ? eventId : `${eventId}:${paymentId}`;
     await prisma.payment.update({
       where: { id: paymentId },
       data: {
         status: "SUCCESS",
         razorpayPaymentId,
-        eventId,
+        eventId: uniqueEventId,
       },
     });
     await prisma.paymentAttempt.create({
-      data: { paymentId, payload: { eventId, razorpayPaymentId } },
+      data: { paymentId, payload: { eventId: uniqueEventId, razorpayPaymentId } },
     });
     await this.afterSuccess(paymentId);
     return prisma.payment.findUnique({ where: { id: paymentId } });

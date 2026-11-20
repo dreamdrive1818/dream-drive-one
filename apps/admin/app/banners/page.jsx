@@ -55,7 +55,10 @@ export default function BannersPage() {
   return (
     <div>
       <h2>Banners</h2>
-      <p className="muted">STRIP is the top promo bar. HOME_PROMO drives the sale modal and footer strip. HERO is the homepage hero copy.</p>
+      <p className="muted">
+        STRIP is the top promo bar. HOME_PROMO drives the sale modal and footer strip. HERO is the homepage hero copy.
+        Use <a href="/theme">Theme</a> to switch Winter / Monsoon and keep titles aligned with the look.
+      </p>
       {error && <p className="err">{error}</p>}
       <form className="card" onSubmit={save} style={{ marginBottom: 16 }}>
         <h3>{editingId ? "Edit banner" : "New banner"}</h3>

@@ -367,8 +367,56 @@ const SETTING_DEFAULTS: Record<string, { label: string; group: string; value: st
   whatsapp:  { label: "WhatsApp",      group: "contact", value: process.env.PUBLIC_WHATSAPP   || "919942027772" },
   email:     { label: "Email",         group: "contact", value: process.env.PUBLIC_EMAIL       || "Dreamdrive1818@gmail.com" },
   address:   { label: "Address",       group: "contact", value: process.env.PUBLIC_ADDRESS     || "105 Jagriti Bhawan, near Adarsh Nagar, Bariatu, Ranchi - 834009 Jharkhand" },
+  siteTheme: { label: "Site theme",    group: "theme",   value: "winter" },
   ...AUTH_SETTING_DEFAULTS,
 };
+
+const SITE_THEMES = ["none", "winter", "monsoon"] as const;
+type SiteTheme = (typeof SITE_THEMES)[number];
+
+const THEME_BANNER_COPY: Record<
+  Exclude<SiteTheme, "none">,
+  {
+    strip: { title: string; body: string; ctaText: string; imageUrl: string };
+    promo: { title: string; body: string; ctaText: string; imageUrl: string };
+  }
+> = {
+  winter: {
+    strip: {
+      title: "Winter Sale",
+      body: "Self-drive deals live now — cool-season savings on selected cars.",
+      ctaText: "Grab Offers",
+      imageUrl: "https://placehold.co/1200x200/3d6f9c/fff?text=Winter+Sale",
+    },
+    promo: {
+      title: "Winter deals are live",
+      body: "Save on selected self-drive cars this season.",
+      ctaText: "See deals",
+      imageUrl: "https://placehold.co/800x500/132a45/fff?text=Winter+Deals",
+    },
+  },
+  monsoon: {
+    strip: {
+      title: "Monsoon Sale",
+      body: "Self-drive deals live now — rain or shine, save on selected cars.",
+      ctaText: "Grab Offers",
+      imageUrl: "https://placehold.co/1200x200/0e7c86/fff?text=Monsoon+Sale",
+    },
+    promo: {
+      title: "Monsoon deals are live",
+      body: "Save on selected self-drive cars this season.",
+      ctaText: "See deals",
+      imageUrl: "https://placehold.co/800x500/0a3d4a/fff?text=Monsoon+Deals",
+    },
+  },
+};
+
+function normalizeSiteTheme(raw: unknown): SiteTheme {
+  const value = String(raw || "")
+    .trim()
+    .toLowerCase();
+  return (SITE_THEMES as readonly string[]).includes(value) ? (value as SiteTheme) : "winter";
+}
 
 @Injectable()
 export class CmsService {
@@ -409,6 +457,126 @@ export class CmsService {
     }
     await this.ensureLegalPages();
     await this.ensureGetaways();
+    await this.alignCampaignCopyToTheme();
+  }
+
+  private async resolveSiteTheme(): Promise<SiteTheme> {
+    const row = await prisma.siteSetting.findUnique({ where: { key: "siteTheme" } });
+    return normalizeSiteTheme(row?.value ?? SETTING_DEFAULTS.siteTheme.value);
+  }
+
+  /** Fix strip/promo banners whose copy belongs to a different season than the active theme. */
+  private async alignCampaignCopyToTheme() {
+    const theme = await this.resolveSiteTheme();
+    if (theme === "none") return;
+    const opposite = theme === "winter" ? /monsoon/i : /winter/i;
+    const copy = THEME_BANNER_COPY[theme];
+    const rows = await prisma.banner.findMany({
+      where: {
+        placement: { in: [BannerPlacement.STRIP, BannerPlacement.HOME_PROMO] },
+        active: true,
+      },
+    });
+    let changed = 0;
+    for (const row of rows) {
+      const text = `${row.title} ${row.body || ""}`;
+      if (!opposite.test(text)) continue;
+      const preset =
+        row.placement === BannerPlacement.STRIP ? copy.strip : copy.promo;
+      await prisma.banner.update({
+        where: { id: row.id },
+        data: {
+          title: preset.title,
+          body: preset.body,
+          ctaText: row.ctaText || preset.ctaText,
+        },
+      });
+      changed += 1;
+    }
+    if (changed) void invalidatePublicCache();
+  }
+
+  private async applyThemeBannerCopy(theme: Exclude<SiteTheme, "none">) {
+    const copy = THEME_BANNER_COPY[theme];
+    const targets: Array<{
+      placement: BannerPlacement;
+      preset: (typeof copy)["strip"];
+    }> = [
+      { placement: BannerPlacement.STRIP, preset: copy.strip },
+      { placement: BannerPlacement.HOME_PROMO, preset: copy.promo },
+    ];
+    for (const { placement, preset } of targets) {
+      const existing = await prisma.banner.findFirst({
+        where: { placement },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      });
+      if (existing) {
+        await prisma.banner.update({
+          where: { id: existing.id },
+          data: {
+            title: preset.title,
+            body: preset.body,
+            ctaText: preset.ctaText,
+            link: existing.link || "/fleet",
+            active: true,
+          },
+        });
+      } else {
+        await prisma.banner.create({
+          data: {
+            title: preset.title,
+            body: preset.body,
+            ctaText: preset.ctaText,
+            imageUrl: preset.imageUrl,
+            link: "/fleet",
+            placement,
+            active: true,
+            sortOrder: 0,
+          },
+        });
+      }
+    }
+  }
+
+  async adminGetTheme() {
+    await this.seedSettings();
+    const theme = await this.resolveSiteTheme();
+    return {
+      theme,
+      options: SITE_THEMES,
+      presets: THEME_BANNER_COPY,
+    };
+  }
+
+  async adminApplyTheme(
+    body: { theme?: string; applyCopy?: boolean },
+    actorId?: string
+  ) {
+    await this.seedSettings();
+    const theme = normalizeSiteTheme(body.theme);
+    await prisma.siteSetting.upsert({
+      where: { key: "siteTheme" },
+      create: {
+        key: "siteTheme",
+        value: theme,
+        label: SETTING_DEFAULTS.siteTheme.label,
+        group: SETTING_DEFAULTS.siteTheme.group,
+      },
+      update: {
+        value: theme,
+        label: SETTING_DEFAULTS.siteTheme.label,
+        group: SETTING_DEFAULTS.siteTheme.group,
+      },
+    });
+    const applyCopy = body.applyCopy !== false && theme !== "none";
+    if (applyCopy) {
+      await this.applyThemeBannerCopy(theme);
+    }
+    await this.audit(actorId, "cms.theme.update", undefined, {
+      theme,
+      applyCopy,
+    });
+    return this.adminGetTheme();
   }
 
   private async ensureLegalPages() {
@@ -487,9 +655,10 @@ export class CmsService {
   }
 
   private async publicConfigUncached() {
-    void this.seedSettings();
-    const [rows, auth] = await Promise.all([
+    await this.seedSettings();
+    const [rows, themeRow, auth] = await Promise.all([
       prisma.siteSetting.findMany({ where: { group: "contact" } }),
+      prisma.siteSetting.findUnique({ where: { key: "siteTheme" } }),
       getAuthSettings(),
     ]);
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
@@ -499,8 +668,29 @@ export class CmsService {
       whatsapp: map.whatsapp || SETTING_DEFAULTS.whatsapp.value,
       email:    map.email    || SETTING_DEFAULTS.email.value,
       address:  map.address  || SETTING_DEFAULTS.address.value,
+      siteTheme: normalizeSiteTheme(themeRow?.value ?? SETTING_DEFAULTS.siteTheme.value),
       auth,
-      paymentsMock: !process.env.RAZORPAY_KEY_ID || process.env.PAYMENTS_MOCK === "true",
+      ...this.paymentsPublicFlags(),
+    };
+  }
+
+  /** Live Razorpay when keys exist and mock is not forced; otherwise mock/unavailable. */
+  private paymentsPublicFlags() {
+    const keyId = (process.env.RAZORPAY_KEY_ID || "").trim();
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
+    const mockForced = process.env.PAYMENTS_MOCK === "true";
+    const production = process.env.NODE_ENV === "production";
+    const allowMock =
+      process.env.ALLOW_MOCK_PAYMENTS === "true" || !production;
+    const paymentsMock = mockForced || !keyId;
+    const paymentsLive = Boolean(keyId && keySecret && !mockForced);
+    // Never let customers into a broken checkout: live needs both keys; mock only when allowed.
+    const paymentsAvailable = paymentsLive || (paymentsMock && allowMock);
+    return {
+      paymentsMock,
+      paymentsLive,
+      paymentsAvailable,
+      supportPhone: (process.env.SUPPORT_PHONE || "").trim() || undefined,
     };
   }
 
