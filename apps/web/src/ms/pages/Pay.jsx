@@ -206,7 +206,7 @@ export default function Pay() {
     setPhone((current) => current || user.phone || "");
   }, [user]);
 
-  async function openRazorpay(order) {
+  async function openRazorpay(order, { name: payerName, contact } = {}) {
     const Razorpay = await loadRazorpay();
     return new Promise((resolve, reject) => {
       const rzp = new Razorpay({
@@ -218,7 +218,9 @@ export default function Pay() {
         order_id: order.orderId,
         prefill: {
           email: user?.email || "",
-          name: user?.fullName || user?.profile?.fullName || "",
+          name: payerName || user?.fullName || user?.profile?.fullName || "",
+          // Razorpay UPI / wallet / OTP flows need the driver mobile.
+          contact: contact || "",
         },
         handler: async (response) => {
           try {
@@ -322,7 +324,7 @@ export default function Pay() {
         if (order.mock) {
           await runDummyPayment(order);
         } else {
-          await openRazorpay(order);
+          await openRazorpay(order, { name, contact: cleanPhone });
         }
       }
       navigate(nextAfterToken(latest));
