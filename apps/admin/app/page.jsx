@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, getOpsBranch, getOpsCity, peekApi, setOpsScope } from "../lib/api";
-import { roleLabel } from "../lib/rbac";
+import { NAV, canSee, roleLabel } from "../lib/rbac";
+import { DASH_ICONS, Icon, NAV_ICONS } from "../components/icons";
 
 const CARDS = [
   ["handoversToday", "Today’s handovers", "/bookings"],
@@ -14,6 +15,31 @@ const CARDS = [
   ["workshop", "Vehicles in workshop", "/maintenance"],
   ["vehiclesAvailable", "Vehicles free", "/fleet?view=vehicles"],
   ["bookings", "Bookings", "/bookings"],
+];
+
+const QUICK_ACTIONS = [
+  ["/bookings", "Bookings", "Open bookings calendar and list"],
+  ["/fleet", "Fleet", "Cars, models, and live vehicles"],
+  ["/availability", "Availability", "Block dates and free slots"],
+  ["/drivers", "Drivers", "Assign and manage chauffeurs"],
+  ["/kyc", "KYC", "Review pending documents"],
+  ["/agreements", "Agreements", "Signatures and rental PDFs"],
+  ["/customers", "Customers", "Profiles and trip history"],
+  ["/payments", "Payments", "Tokens, refunds, and failures"],
+  ["/maintenance", "Maintenance", "Workshop and repair jobs"],
+  ["/inspections", "Inspections", "Handover and return checks"],
+  ["/leads", "Leads", "Follow up sales enquiries"],
+  ["/tickets", "Tickets", "Support queue"],
+  ["/staff", "Staff", "Roles and access"],
+  ["/branches", "Branches", "Locations and coverage"],
+  ["/partners", "Partners", "Owners and settlements"],
+  ["/reports", "Reports", "Revenue and GST"],
+  ["/offers", "Offers", "Campaigns and promos"],
+  ["/coupons", "Coupons", "Discount codes"],
+  ["/cms", "CMS", "Legal pages and content"],
+  ["/banners", "Banners", "Home strips and promos"],
+  ["/media", "Media", "Images and uploads"],
+  ["/audit", "Audit", "Staff activity log"],
 ];
 
 function greetingNow() {
@@ -64,6 +90,19 @@ export default function Dashboard() {
     const city = cities.find((c) => c.id === cityId);
     return city?.branches || [];
   }, [cities, cityId]);
+  const quickActions = useMemo(() => {
+    const roles = me?.roles || [];
+    const allowed = new Map(
+      NAV.filter(([href, , allowedRoles]) => href !== "/" && canSee(roles, allowedRoles)).map(
+        ([href, label]) => [href, label]
+      )
+    );
+    return QUICK_ACTIONS.filter(([href]) => allowed.has(href)).map(([href, label, blurb]) => [
+      href,
+      allowed.get(href) || label,
+      blurb,
+    ]);
+  }, [me?.roles]);
 
   function load(nextFrom = from, nextTo = to) {
     const params = new URLSearchParams();
@@ -132,8 +171,39 @@ export default function Dashboard() {
     </div>
   );
 
+  const quickActionsBlock =
+    quickActions.length > 0 ? (
+      <section className="dash-quick" aria-label="Quick actions">
+        <div className="dash-quick-head">
+          <div>
+            <p className="dash-section-kicker">Shortcuts</p>
+            <h3>Quick actions</h3>
+          </div>
+          <p className="muted">Jump straight into bookings, fleet, KYC, payments, and more.</p>
+        </div>
+        <div className="dash-quick-grid">
+          {quickActions.map(([href, label, blurb]) => (
+            <Link key={href} href={href} className="dash-quick-btn">
+              <span className="dash-quick-ico">
+                <Icon name={NAV_ICONS[href] || "layout"} size={18} />
+              </span>
+              <span className="dash-quick-copy">
+                <strong>{label}</strong>
+                <span>{blurb}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    ) : null;
+
   if (!data) {
-    return hello;
+    return (
+      <div>
+        {hello}
+        {quickActionsBlock}
+      </div>
+    );
   }
 
   return (
@@ -185,28 +255,45 @@ export default function Dashboard() {
           To
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
-        <button type="submit">Filter</button>
+        <button type="submit" className="btn-with-ico">
+          <Icon name="filter" size={15} />
+          <span>Filter</span>
+        </button>
         <button
           type="button"
-          className="ghost"
+          className="ghost btn-with-ico"
           onClick={() => {
             setFrom("");
             setTo("");
             load("", "");
           }}
         >
-          Today
+          <Icon name="clock" size={15} />
+          <span>Today</span>
         </button>
       </form>
+
+      {quickActionsBlock}
+
       <div className="grid">
         {CARDS.map(([key, label, href]) => (
-          <Link key={key} href={href} className="card">
-            <h3>{label}</h3>
+          <Link key={key} href={href} className="card card-metric">
+            <div className="card-metric-head">
+              <span className="card-metric-ico">
+                <Icon name={DASH_ICONS[key] || "layout"} size={16} />
+              </span>
+              <h3>{label}</h3>
+            </div>
             <strong>{data[key] ?? 0}</strong>
           </Link>
         ))}
-        <div className="card">
-          <h3>Revenue</h3>
+        <div className="card card-metric">
+          <div className="card-metric-head">
+            <span className="card-metric-ico">
+              <Icon name={DASH_ICONS.revenue} size={16} />
+            </span>
+            <h3>Revenue</h3>
+          </div>
           <strong>₹{((data.revenuePaise || 0) / 100).toLocaleString("en-IN")}</strong>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { api, getOpsBranch, getOpsCity, getToken, peekApi, prefetch, setOpsScope } from "../lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { NAV, canAccessPath, groupedNav, isStaff, roleLabel } from "../lib/rbac";
+import { GROUP_ICONS, Icon, NAV_ICONS } from "./icons";
 
 export default function Shell({ children }) {
   const path = usePathname();
@@ -136,9 +137,11 @@ export default function Shell({ children }) {
     setOpsScope(nextCity, nextBranch);
   }
 
-  const pageTitle =
-    NAV.find(([href]) => href !== "/" && path.startsWith(href))?.[1] ||
-    (path === "/" ? "Dashboard" : "Admin");
+  const activeNav =
+    NAV.find(([href]) => href !== "/" && path.startsWith(href)) ||
+    (path === "/" ? NAV[0] : null);
+  const pageTitle = activeNav?.[1] || "Admin";
+  const pageIcon = NAV_ICONS[activeNav?.[0]] || "layout";
   const roleNames = roles.filter((r) => r !== "CUSTOMER").map(roleLabel).join(" · ");
   const navGroups = groupedNav(roles);
 
@@ -165,9 +168,13 @@ export default function Shell({ children }) {
           aria-expanded={navOpen}
           onClick={() => setNavOpen(true)}
         >
-          Menu
+          <Icon name="menu" size={18} />
+          <span>Menu</span>
         </button>
-        <strong>{pageTitle}</strong>
+        <strong className="topbar-title">
+          <Icon name={pageIcon} size={16} />
+          <span>{pageTitle}</span>
+        </strong>
         <span className="muted topbar-email">{me?.email || ""}</span>
       </header>
       <button
@@ -180,7 +187,8 @@ export default function Shell({ children }) {
         <div className="aside-brand">
           <h1>Dream-Drive</h1>
           <button type="button" className="ghost menu-close" onClick={() => setNavOpen(false)}>
-            Close
+            <Icon name="close" size={16} />
+            <span>Close</span>
           </button>
         </div>
         <p className="muted">{me?.email || "Operations"}</p>
@@ -235,13 +243,17 @@ export default function Shell({ children }) {
                     aria-expanded={open}
                     aria-current={current ? "true" : undefined}
                   >
-                    {group.label}
+                    <span className="nav-cat-label">
+                      <Icon name={GROUP_ICONS[group.key] || "layout"} size={14} />
+                      <span>{group.label}</span>
+                    </span>
                   </button>
                 ) : null}
                 {open
                   ? group.items.map(([href, label]) => (
                       <Link key={href} href={href} className={linkActive(href) ? "active" : ""}>
-                        {label}
+                        <Icon name={NAV_ICONS[href] || "layout"} size={16} />
+                        <span>{label}</span>
                       </Link>
                     ))
                   : null}
@@ -255,7 +267,8 @@ export default function Shell({ children }) {
               href={`/staff/${me.id}`}
               className={`ghost aside-foot${path === `/staff/${me.id}` ? " active" : ""}`}
             >
-              My profile
+              <Icon name="user" size={16} />
+              <span>My profile</span>
             </Link>
           ) : null}
           <button
@@ -265,7 +278,8 @@ export default function Shell({ children }) {
               router.replace("/login");
             }}
           >
-            Sign out
+            <Icon name="logout" size={16} />
+            <span>Sign out</span>
           </button>
         </div>
       </aside>
