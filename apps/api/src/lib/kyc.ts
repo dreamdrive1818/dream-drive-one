@@ -87,7 +87,7 @@ export function normalizeAadhaar(raw: string | undefined | null) {
   const digits = String(raw).replace(/\D/g, "");
   if (!digits) return null;
   if (!AADHAAR_RE.test(digits)) {
-    throw new BadRequestException("Aadhaar must be 12 digits");
+    throw new BadRequestException("ID number must be 12 digits");
   }
   return digits;
 }

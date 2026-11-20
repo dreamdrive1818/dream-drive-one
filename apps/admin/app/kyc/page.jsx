@@ -95,7 +95,7 @@ export default function KycPage() {
                 <tr>
                   <td>
                     {k.user?.email}
-                    {k.aadhaarLast4 ? <div className="muted">Aadhaar ****{k.aadhaarLast4}</div> : null}
+                    {k.aadhaarLast4 ? <div className="muted">ID ****{k.aadhaarLast4}</div> : null}
                   </td>
                   <td>{k.status}</td>
                   <td>{k.booking?.publicId || "—"}</td>

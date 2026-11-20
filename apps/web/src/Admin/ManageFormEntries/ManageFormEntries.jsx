@@ -81,7 +81,7 @@ const ManageFormEntries = () => {
                 <div><strong>WhatsApp:</strong> {selected.personal_info?.wphone}</div>
                 <div><strong>Father’s No:</strong> {selected.personal_info?.fathers_number}</div>
                 <div><strong>Mother’s No:</strong> {selected.personal_info?.mothers_number}</div>
-                <div><strong>Aadhar No:</strong> {selected.personal_info?.aadhar_number}</div>
+                <div><strong>ID No:</strong> {selected.personal_info?.aadhar_number}</div>
                 <div><strong>DL No:</strong> {selected.personal_info?.dl_number}</div>
               </div>
 

@@ -1176,7 +1176,7 @@ export class DocumentEngine {
       kinds.has("AADHAAR") ||
       (kinds.has("AADHAAR_FRONT") && kinds.has("AADHAAR_BACK"));
     if (!hasAadhaar && !kinds.has("ADDRESS")) {
-      throw new BadRequestException("Aadhaar front and back, or address proof, is required");
+      throw new BadRequestException("ID card front and back, or address proof, is required");
     }
     if (!kinds.has("SELFIE")) throw new BadRequestException("Selfie with ID is required");
   }
