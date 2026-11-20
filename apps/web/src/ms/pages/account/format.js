@@ -24,6 +24,7 @@ export function formatDay(value) {
   try {
     return new Date(value).toLocaleDateString("en-IN", {
       timeZone: "Asia/Kolkata",
+      weekday: "short",
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -31,6 +32,26 @@ export function formatDay(value) {
   } catch {
     return String(value);
   }
+}
+
+export function formatTime(value) {
+  if (!value) return "—";
+  try {
+    return new Date(value).toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return String(value);
+  }
+}
+
+export function tripHours(startsAt, endsAt) {
+  const start = new Date(startsAt).getTime();
+  const end = new Date(endsAt).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  return Math.max(1, Math.ceil((end - start) / 3_600_000));
 }
 
 export function prettyStatus(value) {

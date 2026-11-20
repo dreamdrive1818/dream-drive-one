@@ -334,11 +334,28 @@ export class BookingEngine {
     return this.get(booking.id);
   }
 
-  get(id: string) {
-    return prisma.booking.findFirst({
+  async get(id: string) {
+    const booking = await prisma.booking.findFirst({
       where: { OR: [{ id }, { publicId: id }] },
       include: this.bookingInclude(),
     });
+    if (!booking) return null;
+    const carModel =
+      booking.vehicle?.carModel ||
+      (await prisma.carModel.findUnique({
+        where: { id: booking.carModelId },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          type: true,
+          seats: true,
+          fuel: true,
+          transmission: true,
+          images: { select: { url: true }, take: 1, orderBy: { sortOrder: "asc" } },
+        },
+      }));
+    return { ...booking, carModel: carModel ?? null };
   }
 
   mine(userId: string) {
@@ -2021,16 +2038,35 @@ export class BookingEngine {
     return {
       history: { orderBy: { createdAt: "asc" as const } },
       extras: true,
-      payments: { include: { refunds: true } },
+      payments: { include: { refunds: true }, orderBy: { createdAt: "asc" as const } },
       kycCase: true,
       agreements: { include: { envelope: true } },
       driverAssignment: { include: { driver: { select: { id: true, fullName: true, phone: true } } } },
       inspections: { include: { photos: true, items: true, damages: true }, orderBy: { createdAt: "asc" as const } },
-      pickupBranch: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
-      dropBranch: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
+      pickupBranch: { select: { id: true, name: true, cityId: true, city: { select: { name: true, state: true } } } },
+      dropBranch: { select: { id: true, name: true, cityId: true, city: { select: { name: true, state: true } } } },
       terminal: { select: { id: true, name: true, code: true } },
       tourPackage: { select: { id: true, name: true, slug: true, days: true, carClass: true } },
-      vehicle: { select: { id: true, registration: true, status: true } },
+      vehicle: {
+        select: {
+          id: true,
+          registration: true,
+          status: true,
+          color: true,
+          carModel: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              type: true,
+              seats: true,
+              fuel: true,
+              transmission: true,
+              images: { select: { url: true }, take: 1, orderBy: { sortOrder: "asc" as const } },
+            },
+          },
+        },
+      },
       subscription: { select: { id: true, status: true, swapCount: true, swapDueReason: true } },
       review: { select: { id: true, rating: true, body: true, published: true, flagged: true } },
       user: { select: { id: true, email: true, phone: true, profile: { select: { fullName: true } } } },
