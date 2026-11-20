@@ -341,6 +341,12 @@
   border: 1px solid #fecdca;
 }
 
+.car-detail-availability--pending {
+  color: #b54708;
+  background: #fffaeb;
+  border: 1px solid #fedf89;
+}
+
 .car-detail-availability--muted {
   color: var(--text-medium, #666);
   font-weight: 500;
@@ -691,6 +697,9 @@ body:has(.car-detail-page) .whatsapp-popup {
 }
 
 .car-detail-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   padding: 0.85rem 1.2rem;
   font-size: 1.45rem;
@@ -701,6 +710,9 @@ body:has(.car-detail-page) .whatsapp-popup {
   background: var(--primary-color, #0072ce);
   color: #fff;
   font-family: inherit;
+  text-decoration: none;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .car-detail-cta:disabled {

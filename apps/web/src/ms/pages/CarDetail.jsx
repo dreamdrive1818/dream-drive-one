@@ -20,6 +20,7 @@ import {
   pricingRuleForType,
   estimateTripPrice,
   formatInr,
+  tokenDuePaise,
   monthKey,
   shiftMonth,
   dateToIsoAtHour,
@@ -84,6 +85,7 @@ export default function CarDetail() {
   const [otherCarsLoading, setOtherCarsLoading] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [myBookings, setMyBookings] = useState([]);
   const pendingQuoteAfterAuth = useRef(false);
 
   const context = useMemo(
@@ -329,12 +331,74 @@ export default function CarDetail() {
     };
   }, [car?.id, context.from, context.to, dateError, month]);
 
+  useEffect(() => {
+    if (!user?.id || !authReady) {
+      setMyBookings([]);
+      return undefined;
+    }
+    let cancelled = false;
+    api("/v1/me/bookings")
+      .then((rows) => {
+        if (!cancelled) setMyBookings(Array.isArray(rows) ? rows : rows?.items || []);
+      })
+      .catch(() => {
+        if (!cancelled) setMyBookings([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, authReady]);
+
   const fleetBackHref = useMemo(() => {
     const qs = detailPreserveParams(context).toString();
     return `/fleet${qs ? `?${qs}` : ""}`;
   }, [context]);
 
   const selectedPackage = packages.find((p) => p.id === context.packageId);
+
+  const pendingBooking = useMemo(() => {
+    if (!car?.id || !myBookings.length) return null;
+    const now = Date.now();
+    const fromMs = context.from ? Date.parse(context.from) : NaN;
+    const toMs = context.to ? Date.parse(context.to) : NaN;
+    const hasRange = !Number.isNaN(fromMs) && !Number.isNaN(toMs) && toMs > fromMs;
+
+    const candidates = myBookings.filter((b) => {
+      if (b.status !== "HOLD" && b.status !== "AWAITING_PAYMENT") return false;
+      const modelId = b.carModelId || b.carModel?.id;
+      if (modelId !== car.id) return false;
+      const paid = b.paidPaise || 0;
+      const tokenDue = Math.max(0, tokenDuePaise(b.tokenPaise, b.amountPaise) - paid);
+      if (tokenDue <= 0) return false;
+      const holdLive = paid > 0 || !b.holdExpiresAt || Date.parse(b.holdExpiresAt) > now;
+      if (!holdLive) return false;
+      const starts = Date.parse(b.startsAt);
+      if (!Number.isNaN(starts) && starts <= now) return false;
+      return true;
+    });
+
+    if (!candidates.length) return null;
+
+    const overlapping = hasRange
+      ? candidates.filter((b) => {
+          const starts = Date.parse(b.startsAt);
+          const ends = Date.parse(b.endsAt);
+          if (Number.isNaN(starts) || Number.isNaN(ends)) return false;
+          return fromMs < ends && starts < toMs;
+        })
+      : [];
+
+    const pick = overlapping[0] || candidates[0];
+    const paid = pick.paidPaise || 0;
+    const tokenDue = Math.max(0, tokenDuePaise(pick.tokenPaise, pick.amountPaise) - paid);
+    return {
+      id: pick.id,
+      publicId: pick.publicId,
+      tokenDue,
+      payHref: `/checkout/pay?booking=${encodeURIComponent(pick.publicId || pick.id)}`,
+      overlapsSelection: overlapping.length > 0,
+    };
+  }, [car?.id, myBookings, context.from, context.to]);
 
   const canQuote =
     Boolean(context.from && context.to && !dateError) &&
@@ -344,7 +408,8 @@ export default function CarDetail() {
     availability?.available === true &&
     !availabilityChecking &&
     !availabilityError &&
-    !submitting;
+    !submitting &&
+    !pendingBooking;
 
   const calendarDays = useMemo(() => {
     const [y, m] = month.split("-").map(Number);
@@ -419,6 +484,10 @@ export default function CarDetail() {
       );
       setAvailability(avail);
       if (!avail.available) {
+        if (pendingBooking?.payHref) {
+          navigate(pendingBooking.payHref);
+          return;
+        }
         setQuoteError("This car is not available for the selected dates.");
         return;
       }
@@ -1127,12 +1196,20 @@ export default function CarDetail() {
                 </small>
               </div>
               <div className="car-detail-paybar-actions">
-                {availabilityChecking ? (
+                {pendingBooking ? (
+                  <p className="car-detail-availability car-detail-availability--pending car-detail-paybar-avail">
+                    Already a booking pending
+                    {pendingBooking.tokenDue > 0
+                      ? ` · Token ${formatInr(pendingBooking.tokenDue)}`
+                      : ""}
+                  </p>
+                ) : null}
+                {!pendingBooking && availabilityChecking ? (
                   <p className="car-detail-availability car-detail-availability--checking car-detail-paybar-avail">
                     Checking availability…
                   </p>
                 ) : null}
-                {!availabilityChecking && availabilityError ? (
+                {!pendingBooking && !availabilityChecking && availabilityError ? (
                   <p
                     className="car-detail-availability car-detail-availability--bad car-detail-paybar-avail"
                     role="alert"
@@ -1140,21 +1217,24 @@ export default function CarDetail() {
                     {availabilityError}
                   </p>
                 ) : null}
-                {!availabilityChecking &&
+                {!pendingBooking &&
+                !availabilityChecking &&
                 !availabilityError &&
                 availability?.available === true ? (
                   <p className="car-detail-availability car-detail-availability--ok car-detail-paybar-avail">
                     Available for your selected dates
                   </p>
                 ) : null}
-                {!availabilityChecking &&
+                {!pendingBooking &&
+                !availabilityChecking &&
                 !availabilityError &&
                 availability?.available === false ? (
                   <p className="car-detail-availability car-detail-availability--bad car-detail-paybar-avail">
                     Unavailable for your selected dates
                   </p>
                 ) : null}
-                {!availabilityChecking &&
+                {!pendingBooking &&
+                !availabilityChecking &&
                 !availabilityError &&
                 !availability &&
                 context.from &&
@@ -1164,18 +1244,27 @@ export default function CarDetail() {
                     Checking availability…
                   </p>
                 ) : null}
-                <button
-                  type="submit"
-                  form="car-detail-book"
-                  className="car-detail-cta car-detail-paybar-cta"
-                  disabled={!canQuote && Boolean(user)}
-                >
-                  {submitting
-                    ? "Please wait…"
-                    : user
-                      ? "Confirm Ride"
-                      : "Sign in to book"}
-                </button>
+                {pendingBooking ? (
+                  <Link
+                    to={pendingBooking.payHref}
+                    className="car-detail-cta car-detail-paybar-cta"
+                  >
+                    Pay now
+                  </Link>
+                ) : (
+                  <button
+                    type="submit"
+                    form="car-detail-book"
+                    className="car-detail-cta car-detail-paybar-cta"
+                    disabled={!canQuote && Boolean(user)}
+                  >
+                    {submitting
+                      ? "Please wait…"
+                      : user
+                        ? "Confirm Ride"
+                        : "Sign in to book"}
+                  </button>
+                )}
               </div>
             </div>,
             document.body
