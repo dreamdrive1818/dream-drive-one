@@ -10,6 +10,7 @@ import { RENTAL_TYPE_LABELS, formatInr, primaryImageUrl, tokenDuePaise } from ".
 import { loadQuoteHandoff, saveQuoteHandoff } from "../quoteStorage";
 import { CheckoutSkeleton } from "../../components/Skeleton/Skeleton";
 import AuthModal from "../AuthModal";
+import CheckoutSteps from "../components/CheckoutSteps";
 import "./Checkout.css";
 
 function formatDatePart(iso) {
@@ -381,24 +382,30 @@ export default function Checkout() {
           </div>
         </header>
 
-        <ol className="checkout-steps" aria-label="Booking steps">
-          <li className="is-done">
-            <span className="checkout-step-dot" aria-hidden="true">1</span>
-            <span className="checkout-step-label">Car</span>
-          </li>
-          <li className="is-current" aria-current="step">
-            <span className="checkout-step-dot" aria-hidden="true">2</span>
-            <span className="checkout-step-label">Review</span>
-          </li>
-          <li>
-            <span className="checkout-step-dot" aria-hidden="true">3</span>
-            <span className="checkout-step-label">Payment</span>
-          </li>
-          <li>
-            <span className="checkout-step-dot" aria-hidden="true">4</span>
-            <span className="checkout-step-label">Confirmed</span>
-          </li>
-        </ol>
+        <CheckoutSteps
+          current="review"
+          steps={[
+            {
+              key: "car",
+              label: "Car",
+              to: carHref || "/fleet",
+            },
+            {
+              key: "review",
+              label: "Review",
+              to: quoteId ? `/checkout/${quoteId}` : undefined,
+            },
+            {
+              key: "token",
+              label: "Payment",
+              onClick: ctaDisabled ? undefined : () => pay(),
+            },
+            {
+              key: "next",
+              label: "Confirmed",
+            },
+          ]}
+        />
 
         <div className="checkout-layout">
           <div className="checkout-main">

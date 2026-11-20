@@ -151,6 +151,40 @@
   border-top: 2px dashed #d5dee3;
 }
 
+.checkout-step-link,
+.checkout-step-static {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+}
+
+.checkout-step-link {
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.checkout-steps li.is-clickable .checkout-step-link:hover .checkout-step-dot {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 124, 130, 0.18);
+}
+
+.checkout-steps li.is-clickable .checkout-step-link:hover .checkout-step-label {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.checkout-steps li.is-clickable .checkout-step-dot {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
 .checkout-step-dot {
   width: 3.2rem;
   height: 3.2rem;

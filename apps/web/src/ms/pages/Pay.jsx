@@ -8,6 +8,7 @@ import { useAuth } from "../AuthContext";
 import { formatInr, tokenDuePaise, RENTAL_TYPE_LABELS } from "../fleetSearch";
 import { CheckoutSkeleton } from "../../components/Skeleton/Skeleton";
 import AuthModal from "../AuthModal";
+import CheckoutSteps from "../components/CheckoutSteps";
 import "./Checkout.css";
 
 function loadRazorpay() {
@@ -561,12 +562,39 @@ export default function Pay() {
           </div>
         </header>
 
-        <ol className="checkout-steps" aria-label="Booking steps">
-          <li className="is-done"><span className="checkout-step-dot" aria-hidden="true">1</span><span className="checkout-step-label">Car</span></li>
-          <li className="is-done"><span className="checkout-step-dot" aria-hidden="true">2</span><span className="checkout-step-label">Review</span></li>
-          <li className="is-current" aria-current="step"><span className="checkout-step-dot" aria-hidden="true">3</span><span className="checkout-step-label">Token</span></li>
-          <li><span className="checkout-step-dot" aria-hidden="true">4</span><span className="checkout-step-label">{selfDrive ? "KYC" : "Confirmed"}</span></li>
-        </ol>
+        <CheckoutSteps
+          current="token"
+          steps={[
+            {
+              key: "car",
+              label: "Car",
+              to: booking.carModel?.slug
+                ? `/cars/${booking.carModel.slug}`
+                : booking.vehicle?.carModel?.slug
+                  ? `/cars/${booking.vehicle.carModel.slug}`
+                  : "/fleet",
+            },
+            {
+              key: "review",
+              label: "Review",
+              to: booking.quoteId
+                ? `/checkout/${booking.quoteId}`
+                : `/account/bookings/${booking.id}`,
+            },
+            {
+              key: "token",
+              label: "Token",
+              to: `/checkout/pay?booking=${encodeURIComponent(booking.publicId || booking.id)}`,
+            },
+            {
+              key: "next",
+              label: selfDrive ? "KYC" : "Confirmed",
+              to: selfDrive
+                ? `/account/kyc?booking=${encodeURIComponent(booking.publicId || booking.id)}`
+                : `/checkout/success?booking=${encodeURIComponent(booking.publicId)}&type=${encodeURIComponent(booking.rentalType || "")}`,
+            },
+          ]}
+        />
 
         <div className="checkout-layout">
           <div className="checkout-main">
