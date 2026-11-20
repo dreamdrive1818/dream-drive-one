@@ -958,7 +958,7 @@ export default function CarDetail() {
                       </div>
                     )}
                     <div className="car-detail-estimate-total">
-                      <dt>Total</dt>
+                      <dt>Trip total</dt>
                       <dd>{formatInr(tripEstimate.totalPaise)}</dd>
                     </div>
                   </dl>
@@ -966,6 +966,9 @@ export default function CarDetail() {
                     {tripEstimate.mode === "under12"
                       ? "Trips of 12 hours or less use the under-12 package price."
                       : "Trips over 12 hours are billed in 24-hour day blocks."}
+                    {tripEstimate.depositPaise > 0
+                      ? " Deposit is held separately and is not included in the trip total."
+                      : ""}
                     {" "}
                     Final amount is confirmed when you continue.
                   </p>
