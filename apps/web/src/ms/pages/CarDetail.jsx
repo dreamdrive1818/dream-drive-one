@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCarSide, faArrowLeft } from "@fortawesome/free-solid-svg-icons";
@@ -1129,35 +1130,40 @@ export default function CarDetail() {
         )}
       </div>
 
-      <div className="car-detail-paybar">
-        <div className="car-detail-paybar-price">
-          <span>{tripEstimate ? "Trip price" : "From"}</span>
-          <strong>
-            {tripEstimate
-              ? formatInr(tripEstimate.rentalPaise)
-              : pricingRule
-                ? formatInr(pricingRule.dailyPaise)
-                : "—"}
-          </strong>
-          <small>
-            {context.from && context.to
-              ? `${formatTripWhen(context.from)} – ${formatTripWhen(context.to)}`
-              : "Select start and end"}
-          </small>
-        </div>
-        <button
-          type="submit"
-          form="car-detail-book"
-          className="car-detail-cta car-detail-paybar-cta"
-          disabled={!canQuote && Boolean(user)}
-        >
-          {submitting
-            ? "Please wait…"
-            : user
-              ? "Confirm payment"
-              : "Sign in to book"}
-        </button>
-      </div>
+      {typeof document !== "undefined"
+        ? createPortal(
+            <div className="car-detail-paybar" role="region" aria-label="Trip price">
+              <div className="car-detail-paybar-price">
+                <span>{tripEstimate ? "Trip price" : "From"}</span>
+                <strong>
+                  {tripEstimate
+                    ? formatInr(tripEstimate.rentalPaise)
+                    : pricingRule
+                      ? formatInr(pricingRule.dailyPaise)
+                      : "—"}
+                </strong>
+                <small>
+                  {context.from && context.to
+                    ? `${formatTripWhen(context.from)} – ${formatTripWhen(context.to)}`
+                    : "Select start and end"}
+                </small>
+              </div>
+              <button
+                type="submit"
+                form="car-detail-book"
+                className="car-detail-cta car-detail-paybar-cta"
+                disabled={!canQuote && Boolean(user)}
+              >
+                {submitting
+                  ? "Please wait…"
+                  : user
+                    ? "Confirm payment"
+                    : "Sign in to book"}
+              </button>
+            </div>,
+            document.body
+          )
+        : null}
 
       <AuthModal
         open={authOpen}
