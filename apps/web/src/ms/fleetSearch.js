@@ -148,9 +148,7 @@ export function validateDateRange(fromIso, toIso, maxDays = 30) {
   if (to <= from) {
     return "Return date must be after pickup date.";
   }
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  if (from < startOfToday) {
+  if (from.getTime() < Date.now()) {
     return "Pickup cannot be in the past.";
   }
   const days = Math.ceil((to.getTime() - from.getTime()) / 86_400_000);
@@ -229,15 +227,114 @@ export function localDateYmd(offsetDays = 0, from = new Date()) {
   return isoDate(d);
 }
 
-/** Default search trip: pickup = today, return = today + 2 days. */
+/**
+ * Next full local hour at or after `from` (ceil).
+ * e.g. 1:45 PM → 2:00 PM; rolls to the next day after 11:xx PM.
+ */
+export function nextAvailableHour(from = new Date()) {
+  const d = new Date(from);
+  d.setMinutes(0, 0, 0);
+  if (d.getTime() <= from.getTime()) {
+    d.setHours(d.getHours() + 1);
+  }
+  return d;
+}
+
+export function formatHourLabel(hour) {
+  const h = ((Number(hour) % 24) + 24) % 24;
+  const suffix = h >= 12 ? "PM" : "AM";
+  const twelve = h % 12 === 0 ? 12 : h % 12;
+  return `${String(twelve).padStart(2, "0")}:00 ${suffix}`;
+}
+
+export const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => ({
+  value: hour,
+  label: formatHourLabel(hour),
+}));
+
+export function hourFromIso(iso, fallback = 10) {
+  if (!iso) return fallback;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return fallback;
+  return d.getHours();
+}
+
+/** Set local hour on an existing ISO timestamp (minutes cleared). */
+export function setIsoHour(iso, hour) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setHours(Number(hour), 0, 0, 0);
+  return d.toISOString();
+}
+
+/**
+ * Hourly options for a calendar day.
+ * Filters out past hours for today; optionally requires after `minIso` (pickup).
+ */
+export function availableHourOptions(dateStr, { minIso } = {}, now = new Date()) {
+  if (!dateStr) return HOUR_OPTIONS;
+  const today = isoDate(now);
+  if (dateStr < today) return [];
+
+  let minHour = 0;
+  if (dateStr === today) {
+    const next = nextAvailableHour(now);
+    if (isoDate(next) !== dateStr) return [];
+    minHour = next.getHours();
+  }
+  if (minIso) {
+    const minD = new Date(minIso);
+    if (!Number.isNaN(minD.getTime()) && isoDate(minD) === dateStr) {
+      minHour = Math.max(minHour, minD.getHours() + 1);
+    }
+  }
+  return HOUR_OPTIONS.filter((o) => o.value >= minHour);
+}
+
+/** Clamp a chosen hour so it stays bookable for that date. */
+export function clampHourForDate(dateStr, hour, now = new Date()) {
+  const options = availableHourOptions(dateStr, {}, now);
+  if (!options.length) return defaultHourForDate(dateStr, now);
+  const n = Number(hour);
+  if (options.some((o) => o.value === n)) return n;
+  return options[0].value;
+}
+
+/**
+ * ISO pickup for a YYYY-MM-DD: next available hour if today (may roll to tomorrow
+ * after 11 PM), else 10:00 on that date.
+ */
+export function defaultIsoForDate(dateStr, now = new Date()) {
+  if (!dateStr) return "";
+  const today = isoDate(now);
+  if (dateStr < today) return "";
+  if (dateStr === today) {
+    const next = nextAvailableHour(now);
+    return dateToIsoAtHour(isoDate(next), next.getHours());
+  }
+  return dateToIsoAtHour(dateStr, 10);
+}
+
+/** Hour to use for a YYYY-MM-DD: next available if today, else 10. */
+export function defaultHourForDate(dateStr, now = new Date()) {
+  if (dateStr && dateStr === isoDate(now)) {
+    return nextAvailableHour(now).getHours();
+  }
+  return 10;
+}
+
+/** Default search trip: pickup = next available hour today, return = +2 days same hour. */
 export function defaultSearchDates(returnOffsetDays = 2) {
-  const fromDate = localDateYmd(0);
-  const toDate = localDateYmd(Math.max(1, returnOffsetDays));
+  const pickup = nextAvailableHour();
+  const fromDate = isoDate(pickup);
+  const toDate = localDateYmd(Math.max(1, returnOffsetDays), pickup);
+  const hour = pickup.getHours();
   return {
     fromDate,
     toDate,
-    from: dateToIsoAtHour(fromDate, 10),
-    to: dateToIsoAtHour(toDate, 10),
+    from: dateToIsoAtHour(fromDate, hour),
+    to: dateToIsoAtHour(toDate, hour),
   };
 }
 

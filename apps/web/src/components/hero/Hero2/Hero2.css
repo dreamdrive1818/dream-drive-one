@@ -487,6 +487,20 @@
   outline: none;
 }
 
+.hero2-datetime {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.hero2-datetime input,
+.hero2-datetime select {
+  min-height: 2.8rem;
+}
+
+.hero2-datetime .trip-time-select {
+  margin: 0;
+}
+
 .hero2-v2-field select:focus,
 .hero2-v2-field input:focus {
   color: var(--primary-color, #0e7c86);

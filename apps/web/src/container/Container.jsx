@@ -62,6 +62,7 @@ const AppRoute = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const isFirstRender = useRef(true);
+  const prevPathRef = useRef(location.pathname);
   const isAdminPage = location.pathname.includes("admin");
   const isAuthPage = location.pathname === "/login";
   const isCheckoutPage = location.pathname.startsWith("/checkout");
@@ -73,7 +74,16 @@ const AppRoute = () => {
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      prevPathRef.current = location.pathname;
       setLoading(false);
+      return;
+    }
+
+    const prev = prevPathRef.current;
+    prevPathRef.current = location.pathname;
+
+    // Keep the account shell mounted — only the section content should transition.
+    if (prev.startsWith("/account") && location.pathname.startsWith("/account")) {
       return;
     }
 

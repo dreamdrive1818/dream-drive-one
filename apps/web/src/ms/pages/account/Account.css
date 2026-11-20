@@ -1926,6 +1926,27 @@ a.account-item:hover {
   color: #0b1720;
 }
 
+.account-section-enter {
+  animation: accountSectionIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes accountSectionIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-section-enter {
+    animation: none;
+  }
+}
+
 .dash-side {
   position: sticky;
   top: 0;

@@ -22,19 +22,22 @@ import {
   monthKey,
   shiftMonth,
   dateToIsoAtHour,
+  defaultIsoForDate,
   isoDate,
   defaultSearchDates,
   localDateYmd,
+  setIsoHour,
   buildApiSearchParams,
   carDetailPath,
   primaryImageUrl,
 } from "../fleetSearch";
+import TripTimeSelect from "../TripTimeSelect";
 import { saveQuoteHandoff } from "../quoteStorage";
 import { CarDetailSkeleton } from "../../components/Skeleton/Skeleton";
 import AuthModal from "../AuthModal";
 import "./CarDetail.css";
 
-function formatTripWhen(iso) {
+function formatTripWhen(iso, { withTime = true } = {}) {
   if (!iso) return "Select date";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "Select date";
@@ -42,8 +45,9 @@ function formatTripWhen(iso) {
     weekday: "short",
     day: "numeric",
     month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
+    ...(withTime
+      ? { hour: "2-digit", minute: "2-digit" }
+      : {}),
   });
 }
 
@@ -137,15 +141,32 @@ export default function CarDetail() {
     [searchParams, setSearchParams]
   );
 
-  // Default pickup = today, return = +2 days when missing from URL
+  // Default pickup = next available hour today, return = +2 days when missing;
+  // also bump a stale past pickup (e.g. leftover 10 AM) forward.
   useEffect(() => {
     if (!car) return;
     const current = parseFleetFilters(searchParams);
-    if (current.from && current.to) return;
     const dates = defaultSearchDates();
     const patch = {};
-    if (!current.from) patch.from = dates.from;
-    if (!current.to) patch.to = dates.to;
+    if (!current.from) {
+      patch.from = dates.from;
+    } else {
+      const fromMs = new Date(current.from).getTime();
+      if (!Number.isNaN(fromMs) && fromMs < Date.now()) {
+        patch.from = dates.from;
+        const spanMs =
+          current.to && !Number.isNaN(new Date(current.to).getTime())
+            ? Math.max(
+                2 * 86_400_000,
+                new Date(current.to).getTime() - fromMs
+              )
+            : 2 * 86_400_000;
+        patch.to = new Date(
+          new Date(dates.from).getTime() + spanMs
+        ).toISOString();
+      }
+    }
+    if (!current.to && !patch.to) patch.to = dates.to;
     if (!current.cityId && car.cityId) patch.cityId = car.cityId;
     if (Object.keys(patch).length) {
       setSearchParams(syncDetailSearchParams({ ...current, ...patch }), {
@@ -362,10 +383,13 @@ export default function CarDetail() {
     const key = isoDate(day);
     if (busyDays.includes(key) || key < todayKey) return;
     if (!context.from || (context.from && context.to) || key <= selectedFromDay) {
-      updateContext({ from: dateToIsoAtHour(key, 10), to: "" });
+      updateContext({ from: defaultIsoForDate(key), to: "" });
       return;
     }
-    updateContext({ to: dateToIsoAtHour(key, 10) });
+    const returnHour = context.from
+      ? new Date(context.from).getHours()
+      : 10;
+    updateContext({ to: dateToIsoAtHour(key, returnHour) });
     setCalendarOpen(false);
   }
 
@@ -564,7 +588,7 @@ export default function CarDetail() {
                 <input
                   id="detail-from"
                   type="datetime-local"
-                  min={`${localDateYmd(0)}T00:00`}
+                  min={isoToDatetimeLocal(new Date().toISOString())}
                   value={isoToDatetimeLocal(context.from)}
                   onChange={(e) =>
                     updateContext({ from: datetimeLocalToIso(e.target.value) })
@@ -691,24 +715,63 @@ export default function CarDetail() {
                 </p>
               )}
 
-              <div className="car-detail-dates" aria-label="Selected trip dates">
-                <button
-                  type="button"
-                  className="car-detail-date-card"
-                  onClick={() => setCalendarOpen(true)}
-                >
-                  <span>Start</span>
-                  <strong>{formatTripWhen(context.from)}</strong>
-                </button>
-                <button
-                  type="button"
-                  className="car-detail-date-card"
-                  onClick={() => setCalendarOpen(true)}
-                >
-                  <span>End</span>
-                  <strong>{formatTripWhen(context.to)}</strong>
-                </button>
+              <div className="car-detail-dates" aria-label="Selected trip dates and times">
+                <div className="car-detail-date-card">
+                  <button
+                    type="button"
+                    className="car-detail-date-card__pick"
+                    onClick={() => setCalendarOpen(true)}
+                  >
+                    <span>Start</span>
+                    <strong>{formatTripWhen(context.from, { withTime: false })}</strong>
+                  </button>
+                  <TripTimeSelect
+                    id="detail-from-time"
+                    label="Time"
+                    iso={context.from}
+                    dateStr={selectedFromDay}
+                    disabled={submitting || !context.from}
+                    className="car-detail-date-card__time"
+                    onChange={(hour) => {
+                      const nextFrom = setIsoHour(context.from, hour);
+                      const patch = { from: nextFrom };
+                      if (
+                        context.to &&
+                        new Date(context.to).getTime() <=
+                          new Date(nextFrom).getTime()
+                      ) {
+                        const bumped = new Date(nextFrom);
+                        bumped.setHours(bumped.getHours() + 1);
+                        patch.to = bumped.toISOString();
+                      }
+                      updateContext(patch);
+                    }}
+                  />
+                </div>
+                <div className="car-detail-date-card">
+                  <button
+                    type="button"
+                    className="car-detail-date-card__pick"
+                    onClick={() => setCalendarOpen(true)}
+                  >
+                    <span>End</span>
+                    <strong>{formatTripWhen(context.to, { withTime: false })}</strong>
+                  </button>
+                  <TripTimeSelect
+                    id="detail-to-time"
+                    label="Time"
+                    iso={context.to}
+                    dateStr={selectedToDay}
+                    minIso={context.from}
+                    disabled={submitting || !context.to}
+                    className="car-detail-date-card__time"
+                    onChange={(hour) =>
+                      updateContext({ to: setIsoHour(context.to, hour) })
+                    }
+                  />
+                </div>
               </div>
+
               <button
                 type="button"
                 className="car-detail-cal-toggle"
@@ -911,7 +974,8 @@ export default function CarDetail() {
               {calendarOpen && (
                 <p className="car-detail-hint">
                   Grey dates are fully booked or blocked (including a {car.bufferHours ?? 3}-hour
-                  buffer between trips). Tap a start date, then an end date.
+                  buffer between trips). Tap a start date, then an end date — then set pickup
+                  and return times on the cards above.
                 </p>
               )}
 
