@@ -29,7 +29,7 @@ const KINDS = [
   },
   {
     kind: "AADHAAR_FRONT",
-    label: "Aadhaar front",
+    label: "ID card front",
     accept: ".pdf,.jpg,.jpeg,.png,.webp",
     required: true,
     icon: faAddressCard,
@@ -37,7 +37,7 @@ const KINDS = [
   },
   {
     kind: "AADHAAR_BACK",
-    label: "Aadhaar back",
+    label: "ID card back",
     accept: ".pdf,.jpg,.jpeg,.png,.webp",
     required: true,
     icon: faAddressCard,
@@ -71,6 +71,7 @@ const KINDS = [
 
 function kindLabel(kind) {
   const key = String(kind || "");
+  if (key === "AADHAAR") return "ID card";
   return KINDS.find((item) => item.kind === key)?.label || key.replace(/_/g, " ") || "Document";
 }
 
@@ -200,7 +201,7 @@ export default function AccountKyc() {
         });
       }
       if (needs.length && needs.some((kind) => !documents.find((d) => d.kind === kind))) {
-        throw new Error(`Please re-upload: ${needs.join(", ")}`);
+        throw new Error(`Please re-upload: ${needs.map(kindLabel).join(", ")}`);
       }
       const saved = latest?.documents || [];
       const hasSide = (kind) =>
@@ -213,7 +214,7 @@ export default function AccountKyc() {
         !hasLegacyAadhaar &&
         !(hasSide("AADHAAR_FRONT") && hasSide("AADHAAR_BACK"))
       ) {
-        throw new Error("Upload both the front and the back of your Aadhaar card.");
+        throw new Error("Upload both the front and the back of your ID card.");
       }
       const result = await api("/v1/kyc/submit", {
         method: "POST",
@@ -277,7 +278,9 @@ export default function AccountKyc() {
         </p>
       )}
       {needs.length > 0 && (
-        <p className="account-msg err">Re-upload required: {needs.join(", ")}</p>
+        <p className="account-msg err">
+          Re-upload required: {needs.map(kindLabel).join(", ")}
+        </p>
       )}
 
       {locked ? (
@@ -288,7 +291,7 @@ export default function AccountKyc() {
             bookings skip a new upload when the driving licence still covers drop-off.
           </p>
           <ul className="kyc-approved-meta">
-            {latest?.aadhaarLast4 && <li>Aadhaar ending {latest.aadhaarLast4}</li>}
+            {latest?.aadhaarLast4 && <li>ID card ending {latest.aadhaarLast4}</li>}
             {latest?.panLast4 && <li>PAN ending {latest.panLast4}</li>}
             {latest?.dlExpiresOn && <li>DL expires {formatDay(latest.dlExpiresOn)}</li>}
           </ul>
@@ -331,8 +334,8 @@ export default function AccountKyc() {
           <p className="account-hint">
             PDF, JPG, PNG or WebP · max 8 MB. Use Camera for a new photo, or Upload to
             pick one from your phone. Tap a file name to preview the photo or PDF.
-            Aadhaar needs the front and the back. Numbers are hashed; we only keep the
-            last 4 digits.
+            Your government ID card needs the front and the back. Numbers are hashed;
+            we only keep the last 4 digits.
           </p>
           <form onSubmit={submit}>
             <div className="kyc-grid">
@@ -424,7 +427,7 @@ export default function AccountKyc() {
 
             <div className="kyc-fields">
               <div className="account-field">
-                <label htmlFor="aadhaar">Aadhaar number</label>
+                <label htmlFor="aadhaar">ID number</label>
                 <input
                   id="aadhaar"
                   inputMode="numeric"
@@ -434,7 +437,7 @@ export default function AccountKyc() {
                   placeholder={
                     latest?.aadhaarLast4
                       ? `Saved ending ${latest.aadhaarLast4}`
-                      : "12 digits"
+                      : "12 digits on your ID card"
                   }
                 />
               </div>

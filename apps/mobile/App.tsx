@@ -342,7 +342,7 @@ export default function App() {
   if (screen === "kyc") {
     return (
       <Screen title="KYC" onBack={() => setScreen("bookings")}>
-        <Text style={{ color: "#8b9bb0" }}>Upload DL, Aadhaar/address, and selfie via POST /v1/kyc/uploads then submit.</Text>
+        <Text style={{ color: "#8b9bb0" }}>Upload DL, ID card/address, and selfie via POST /v1/kyc/uploads then submit.</Text>
         <Btn
           label="Load KYC status"
           onPress={async () => {
