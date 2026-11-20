@@ -5,10 +5,24 @@ import {
   faXmark,
   faArrowRight,
   faTag,
+  faCloudRain,
   faSnowflake,
 } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import "./SaleModal.css";
+
+const THEME_MODAL = {
+  winter: {
+    title: "Winter",
+    accent: "Cool season savings",
+    icon: faSnowflake,
+  },
+  monsoon: {
+    title: "Monsoon",
+    accent: "Rain-ready savings",
+    icon: faCloudRain,
+  },
+};
 
 const SESSION_KEY = "dreamdrive_sale_modal_dismissed";
 const MOBILE_QUERY = "(max-width: 768px)";
@@ -18,11 +32,12 @@ const PLACEHOLDER_IMAGE = /placehold\.co|placeholder\.com|dummyimage\.com/i;
 
 const SaleModal = () => {
   const [open, setOpen] = useState(false);
-  const { promoBanner } = useLocalContext();
+  const { promoBanner, siteTheme } = useLocalContext();
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = location.pathname.includes("admin");
   const onCheckout = location.pathname.startsWith("/checkout");
+  const themeUi = THEME_MODAL[siteTheme] || THEME_MODAL.winter;
 
   const dismiss = useCallback(() => {
     sessionStorage.setItem(SESSION_KEY, "1");
@@ -104,12 +119,12 @@ const SaleModal = () => {
                   Limited-time offer
                 </span>
                 <p className="sale-modal__offer-title">
-                  Winter
+                  {themeUi.title}
                   <span>Deals</span>
                 </p>
                 <span className="sale-modal__offer-drops">
-                  <FontAwesomeIcon icon={faSnowflake} />
-                  Cool season savings
+                  <FontAwesomeIcon icon={themeUi.icon} />
+                  {themeUi.accent}
                 </span>
               </div>
             </>

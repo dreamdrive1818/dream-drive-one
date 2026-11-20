@@ -48,6 +48,13 @@ export class PaymentController {
     return this.payments.verify(currentUser(req).id, body);
   }
 
+  /** Reconcile gateway captures + advance booking if token is already paid. */
+  @Post("v1/payments/sync")
+  sync(@Req() req: Request, @Body() body: { bookingId?: string }) {
+    if (!body?.bookingId) return { error: "bookingId required" };
+    return this.payments.syncBookingPayment(currentUser(req).id, body.bookingId);
+  }
+
   @Post("v1/webhooks/razorpay")
   async webhook(
     @Req() req: Request,

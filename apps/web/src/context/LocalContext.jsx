@@ -39,6 +39,7 @@ export const LocalProvider = ({ children }) => {
     getaways: null,
   });
   const [auth, setAuth] = useState(DEFAULT_AUTH);
+  const [siteTheme, setSiteTheme] = useState("winter");
   const [webinfo, setwebinfo] = useState({
     name: "Dream Drive",
     phone: " ",
@@ -79,6 +80,10 @@ export const LocalProvider = ({ children }) => {
       address: data.address || prev.address,
     }));
     if (data.auth) setAuth(normalizeAuth(data.auth));
+    if (data.siteTheme) {
+      const theme = String(data.siteTheme).toLowerCase();
+      setSiteTheme(["none", "winter", "monsoon"].includes(theme) ? theme : "winter");
+    }
   }
 
   useEffect(() => {
@@ -151,12 +156,13 @@ export const LocalProvider = ({ children }) => {
       setSuppressSeo,
       cms,
       auth,
+      siteTheme,
       heroBanner,
       stripBanner,
       promoBanner,
       campaignActive,
     }),
-    [webinfo, suppressSeo, cms, auth, heroBanner, stripBanner, promoBanner, campaignActive]
+    [webinfo, suppressSeo, cms, auth, siteTheme, heroBanner, stripBanner, promoBanner, campaignActive]
   );
 
   return <LocalContext.Provider value={value}>{children}</LocalContext.Provider>;

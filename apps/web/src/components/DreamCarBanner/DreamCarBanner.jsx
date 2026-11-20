@@ -5,21 +5,32 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowRight,
   faCalendarCheck,
+  faCloudRain,
   faSnowflake,
   faShieldHalved,
 } from "@fortawesome/free-solid-svg-icons";
 import { useLocalContext } from "../../context/LocalContext";
 import "./DreamCarBanner.css";
 
-const DEFAULT_BADGE = "Winter deals are live";
 const DEFAULT_HEADING = "Save on selected self-drive cars this season.";
 const HIGHLIGHT = /self-drive cars?/i;
 
-const FEATURES = [
-  { icon: faSnowflake, tone: "teal", label: ["Special", "Winter Rates"] },
-  { icon: faCalendarCheck, tone: "amber", label: ["Limited", "Time Offers"] },
-  { icon: faShieldHalved, tone: "blue", label: ["Well-Maintained", "& Road Ready"] },
-];
+const THEME_UI = {
+  winter: {
+    badge: "Winter deals are live",
+    lead: "Cool-season deals on self-drive cars across Ranchi.",
+    featureIcon: faSnowflake,
+    featureLabel: ["Special", "Winter Rates"],
+    scene: "/winter-banner-scene.jpg",
+  },
+  monsoon: {
+    badge: "Monsoon deals are live",
+    lead: "Rain-ready deals on self-drive cars across Ranchi.",
+    featureIcon: faCloudRain,
+    featureLabel: ["Special", "Monsoon Rates"],
+    scene: "/winter-banner-scene.jpg",
+  },
+};
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -57,10 +68,16 @@ function Heading({ text }) {
 
 const DreamCarBanner = () => {
   const navigate = useNavigate();
-  const { promoBanner } = useLocalContext();
+  const { promoBanner, siteTheme } = useLocalContext();
   const reduceMotion = useReducedMotion();
+  const theme = THEME_UI[siteTheme] || THEME_UI.winter;
+  const features = [
+    { icon: theme.featureIcon, tone: "teal", label: theme.featureLabel },
+    { icon: faCalendarCheck, tone: "amber", label: ["Limited", "Time Offers"] },
+    { icon: faShieldHalved, tone: "blue", label: ["Well-Maintained", "& Road Ready"] },
+  ];
 
-  const badge = promoBanner?.title || DEFAULT_BADGE;
+  const badge = promoBanner?.title || theme.badge;
   const heading = promoBanner?.body || DEFAULT_HEADING;
   const cta = promoBanner?.ctaText || "See deals";
 
@@ -79,7 +96,7 @@ const DreamCarBanner = () => {
       <motion.div className="dcb-card" {...motionProps}>
         <motion.div className="dcb-scene" aria-hidden="true" variants={sceneIn}>
           <img
-            src="/winter-banner-scene.jpg"
+            src={theme.scene}
             alt=""
             width="1904"
             height="644"
@@ -90,7 +107,7 @@ const DreamCarBanner = () => {
 
         <motion.div className="dcb-content" variants={stagger}>
           <motion.span className="dcb-badge" variants={rise}>
-            <FontAwesomeIcon icon={faSnowflake} aria-hidden="true" />
+            <FontAwesomeIcon icon={theme.featureIcon} aria-hidden="true" />
             {badge}
           </motion.span>
 
@@ -104,7 +121,7 @@ const DreamCarBanner = () => {
           </motion.h2>
 
           <motion.p className="dcb-lead" variants={rise}>
-            Cool-season deals on self-drive cars across Ranchi.{" "}
+            {theme.lead}{" "}
             <br className="dcb-lead-break" />
             Limited-time rates — book while they last.
           </motion.p>
@@ -119,7 +136,7 @@ const DreamCarBanner = () => {
           </motion.div>
 
           <motion.ul className="dcb-features" variants={rise}>
-            {FEATURES.map((item) => (
+            {features.map((item) => (
               <li key={item.label.join(" ")} className="dcb-feature">
                 <span className={`dcb-feature-icon dcb-feature-icon--${item.tone}`}>
                   <FontAwesomeIcon icon={item.icon} aria-hidden="true" />

@@ -120,10 +120,18 @@ function formatTimePart(iso) {
   return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 }
 
-function explainPayError(err, paymentsMock) {
+function explainPayError(err, paymentsMock, phase = "start") {
   const message = err?.message && !/^bad request$/i.test(err.message) ? err.message : "";
+  if (/payment cancelled/i.test(message)) {
+    return "Payment was cancelled. You can try again when ready.";
+  }
   if (/authentication failed/i.test(message)) {
     return "The payment gateway rejected this request, so the token was not charged. You are still signed in. Try again in a moment.";
+  }
+  if (/internal server error|temporary error/i.test(message)) {
+    return phase === "confirm"
+      ? "Your payment may have gone through, but confirmation failed. Tap Pay again — we will sync it without charging twice."
+      : "The payment gateway had a temporary error. Nothing new was charged. Please try again.";
   }
   if (paymentsMock) {
     return `Mock payment did not go through${message ? `: ${message}` : ""}. No money was charged. Check your details and try again.`;
@@ -164,6 +172,10 @@ export default function Pay() {
   const [terms, setTerms] = useState(null);
   const [dummy, setDummy] = useState(null);
   const [paymentsMock, setPaymentsMock] = useState(false);
+  const [paymentsAvailable, setPaymentsAvailable] = useState(true);
+  const [paymentsLive, setPaymentsLive] = useState(false);
+  const [supportPhone, setSupportPhone] = useState("");
+  const [configReady, setConfigReady] = useState(false);
   const payingRef = useRef(false);
   const nameLocked = Boolean(user?.nameLocked);
 
@@ -175,28 +187,79 @@ export default function Pay() {
     }
     setAuthOpen(false);
     if (!bookingId) return;
+    let cancelled = false;
     Promise.all([
       api(`/v1/bookings/${bookingId}`, { cache: false }),
       api("/v1/me/wallet").catch(() => null),
     ])
-      .then(([row, w]) => {
+      .then(async ([row, w]) => {
+        if (cancelled) return;
         setBooking(row);
         setWallet(w);
         if (row.status === "CANCELLED" || row.status === "NO_SHOW") {
           setLoadError("This booking was cancelled. Start a new quote from the fleet.");
           return;
         }
+        // If money was captured but booking still says Token due, sync before showing the form.
+        if (PAYABLE_STATUSES.includes(row.status)) {
+          try {
+            const synced = await api("/v1/payments/sync", {
+              method: "POST",
+              body: { bookingId: row.id },
+            });
+            if (cancelled) return;
+            if (synced?.paid || (synced?.status && !PAYABLE_STATUSES.includes(synced.status))) {
+              const latest = await api(`/v1/bookings/${row.id}`, { cache: false });
+              if (cancelled) return;
+              setBooking(latest);
+              if (!PAYABLE_STATUSES.includes(latest.status)) {
+                navigate(nextAfterToken(latest), { replace: true });
+                return;
+              }
+            }
+          } catch {
+            /* sync is best-effort; pay click will try again */
+          }
+        }
         if (row.status && !PAYABLE_STATUSES.includes(row.status)) {
           navigate(nextAfterToken(row), { replace: true });
         }
       })
-      .catch((e) => setLoadError(e.message || "Could not load this booking."));
+      .catch((e) => {
+        if (!cancelled) setLoadError(e.message || "Could not load this booking.");
+      });
     api("/v1/public/pages/terms")
       .then(setTerms)
       .catch(() => setTerms(null));
     api("/v1/public/config")
-      .then((cfg) => setPaymentsMock(Boolean(cfg?.paymentsMock)))
-      .catch(() => undefined);
+      .then((cfg) => {
+        if (cancelled) return;
+        const mock = Boolean(cfg?.paymentsMock);
+        const live = Boolean(cfg?.paymentsLive);
+        const available =
+          cfg?.paymentsAvailable == null
+            ? live || mock
+            : Boolean(cfg.paymentsAvailable);
+        setPaymentsMock(mock);
+        setPaymentsLive(live);
+        setPaymentsAvailable(available);
+        setSupportPhone(cfg?.supportPhone || cfg?.phone || "");
+        setConfigReady(true);
+        // Warm the Razorpay script only when live checkout is possible.
+        if (available && live) {
+          loadRazorpay().catch(() => undefined);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Fail closed: do not let customers hit a broken gateway.
+        setPaymentsAvailable(false);
+        setPaymentsLive(false);
+        setConfigReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [ready, user, bookingId, navigate]);
 
   useEffect(() => {
@@ -207,7 +270,24 @@ export default function Pay() {
   }, [user]);
 
   async function openRazorpay(order, { name: payerName, contact } = {}) {
-    const Razorpay = await loadRazorpay();
+    if (!order?.orderId || !order?.keyId || !order?.paymentId) {
+      throw new Error(
+        "Payment could not be prepared. Please try again in a moment — nothing was charged."
+      );
+    }
+    if (order.mock || String(order.keyId).startsWith("rzp_mock")) {
+      throw new Error(
+        "Live payment is not available right now. Please try again later — nothing was charged."
+      );
+    }
+    let Razorpay;
+    try {
+      Razorpay = await loadRazorpay();
+    } catch {
+      throw new Error(
+        "Could not open the payment window. Check your connection and try again — nothing was charged."
+      );
+    }
     return new Promise((resolve, reject) => {
       const rzp = new Razorpay({
         key: order.keyId,
@@ -257,35 +337,55 @@ export default function Pay() {
     await wait(1200);
   }
 
+  function readinessBlockers() {
+    const blockers = [];
+    if (!configReady) blockers.push("Checking payment availability…");
+    else if (!paymentsAvailable) {
+      blockers.push(
+        supportPhone
+          ? `Online payments are unavailable right now. Call ${supportPhone} for help.`
+          : "Online payments are unavailable right now. Please try again later or contact support."
+      );
+    }
+    const name = (nameLocked ? user?.fullName || fullName : fullName).trim();
+    if (name.length < 2) blockers.push("Enter your full name.");
+    const dobError = dateOfBirthError(dateOfBirth);
+    if (dobError) blockers.push(dobError);
+    if (!normalizePhone(phone)) blockers.push("Enter a valid 10-digit mobile number.");
+    if (!user?.email) blockers.push("Your account needs an email. Sign in again.");
+    if (!termsAccepted) blockers.push("Accept the terms and conditions.");
+    return blockers;
+  }
+
   async function pay() {
     if (!booking || payingRef.current) return;
+    const blockers = readinessBlockers();
+    if (blockers.length) {
+      setError(blockers[0]);
+      return;
+    }
     const name = (nameLocked ? user?.fullName || fullName : fullName).trim().replace(/\s+/g, " ");
-    if (name.length < 2) {
-      setError("Enter your full name.");
-      return;
-    }
-    const dobError = dateOfBirthError(dateOfBirth);
-    if (dobError) {
-      setError(dobError);
-      return;
-    }
     const cleanPhone = normalizePhone(phone);
-    if (!cleanPhone) {
-      setError("Enter a valid 10-digit mobile number.");
-      return;
-    }
-    if (!termsAccepted) {
-      setError("Accept the terms and conditions to pay the token.");
-      return;
-    }
-    if (!user?.email) {
-      setError("Your account has no email. Sign in again and retry.");
-      return;
-    }
     payingRef.current = true;
     setBusy(true);
     setError("");
+    let phase = "start";
     try {
+      // Sync first — if already paid at the gateway, advance without opening checkout.
+      try {
+        const synced = await api("/v1/payments/sync", {
+          method: "POST",
+          body: { bookingId: booking.id },
+        });
+        if (synced?.paid || (synced?.status && !PAYABLE_STATUSES.includes(synced.status))) {
+          const paidBooking = await api(`/v1/bookings/${booking.id}`, { cache: false });
+          navigate(nextAfterToken(paidBooking || booking), { replace: true });
+          return;
+        }
+      } catch {
+        /* continue to normal pay */
+      }
+
       const latest = await api(`/v1/bookings/${booking.id}`, { cache: false });
       setBooking(latest);
       if (latest.status === "CANCELLED" || latest.status === "NO_SHOW") {
@@ -306,31 +406,74 @@ export default function Pay() {
           termsAccepted: true,
         },
       });
-      const due = tokenDuePaise(latest.tokenPaise, latest.amountPaise);
-      if (due <= 0) {
+      const dueNow = tokenDuePaise(latest.tokenPaise, latest.amountPaise);
+      if (dueNow <= 0) {
         navigate(nextAfterToken(latest));
         return;
       }
       const walletPaise =
         useWallet && wallet?.balancePaise > 0
-          ? Math.min(wallet.balancePaise, due)
+          ? Math.min(wallet.balancePaise, dueNow)
           : 0;
+
+      // Wallet covers full token — still allowed when gateway is down.
+      const needsGateway = dueNow - walletPaise > 0;
+      if (needsGateway && !paymentsAvailable) {
+        setError(
+          supportPhone
+            ? `Online payments are unavailable right now. Call ${supportPhone} for help.`
+            : "Online payments are unavailable right now. Please try again later."
+        );
+        return;
+      }
+
       const order = await api("/v1/payments/orders", {
         method: "POST",
         body: { bookingId: latest.id, kind: "TOKEN", walletPaise },
       });
       if (order.mock) setPaymentsMock(true);
-      if (!order.paidInFull) {
-        if (order.mock) {
-          await runDummyPayment(order);
-        } else {
-          await openRazorpay(order, { name, contact: cleanPhone });
-        }
+      if (order.paidInFull) {
+        const paidBooking = await api(`/v1/bookings/${latest.id}`, { cache: false });
+        navigate(nextAfterToken(paidBooking || latest), { replace: true });
+        return;
       }
-      navigate(nextAfterToken(latest));
+
+      // Never open a half-ready checkout.
+      if (!order.orderId || !order.paymentId) {
+        throw new Error(
+          "Payment could not be prepared. Please try again in a moment — nothing was charged."
+        );
+      }
+      if (!order.mock && (!order.keyId || String(order.keyId).startsWith("rzp_mock"))) {
+        throw new Error(
+          "Online payments are unavailable right now. Please try again later — nothing was charged."
+        );
+      }
+
+      phase = "confirm";
+      if (order.mock) {
+        if (paymentsLive && !paymentsMock) {
+          throw new Error(
+            "Live payment is required, but the server returned test mode. Nothing was charged."
+          );
+        }
+        await runDummyPayment(order);
+      } else {
+        await openRazorpay(order, { name, contact: cleanPhone });
+      }
+      const paidBooking = await api(`/v1/bookings/${latest.id}`, { cache: false });
+      navigate(nextAfterToken(paidBooking || latest), { replace: true });
     } catch (err) {
       setDummy(null);
-      if (err.status === 400 && /nothing to pay|no longer waiting/i.test(err.message || "")) {
+      if (
+        err.status === 400 &&
+        /nothing to pay|no longer waiting|temporarily unavailable/i.test(err.message || "")
+      ) {
+        if (/temporarily unavailable/i.test(err.message || "")) {
+          setPaymentsAvailable(false);
+          setError(err.message);
+          return;
+        }
         navigate(nextAfterToken(booking), { replace: true });
         return;
       }
@@ -339,7 +482,23 @@ export default function Pay() {
         setError("Sign in again to pay the token.");
         return;
       }
-      setError(explainPayError(err, paymentsMock));
+      // After a gateway charge, try sync once before showing an error.
+      if (phase === "confirm" && booking?.id) {
+        try {
+          const synced = await api("/v1/payments/sync", {
+            method: "POST",
+            body: { bookingId: booking.id },
+          });
+          if (synced?.paid || (synced?.status && !PAYABLE_STATUSES.includes(synced.status))) {
+            const paidBooking = await api(`/v1/bookings/${booking.id}`, { cache: false });
+            navigate(nextAfterToken(paidBooking || booking), { replace: true });
+            return;
+          }
+        } catch {
+          /* fall through to error */
+        }
+      }
+      setError(explainPayError(err, paymentsMock, phase));
     } finally {
       payingRef.current = false;
       setBusy(false);
@@ -375,7 +534,13 @@ export default function Pay() {
   const dropBranch = booking.dropBranch?.name;
   const cityName = booking.pickupBranch?.city?.name;
   const detailError = isDetailError(error);
-  const payLabel = `${paymentsMock ? "Mock pay" : "Pay"} ${formatInr(payNow)} token`;
+  const blockers = readinessBlockers();
+  const canPay = blockers.length === 0 && !busy;
+  const payLabel = !paymentsAvailable
+    ? "Payments unavailable"
+    : !configReady
+      ? "Checking…"
+      : `${paymentsMock && !paymentsLive ? "Test pay" : "Pay"} ${formatInr(payNow)} token`;
 
   return (
     <div className="checkout-page pay-page">
@@ -563,18 +728,45 @@ export default function Pay() {
                   </label>
                 ) : null}
               </div>
-              {paymentsMock ? (
+              {!paymentsAvailable && configReady ? (
+                <p className="pay-alert" role="status">
+                  <strong>Payments unavailable</strong>
+                  <span>
+                    {supportPhone
+                      ? `Online token payment is offline. Call ${supportPhone}, or try again later. Your booking is still held.`
+                      : "Online token payment is offline right now. Please try again later — your booking is still held."}
+                  </span>
+                </p>
+              ) : null}
+              {paymentsAvailable && paymentsMock && !paymentsLive ? (
                 <p className="pay-mock" role="note">
                   <strong>Test mode.</strong> No money is charged. The token is marked paid and the booking continues.
                 </p>
               ) : null}
+              {paymentsAvailable && blockers.length > 0 ? (
+                <p className="pay-ready" role="status">
+                  <strong>Complete these to pay</strong>
+                  <span>{blockers[0]}</span>
+                </p>
+              ) : null}
               {!detailError && error ? (
                 <p className="pay-alert" id="pay-alert" role="alert">
-                  <strong>Payment didn’t start</strong>
+                  <strong>
+                    {/may have gone through|sync it|confirmation failed/i.test(error)
+                      ? "Payment needs confirmation"
+                      : /unavailable/i.test(error)
+                        ? "Payments unavailable"
+                        : "Payment didn’t finish"}
+                  </strong>
                   <span>{error}</span>
                 </p>
               ) : null}
-              <button type="button" className="checkout-cta checkout-cta--inline" onClick={pay} disabled={busy || !termsAccepted}>
+              <button
+                type="button"
+                className="checkout-cta checkout-cta--inline"
+                onClick={pay}
+                disabled={!canPay}
+              >
                 {busy ? (
                   <span className="checkout-cta-busy">
                     <ClipLoader color="#fff" size={18} />
@@ -601,7 +793,7 @@ export default function Pay() {
           <span>Pay now</span>
           <strong>{formatInr(payNow)}</strong>
         </div>
-        <button type="button" className="checkout-cta" onClick={pay} disabled={busy || !termsAccepted}>
+        <button type="button" className="checkout-cta" onClick={pay} disabled={!canPay}>
           {busy ? "Processing…" : payLabel}
         </button>
       </div>

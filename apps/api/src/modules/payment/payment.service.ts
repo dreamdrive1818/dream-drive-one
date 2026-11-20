@@ -2,7 +2,6 @@ import {
   BadGatewayException,
   BadRequestException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from "@nestjs/common";
 import { createHmac } from "crypto";
@@ -15,6 +14,7 @@ import type { AuthUser } from "../../lib/auth";
 import { bookingScopeWhere } from "../../lib/vehicle-rules";
 import { allocateInvoiceNumber } from "../../lib/invoice-series";
 import { tokenDuePaise } from "../../lib/token";
+import { BookingEngine } from "../booking/booking.service";
 
 /** Dream-Drive operates from Karnataka. */
 const SUPPLIER_STATE = "KA";
@@ -24,8 +24,36 @@ const GST_RATE = 0.18;
 
 @Injectable()
 export class PaymentEngine {
+  constructor(private readonly bookings: BookingEngine) {}
+
   mockMode() {
     return !this.razorpayKey() || process.env.PAYMENTS_MOCK === "true";
+  }
+
+  private isProduction() {
+    return process.env.NODE_ENV === "production";
+  }
+
+  /**
+   * Block checkout before any payment row / Razorpay call when the gateway
+   * cannot complete a real (or allowed mock) charge.
+   */
+  private assertPaymentsAvailable() {
+    if (this.mockMode()) {
+      const allowMock =
+        process.env.ALLOW_MOCK_PAYMENTS === "true" || !this.isProduction();
+      if (!allowMock) {
+        throw new BadRequestException(
+          "Online payments are temporarily unavailable. Please try again later or contact support — nothing was charged."
+        );
+      }
+      return;
+    }
+    if (!this.razorpayKey() || !this.razorpaySecret()) {
+      throw new BadRequestException(
+        "Online payments are temporarily unavailable. Please try again later or contact support — nothing was charged."
+      );
+    }
   }
 
   // ─── Razorpay helpers ───────────────────────────────
@@ -42,6 +70,98 @@ export class PaymentEngine {
     return Buffer.from(`${this.razorpayKey()}:${this.razorpaySecret()}`).toString("base64");
   }
 
+  /** Razorpay receipt max length is 40. */
+  private receiptFor(paymentId: string) {
+    return String(paymentId).slice(0, 40);
+  }
+
+  /**
+   * If Razorpay already captured money for a PENDING order (verify/webhook missed),
+   * mark it SUCCESS so the customer is not charged again.
+   */
+  private async reconcilePendingWithGateway(bookingId: string, kind: PaymentKind) {
+    if (this.mockMode()) return;
+    const pending = await prisma.payment.findMany({
+      where: {
+        bookingId,
+        kind,
+        status: { in: ["CREATED", "PENDING"] },
+        razorpayOrderId: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+    for (const payment of pending) {
+      const orderId = payment.razorpayOrderId;
+      if (!orderId || orderId.startsWith("order_mock_") || orderId.startsWith("wallet_")) continue;
+      const captured = await this.fetchRazorpayCapturedPayment(orderId);
+      if (!captured) continue;
+      await this.markSuccess(
+        payment.id,
+        captured.paymentId,
+        `reconcile:${captured.paymentId}`
+      );
+    }
+  }
+
+  private async fetchRazorpayCapturedPayment(
+    orderId: string
+  ): Promise<{ paymentId: string } | null> {
+    try {
+      const res = await fetch(`https://api.razorpay.com/v1/orders/${orderId}/payments`, {
+        headers: { Authorization: `Basic ${this.razorpayAuth()}` },
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        items?: Array<{ id?: string; status?: string }>;
+      };
+      const hit = (data.items || []).find(
+        (p) => p.id && (p.status === "captured" || p.status === "authorized")
+      );
+      return hit?.id ? { paymentId: hit.id } : null;
+    } catch (err) {
+      console.error("Razorpay order payments lookup failed", orderId, err);
+      return null;
+    }
+  }
+
+  /** Advance booking when token is already fully paid but status lagged. */
+  private async ensureTokenBookingAdvanced(booking: {
+    id: string;
+    status?: string;
+  }) {
+    const current = await prisma.booking.findUnique({ where: { id: booking.id } });
+    if (!current || !["HOLD", "AWAITING_PAYMENT"].includes(current.status)) return;
+    const due = await this.remainingToken(current);
+    if (due > 0) return;
+    await this.bookings.paymentCaptured(current.id);
+  }
+
+  /**
+   * Customer-facing sync: pick up gateway captures + advance booking if token is paid.
+   * Safe to call from the pay page when status still shows Token due after a charge.
+   */
+  async syncBookingPayment(userId: string, bookingId: string) {
+    const booking = await prisma.booking.findFirst({
+      where: { OR: [{ id: bookingId }, { publicId: bookingId }] },
+    });
+    if (!booking) throw new NotFoundException("Booking not found");
+    if (booking.userId !== userId) throw new BadRequestException("Not your booking");
+
+    await this.reconcilePendingWithGateway(booking.id, "TOKEN");
+    await this.ensureTokenBookingAdvanced(booking);
+
+    const refreshed = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } });
+    const tokenDue = await this.remainingToken(refreshed);
+    return {
+      bookingId: refreshed.id,
+      publicId: refreshed.publicId,
+      status: refreshed.status,
+      tokenDuePaise: tokenDue,
+      paid: tokenDue <= 0,
+    };
+  }
+
   // ─── Create order ───────────────────────────────────
 
   async createOrder(
@@ -56,6 +176,27 @@ export class PaymentEngine {
     if (!booking) throw new NotFoundException("Booking not found");
     if (booking.userId !== userId) throw new BadRequestException("Not your booking");
     if (kind === "TOKEN") await this.assertTokenCheckout(booking);
+
+    // Reconcile first so an already-captured token advances without needing the gateway.
+    if (kind === "TOKEN" || kind === "BALANCE") {
+      await this.reconcilePendingWithGateway(booking.id, kind);
+    }
+    if (kind === "TOKEN") {
+      await this.ensureTokenBookingAdvanced(booking);
+      const stillDue = await this.remainingToken(booking);
+      if (stillDue <= 0) {
+        return {
+          paymentId: null,
+          orderId: null,
+          amountPaise: 0,
+          walletPaise: 0,
+          currency: "INR",
+          keyId: this.mockMode() ? "rzp_mock" : this.razorpayKey(),
+          mock: this.mockMode(),
+          paidInFull: true,
+        };
+      }
+    }
 
     const amountPaise =
       kind === "DEPOSIT"
@@ -95,11 +236,9 @@ export class PaymentEngine {
 
     if (due <= 0) {
       if (kind === "TOKEN" || kind === "BALANCE") {
-        await internalFetch(
-          serviceUrls().booking,
-          `/internal/bookings/${booking.id}/payment-captured`,
-          { method: "POST", body: "{}" }
-        ).catch(() => undefined);
+        await this.bookings.paymentCaptured(booking.id).catch((err) => {
+          console.error("paymentCaptured after wallet pay failed", booking.id, err);
+        });
       }
       return {
         paymentId: walletPaymentId,
@@ -115,6 +254,33 @@ export class PaymentEngine {
 
     if (due < 100) {
       throw new BadRequestException("Amount must be at least 100 paise (₹1)");
+    }
+
+    // Gateway required from here — do not create orphan payment rows if checkout cannot run.
+    this.assertPaymentsAvailable();
+
+    // Reuse an open PENDING order for the same amount so a prior Razorpay charge can still verify.
+    const reusable = await prisma.payment.findFirst({
+      where: {
+        bookingId: booking.id,
+        kind,
+        status: "PENDING",
+        amountPaise: due,
+        razorpayOrderId: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (reusable?.razorpayOrderId) {
+      return {
+        paymentId: reusable.id,
+        orderId: reusable.razorpayOrderId,
+        amountPaise: due,
+        walletPaise: appliedWallet,
+        currency: "INR",
+        keyId: this.mockMode() ? "rzp_mock" : this.razorpayKey(),
+        mock: this.mockMode() || reusable.razorpayOrderId.startsWith("order_mock_"),
+        paidInFull: false,
+      };
     }
 
     const payment = await prisma.payment.create({
@@ -145,7 +311,16 @@ export class PaymentEngine {
         Authorization: `Basic ${this.razorpayAuth()}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ amount: due, currency: "INR", receipt: payment.id }),
+      body: JSON.stringify({
+        amount: due,
+        currency: "INR",
+        receipt: this.receiptFor(payment.id),
+        notes: {
+          bookingId: booking.id,
+          publicId: booking.publicId,
+          kind,
+        },
+      }),
     });
     const order = (await res.json()) as {
       id?: string;
@@ -161,8 +336,12 @@ export class PaymentEngine {
       );
     }
     if (!res.ok || !order.id) {
-      throw new InternalServerErrorException(
-        order.error?.description ?? "Razorpay order failed"
+      const detail = order.error?.description || order.error?.code || "Razorpay order failed";
+      console.error(`Razorpay order failed (${res.status}): ${detail}`);
+      throw new BadGatewayException(
+        /internal server error/i.test(detail)
+          ? "The payment gateway had a temporary error. Nothing was charged. Please try again."
+          : detail
       );
     }
     await prisma.payment.update({
@@ -208,6 +387,17 @@ export class PaymentEngine {
     }
 
     if (!body.razorpayOrderId || !body.razorpayPaymentId || !body.razorpaySignature) {
+      // Signature missing (rare) — still accept if Razorpay shows the order as paid.
+      if (payment.razorpayOrderId) {
+        const captured = await this.fetchRazorpayCapturedPayment(payment.razorpayOrderId);
+        if (captured) {
+          return this.markSuccess(
+            payment.id,
+            captured.paymentId,
+            `verify-fetch:${captured.paymentId}`
+          );
+        }
+      }
       throw new BadRequestException(
         "razorpayOrderId, razorpayPaymentId, and razorpaySignature are required"
       );
@@ -218,9 +408,24 @@ export class PaymentEngine {
       .update(`${body.razorpayOrderId}|${body.razorpayPaymentId}`)
       .digest("hex");
     if (expected !== body.razorpaySignature) {
+      const captured = await this.fetchRazorpayCapturedPayment(
+        body.razorpayOrderId || payment.razorpayOrderId || ""
+      );
+      if (captured) {
+        return this.markSuccess(
+          payment.id,
+          captured.paymentId,
+          `verify-fetch:${captured.paymentId}`
+        );
+      }
       throw new BadRequestException("Invalid signature");
     }
-    return this.markSuccess(payment.id, body.razorpayPaymentId, "verify");
+    // Must be unique per payment — a shared "verify" eventId caused 500s after the first success.
+    return this.markSuccess(
+      payment.id,
+      body.razorpayPaymentId,
+      `verify:${body.razorpayPaymentId}`
+    );
   }
 
   // ─── Webhook ────────────────────────────────────────
@@ -658,17 +863,43 @@ export class PaymentEngine {
   private async markSuccess(paymentId: string, razorpayPaymentId: string, eventId: string) {
     const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
     if (!payment) throw new NotFoundException("Payment not found");
-    if (payment.status === "SUCCESS") return payment;
-    await prisma.payment.update({
-      where: { id: paymentId },
-      data: { status: "SUCCESS", razorpayPaymentId, eventId },
-    });
+    if (payment.status === "SUCCESS") {
+      // Status may have been marked paid while booking advance lagged — finish that.
+      void this.afterSuccess(paymentId).catch((err) => {
+        console.error("payment afterSuccess retry failed", paymentId, err);
+      });
+      return payment;
+    }
+    const uniqueEventId = eventId.includes(paymentId)
+      ? eventId
+      : `${eventId}:${paymentId}`;
+    try {
+      await prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: "SUCCESS",
+          razorpayPaymentId,
+          eventId: uniqueEventId,
+        },
+      });
+    } catch (err) {
+      // Race with webhook: another writer may have claimed this eventId or already succeeded.
+      const again = await prisma.payment.findUnique({ where: { id: paymentId } });
+      if (again?.status === "SUCCESS") return again;
+      console.error("markSuccess update failed", paymentId, err);
+      throw new BadGatewayException(
+        "Payment was received but confirmation failed. Tap Pay again — we will sync it."
+      );
+    }
     await prisma.paymentAttempt.create({
-      data: { paymentId, payload: { eventId, razorpayPaymentId } },
+      data: { paymentId, payload: { eventId: uniqueEventId, razorpayPaymentId } },
     });
-    void this.afterSuccess(paymentId).catch((err) => {
+    // Await booking advance so the customer does not stay on Token due after a real charge.
+    try {
+      await this.afterSuccess(paymentId);
+    } catch (err) {
       console.error("payment afterSuccess failed", paymentId, err);
-    });
+    }
     return prisma.payment.findUnique({ where: { id: paymentId } });
   }
 
@@ -745,11 +976,16 @@ export class PaymentEngine {
       });
     }
     if (payment.kind === "TOKEN" || payment.kind === "BALANCE") {
-      await internalFetch(
-        serviceUrls().booking,
-        `/internal/bookings/${payment.bookingId}/payment-captured`,
-        { method: "POST", body: "{}" }
-      ).catch(() => undefined);
+      try {
+        await this.bookings.paymentCaptured(payment.bookingId);
+      } catch (err) {
+        console.error("paymentCaptured via BookingEngine failed, trying HTTP", err);
+        await internalFetch(
+          serviceUrls().booking,
+          `/internal/bookings/${payment.bookingId}/payment-captured`,
+          { method: "POST", body: "{}" }
+        );
+      }
     }
 
     const web = (process.env.WEB_ORIGIN || process.env.WEB_URL || "http://localhost:3000").replace(/\/$/, "");

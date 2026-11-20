@@ -68,7 +68,7 @@ const AppRoute = () => {
   const isCheckoutPage = location.pathname.startsWith("/checkout");
   const isAccountPage = location.pathname.startsWith("/account");
   const showPublicChrome = !isAdminPage && !isAuthPage && !isAccountPage;
-  const { campaignActive } = useLocalContext();
+  const { campaignActive, siteTheme } = useLocalContext();
   const chromeRef = useRef(null);
 
   useEffect(() => {
@@ -93,18 +93,18 @@ const AppRoute = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    document.body.classList.toggle(
-      "winter-sale",
-      showPublicChrome && campaignActive
-    );
+    const seasonalOn = showPublicChrome && campaignActive && siteTheme !== "none";
+    document.body.classList.toggle("winter-sale", seasonalOn && siteTheme === "winter");
+    document.body.classList.toggle("monsoon-sale", seasonalOn && siteTheme === "monsoon");
     document.body.classList.toggle("auth-shell", isAuthPage);
     document.body.classList.toggle("account-route", isAccountPage);
     return () => {
       document.body.classList.remove("winter-sale");
+      document.body.classList.remove("monsoon-sale");
       document.body.classList.remove("auth-shell");
       document.body.classList.remove("account-route");
     };
-  }, [showPublicChrome, isAuthPage, isAccountPage, campaignActive]);
+  }, [showPublicChrome, isAuthPage, isAccountPage, campaignActive, siteTheme]);
 
   useEffect(() => {
     const el = chromeRef.current;
